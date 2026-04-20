@@ -1,0 +1,48 @@
+{
+  "name": "zerocancer-backend",
+  "version": "1.0.0",
+  "main": "src/server.ts",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm prisma:generate",
+    "dev": "wrangler dev",
+    "dev:node": "tsx src/server-node.ts",
+    "deploy": "wrangler deploy",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:reset": "prisma migrate reset --force --skip-seed --skip-generate && pnpm db:push && pnpm db:seed",
+    "db:push": "prisma db push --accept-data-loss",
+    "db:seed": "prisma db seed",
+    "prisma:studio": "prisma studio",
+    "env": "dotenv -e .dev.vars",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+  },
+  "prisma": {
+    "seed": "tsx src/lib/seed.ts"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^9.8.0",
+    "@hono/node-server": "^1.19.13",
+    "@hono/zod-validator": "^0.7.0",
+    "@neondatabase/serverless": "^1.0.1",
+    "@prisma/adapter-neon": "^5.22.0",
+    "@prisma/adapter-pg": "^6.12.0",
+    "@prisma/client": "^5.0.0",
+    "@zerocancer/shared": "workspace:*",
+    "bcryptjs": "^3.0.2",
+    "cloudinary": "^2.7.0",
+    "dotenv": "^17.4.1",
+    "hono": "^4.0.0",
+    "worker-mailer": "1.1.4",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.3",
+    "prisma": "^5.0.0",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "wrangler": "^4.4.0"
+  }
+}

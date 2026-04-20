@@ -1,0 +1,671 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Enums replaced with String for SQLite compatibility
+// ProfileType: PATIENT, DONOR
+// AllocationStatus: PENDING, MATCHED, CLAIMED, EXPIRED
+// StaffStatus: ACTIVE, SUSPENDED
+// CampaignStatus: ACTIVE, COMPLETED, DELETED, PENDING, SUSPENDED
+// AppointmentStatus: PENDING, SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
+// TransactionType: DONATION, APPOINTMENT, PAYOUT, REFUND
+// Gender: MALE, FEMALE
+// ServiceCenterStatus: ACTIVE, INACTIVE, SUSPENDED
+// TransactionStatus: PENDING, COMPLETED, FAILED
+// PayoutStatus: PENDING, PROCESSING, SUCCESS, FAILED, CANCELLED, RETRY_PENDING
+// PayoutType: MANUAL, AUTOMATED, RETRY
+// MatchingExecutionStatus: RUNNING, COMPLETED, FAILED, PARTIALLY_COMPLETED
+// LogLevel: INFO, WARNING, ERROR
+
+model User {
+  id             String   @id @default(uuid())
+  fullName           String
+  email          String   @unique
+  phone          String?
+  passwordHash   String
+  createdAt      DateTime @default(now())
+  passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+
+  patientProfile PatientProfile?
+  donorProfile   DonorProfile?
+
+  waitlists      Waitlist[]        @relation("UserWaitlists")
+  donationCampaigns DonationCampaign[] @relation("UserDonationCampaigns")
+  donationAllocations DonationAllocation[] @relation("UserDonationAllocations")
+  appointments   Appointment[]     @relation("UserAppointments")
+  notifications    NotificationRecipient[]
+  targetedCampaigns DonationCampaign[] @relation("TargetedIndividual")
+}
+
+model PatientProfile {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  gender     String?
+  dateOfBirth DateTime
+  city       String?
+  state      String?
+  emailVerified  DateTime?
+
+  associationId String?
+  groupId       String?
+  association   Association? @relation("PatientAssociation", fields: [associationId], references: [id])
+  group         Group?       @relation("PatientGroup", fields: [groupId], references: [id])
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DonorProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  organizationName  String?
+  country           String?
+  emailVerified  DateTime?
+
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Admins {
+  id           String   @id @default(uuid())
+  fullName     String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  
+  resetTokens  AdminResetToken[]
+  blogPosts    BlogPost[] @relation("BlogPostAuthor")
+}
+
+model AdminResetToken {
+  id        String   @id @default(uuid())
+  adminId   String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  admin     Admins   @relation(fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+model ServiceCenter {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  createdAt     DateTime @default(now())
+  phone         String?
+  centerName    String
+  address       String
+  state         String
+  lga           String
+  bankAccount   String?
+  bankName      String?
+  bankCode      String?
+  accountName   String?
+  status        String @default("INACTIVE")
+
+  staff         CenterStaff[]
+  appointments  Appointment[]
+
+  services      ScreeningType[]
+  
+  invitations   CenterStaffInvite[]
+  paystackRecipient PaystackRecipient?
+  payouts       Payout[]
+  screeningTypes ServiceCenterScreeningType[] @relation("ServiceCenterToScreeningTypes")
+  kits          Kit[]
+}
+
+model ServiceCenterScreeningType {
+  id            String   @id @default(uuid())
+  centerId      String
+  screeningTypeId String
+  amount        Float    @default(10000.0)
+
+
+  center        ServiceCenter @relation("ServiceCenterToScreeningTypes", fields: [centerId], references: [id], onDelete: Restrict)
+  screeningType ScreeningType @relation("ScreeningTypeToServiceCenters", fields: [screeningTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([centerId, screeningTypeId])
+}
+
+model ScreeningType {
+  id                      String   @id @default(uuid())
+  name                    String   @unique
+  description             String?
+  screeningTypeCategoryId String
+  active                  Boolean  @default(true)
+  agreedPrice            Float    @default(10000.0)
+
+  category                ScreeningTypeCategory @relation(fields: [screeningTypeCategoryId], references: [id], onDelete: Restrict)
+  appointments            Appointment[]
+  waitlists               Waitlist[]
+  campaigns               DonationCampaign[] @relation("DonationCampaignScreeningTypes")
+  centers                 ServiceCenter[] 
+  serviceCenters         ServiceCenterScreeningType[] @relation("ScreeningTypeToServiceCenters")
+  matchingResults        MatchingScreeningTypeResult[]
+  kits                   Kit[]
+}
+
+model ScreeningTypeCategory {
+  id          String @id @default(uuid())
+  name        String
+  description String?
+
+  types       ScreeningType[]
+}
+
+model Waitlist {
+  id              String           @id @default(uuid())
+  screeningTypeId String
+  patientId       String
+  status          String
+  joinedAt        DateTime         @default(now())
+  claimedAt       DateTime?
+  expiredAt       DateTime?
+
+  screening       ScreeningType    @relation(fields: [screeningTypeId], references: [id], onDelete: Restrict)
+  patient         User             @relation("UserWaitlists", fields: [patientId], references: [id], onDelete: Cascade)
+  allocation      DonationAllocation?
+  
+  @@index([status, screeningTypeId, joinedAt])
+  @@index([patientId, status])
+}
+
+model DonationCampaign {
+  id              String           @id @default(uuid())
+  donorId         String
+  totalAmount   Float 
+  availableAmount Float 
+  title           String
+  purpose         String?
+  targetGender    String? 
+  targetAgeRange  String?
+  targetStates     String @default("[]") // SQLite doesn't support String[]
+  targetLgas       String @default("[]") // SQLite doesn't support String[]
+  status          String
+  expiryDate      DateTime? 
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  targetAssociationId String?
+  targetGroupId       String?
+  targetIndividualId   String?
+  targetPhone         String?
+  
+  association         Association? @relation(fields: [targetAssociationId], references: [id])
+  group               Group?       @relation(fields: [targetGroupId], references: [id])
+  targetIndividual    User?        @relation("TargetedIndividual", fields: [targetIndividualId], references: [id])
+
+  donor           User             @relation("UserDonationCampaigns", fields: [donorId], references: [id], onDelete: Cascade)
+  allocations     DonationAllocation[]
+  transactions    Transaction[]    @relation("DonationTransactions")
+  screeningTypes  ScreeningType[]  @relation("DonationCampaignScreeningTypes")
+  
+  @@index([status, availableAmount])
+  @@index([status, createdAt])
+}
+
+model DonationAllocation {
+  id            String      @id @default(uuid())
+  waitlistId    String      @unique
+  appointmentId String?
+  patientId     String
+  campaignId    String
+  claimedAt     DateTime?
+  
+  matchingExecutionId   String?
+  amountAllocated       Float?   
+  createdViaMatching    Boolean  @default(false)
+
+  waitlist      Waitlist    @relation(fields: [waitlistId], references: [id], onDelete: Cascade)
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  patient       User        @relation("UserDonationAllocations", fields: [patientId], references: [id], onDelete: Cascade)
+  campaign      DonationCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  matchingExecution MatchingExecution? @relation("MatchingExecutionAllocations", fields: [matchingExecutionId], references: [id])
+}
+
+model Appointment {
+  id                      String   @id @default(uuid())
+  patientId               String
+  centerId                String
+  screeningTypeId         String
+  donationId              String?
+  isDonation              Boolean  @default(false)
+  appointmentDateTime     DateTime
+  transactionId           String? 
+  status                  String
+  createdAt               DateTime @default(now())
+  cancellationReason   String?
+  cancellationDate     DateTime?
+  checkInCode             String?   @unique
+  checkInCodeExpiresAt    DateTime?
+  kitId                   String?   @unique
+
+  patient                 User     @relation("UserAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  center                  ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Restrict)
+  screeningType           ScreeningType @relation(fields: [screeningTypeId], references: [id], onDelete: Restrict)
+  transaction             Transaction?  @relation("TransactionAppointments", fields: [transactionId], references: [id], onDelete: SetNull)
+  verification            AppointmentVerification? @relation("AppointmentVerificationAppointment")
+  result                  ScreeningResult? @relation("ScreeningResultAppointment")
+  allocation              DonationAllocation[]
+  kit                     Kit?           @relation(fields: [kitId], references: [id])
+}
+
+model AppointmentVerification {
+  id           String   @id @default(uuid())
+  appointmentId  String  @unique
+  verifiedBy     String?
+  verifiedAt     DateTime
+
+  appointment Appointment @relation("AppointmentVerificationAppointment", fields: [appointmentId], references: [id], onDelete: Cascade)
+  verifier CenterStaff? @relation("StaffVerifications", fields: [verifiedBy], references: [id], onDelete: SetNull)
+}
+
+model ScreeningResult {
+  id            String   @id @default(uuid())
+  appointmentId String   @unique
+  notes         String?
+  uploadedBy    String?
+  uploadedAt    DateTime @default(now())
+
+  appointment Appointment @relation("ScreeningResultAppointment", fields: [appointmentId], references: [id], onDelete: Cascade)
+  uploader    CenterStaff? @relation("StaffUploadedResults", fields: [uploadedBy], references: [id], onDelete: SetNull)
+  files       ScreeningResultFile[]
+}
+
+model ScreeningResultFile {
+  id            String   @id @default(uuid())
+  resultId      String
+  fileName      String
+  filePath      String
+  fileType      String
+  fileSize      Int
+  cloudinaryUrl String
+  cloudinaryId  String
+  uploadedAt    DateTime @default(now())
+  
+  isDeleted     Boolean  @default(false)
+  deletedAt     DateTime?
+  deletedBy     String?
+  deletionReason String? 
+  
+  result        ScreeningResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  deletedByStaff CenterStaff? @relation("StaffDeletedFiles", fields: [deletedBy], references: [id], onDelete: SetNull)
+  
+  @@index([isDeleted, resultId]) 
+}
+
+model StoreProduct {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  price       Float
+  stock       Int
+  createdAt   DateTime @default(now())
+}
+
+model Receipt {
+  id                  String   @id @default(uuid())
+  transactionId       String   @unique
+  receiptNumber       String   @unique 
+  receiptData         String     // SQLite doesn't support Json well in all versions, using String for compatibility
+  pdfPath             String?  
+  emailSentAt         DateTime? 
+  emailRecipient      String?  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  transaction         Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  
+  @@index([receiptNumber])
+  @@index([transactionId])
+}
+
+model Transaction {
+  id                  String   @id @default(uuid())
+  type                String
+  status              String 
+  amount              Float
+  relatedDonationId   String?
+  paymentReference    String?
+  paymentChannel      String?
+  createdAt           DateTime @default(now())
+
+  donation            DonationCampaign? @relation("DonationTransactions", fields: [relatedDonationId], references: [id], onDelete: SetNull)
+  appointments Appointment[] @relation("TransactionAppointments")
+  receipt             Receipt?
+  payoutItem          PayoutItem?
+}
+
+model PaystackRecipient {
+  id                    String    @id @default(uuid())
+  centerId              String    @unique
+  center                ServiceCenter @relation(fields: [centerId], references: [id])
+  
+  recipientCode         String    @unique
+  reference             String    @unique
+  
+  bankName              String
+  bankCode              String
+  accountNumber         String
+  accountName           String
+  
+  isActive              Boolean   @default(true)
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  payouts               Payout[]
+  
+  @@map("paystack_recipients")
+}
+
+model Payout {
+  id                    String        @id @default(uuid())
+  batchReference        String        
+  payoutNumber          String        @unique
+  
+  centerId              String
+  center                ServiceCenter @relation(fields: [centerId], references: [id])
+  recipientId           String?
+  recipient             PaystackRecipient? @relation(fields: [recipientId], references: [id])
+  
+  amount                Float
+  currency              String        @default("NGN")
+  paystackFee           Float         @default(10.00) 
+  netAmount             Float         
+  
+  transferReference     String?       @unique
+  paystackTransferId    String?       @unique
+  
+  status                String  @default("PENDING")
+  type                  String    @default("MANUAL")
+  
+  initiatedBy           String?       
+  processedAt           DateTime?
+  completedAt           DateTime?
+  
+  failureReason         String?
+  retryCount            Int           @default(0)
+  maxRetries            Int           @default(3)
+  
+  periodStart           DateTime
+  periodEnd             DateTime
+  
+  reason                String
+  internalNotes         String?
+  
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  
+  payoutItems           PayoutItem[]
+  
+  @@map("payouts")
+}
+
+model PayoutItem {
+  id                    String        @id @default(uuid())
+  payoutId              String
+  payout                Payout        @relation(fields: [payoutId], references: [id])
+  
+  transactionId         String        @unique
+  transaction           Transaction   @relation(fields: [transactionId], references: [id])
+  
+  amount                Float
+  description           String
+  serviceDate           DateTime
+  appointmentId         String?
+  
+  @@map("payout_items")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  profileType String
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String
+  title     String
+  message   String
+  data      String?
+  createdAt DateTime @default(now())
+  recipients NotificationRecipient[]
+}
+
+model NotificationRecipient {
+  id             String   @id @default(uuid())
+  notificationId String
+  userId         String
+  read           Boolean  @default(false)
+  readAt         DateTime?
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CenterStaff {
+  id        String   @id @default(uuid())
+  centerId  String
+  email     String  
+  passwordHash String
+  role      String?
+  status    String? @default("ACTIVE")
+  createdAt DateTime @default(now())
+
+  center    ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  verifications AppointmentVerification[] @relation("StaffVerifications")
+  uploadedResults ScreeningResult[] @relation("StaffUploadedResults")
+  deletedResultFiles ScreeningResultFile[] @relation("StaffDeletedFiles")
+  resetTokens CenterStaffResetToken[]
+
+  @@unique([centerId, email])
+}
+
+model CenterStaffInvite {
+  id        String   @id @default(uuid())
+  centerId  String
+  email     String
+  token     String   @unique
+  expiresAt DateTime?
+  acceptedAt DateTime?
+
+  center    ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
+}
+
+model CenterStaffResetToken {
+  id        String   @id @default(uuid())
+  staffId   String
+  token     String   @unique
+  expiresAt DateTime
+
+  staff     CenterStaff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
+
+model MatchingExecution {
+  id                    String   @id @default(uuid())
+  executionReference    String   @unique 
+  startedAt             DateTime @default(now())
+  completedAt           DateTime?
+  status                String @default("RUNNING")
+  
+  screeningTypesProcessed Int      @default(0)
+  patientsEvaluated      Int      @default(0)
+  successfulMatches      Int      @default(0)
+  skippedDueToLimits     Int      @default(0)
+  skippedDueToNoFunding  Int      @default(0)
+  skippedDueToExistingMatch Int   @default(0)
+  
+  totalFundsAllocated    Float    @default(0)
+  generalPoolFundsUsed   Float    @default(0)
+  campaignsUsedCount     Int      @default(0)
+  
+  processingTimeMs       Int?
+  dbQueriesCount         Int      @default(0)
+  notificationsSent      Int      @default(0)
+  
+  errors                 String?    
+  warnings               String?    
+  
+  batchConfig            String?    
+  
+  executionLogs          MatchingExecutionLog[]
+  screeningTypeResults   MatchingScreeningTypeResult[]
+  allocations            DonationAllocation[] @relation("MatchingExecutionAllocations")
+  
+  @@map("matching_executions")
+}
+
+model MatchingExecutionLog {
+  id                String   @id @default(uuid())
+  executionId       String
+  timestamp         DateTime @default(now())
+  level             String
+  message           String
+  context           String?    
+  
+  patientId         String?
+  campaignId        String?
+  waitlistId        String?
+  screeningTypeId   String?
+  allocationId      String?
+  
+  execution         MatchingExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  
+  @@index([executionId, timestamp])
+  @@map("matching_execution_logs")
+}
+
+model MatchingScreeningTypeResult {
+  id                    String   @id @default(uuid())
+  executionId           String
+  screeningTypeId       String
+  screeningTypeName     String
+  
+  patientsFound         Int
+  patientsProcessed     Int
+  matchesCreated        Int
+  skippedDueToLimits    Int
+  skippedDueToNoFunding Int
+  skippedDueToExisting  Int
+  
+  fundsAllocated        Float    @default(0)
+  campaignsUsed         String     
+  generalPoolUsed       Boolean  @default(false)
+  generalPoolAmount     Float    @default(0)
+  
+  targetingMatches      Int      @default(0)
+  targetingMismatches   Int      @default(0)
+  
+  processingStarted     DateTime @default(now())
+  processingCompleted   DateTime?
+  processingTimeMs      Int?
+  
+  execution             MatchingExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  screeningType         ScreeningType @relation(fields: [screeningTypeId], references: [id])
+  
+  @@unique([executionId, screeningTypeId])
+  @@map("matching_screening_type_results")
+}
+
+model Association {
+  id          String             @id @default(uuid())
+  name        String             @unique
+  description String?
+  createdAt   DateTime           @default(now())
+  campaigns   DonationCampaign[]
+  patients    PatientProfile[]   @relation("PatientAssociation")
+}
+
+model Group {
+  id          String             @id @default(uuid())
+  name        String             @unique
+  description String?
+  createdAt   DateTime           @default(now())
+  campaigns   DonationCampaign[]
+  patients    PatientProfile[]   @relation("PatientGroup")
+}
+
+model Kit {
+  id              String         @id @default(uuid())
+  serialNumber    String         @unique
+  batchNumber     String?
+  screeningTypeId String
+  centerId        String
+  status          String         @default("AVAILABLE") // AVAILABLE, USED, DAMAGED
+  receivedAt      DateTime       @default(now())
+  usedAt          DateTime?
+  
+  screeningType   ScreeningType  @relation(fields: [screeningTypeId], references: [id])
+  center          ServiceCenter  @relation(fields: [centerId], references: [id])
+  appointment     Appointment?
+}
+
+// ============================================
+// BLOG MODELS
+// ============================================
+// Note: These models are designed to work with both SQLite (current)
+// and PostgreSQL (future Supabase migration)
+// ============================================
+
+model BlogPost {
+  id            String    @id @default(uuid())
+  title         String
+  slug          String    @unique
+  excerpt       String
+  content       String    // Markdown content
+  coverImage    String?   // Cloudinary URL
+  authorId      String
+  published     Boolean   @default(false)
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  author        Admins    @relation("BlogPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  categories    BlogPostCategory[]
+  
+  @@index([published, publishedAt])
+  @@index([slug])
+  @@map("blog_posts")
+}
+
+model BlogCategory {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  
+  posts       BlogPostCategory[]
+  
+  @@map("blog_categories")
+}
+
+model BlogPostCategory {
+  id         String   @id @default(uuid())
+  postId     String
+  categoryId String
+  
+  post       BlogPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category   BlogCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  @@unique([postId, categoryId])
+  @@map("blog_post_categories")
+}

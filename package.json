@@ -1,0 +1,26 @@
+{
+  "name": "hono-react-monorepo",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "typescript": "^5.8.3"
+  },
+  "scripts": {
+    "build": "pnpm --filter @zerocancer/shared build && pnpm --filter ./apps/backend build && pnpm --filter ./apps/frontend build",
+    "build:copy-frontend": "node scripts/copy-frontend.js",
+    "dev": "pnpm --filter ./apps/backend prisma:generate && pnpm --filter @zerocancer/shared build && concurrently -c green,blue \"pnpm backend:dev\" \"pnpm --filter ./apps/frontend dev\"",
+    "backend:dev": "pnpm --filter @zerocancer/shared build && pnpm --filter ./apps/backend dev",
+    "frontend:dev": "pnpm --filter ./apps/frontend dev",
+    "prisma:generate": "pnpm --filter ./apps/backend prisma:generate",
+    "build-backend": "pnpm --filter @zerocancer/shared build && pnpm --filter ./apps/backend prisma:generate && pnpm --filter ./apps/backend build",
+    "build:production": "pnpm build && pnpm build:copy-frontend",
+    "start:production": "cd apps/backend && pnpm dlx wrangler deploy",
+    "test:production": "pnpm build:production && cd apps/backend && pnpm dlx wrangler dev"
+  }
+}

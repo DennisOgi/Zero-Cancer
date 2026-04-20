@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "dist",
+    "rootDir": ".",
+    "lib": ["ES2020", "DOM"]
+  },
+  "include": ["index.ts", "schemas/**/*.ts", "types/**/*.ts", "utils.ts"],
+  "references": []
+}
