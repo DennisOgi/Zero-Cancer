@@ -46,8 +46,8 @@ ZeroCancer is a comprehensive platform that connects cancer screening donations 
 ### 1. Clone and Install
 
 ```bash
-git clone <repo-url>
-cd zerocancer
+git clone https://github.com/DennisOgi/Zero-Cancer.git
+cd Zero-Cancer
 pnpm install
 ```
 
@@ -112,6 +112,31 @@ pnpm dev
 
 - **Frontend**: http://localhost:5173
 - **Backend**: http://localhost:3000
+
+## 🌐 Deployment Options
+
+### Option 1: Vercel (Recommended)
+
+The easiest way to deploy ZeroCancer is using Vercel:
+
+1. **Fork/Clone** this repository to your GitHub account
+2. **Connect to Vercel**: Go to [vercel.com](https://vercel.com) and import your repository
+3. **Configure Environment Variables**: Add the required environment variables in Vercel dashboard
+4. **Deploy**: Vercel will automatically build and deploy your application
+
+📖 **Detailed Vercel deployment guide**: [`VERCEL_DEPLOYMENT.md`](./VERCEL_DEPLOYMENT.md)
+
+### Option 2: Cloudflare Workers (Original)
+
+For Cloudflare Workers deployment:
+
+```bash
+# Build for production
+pnpm build:production
+
+# Deploy to Cloudflare
+pnpm start:production
+```
 
 ## 🔧 Production Deployment
 
