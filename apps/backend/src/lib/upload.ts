@@ -1,11 +1,29 @@
 import { v2 as cloudinary } from "cloudinary";
 import { UploadApiResponse } from "cloudinary";
 
+// Configure Cloudinary with environment variables (works in both Cloudflare Workers and Vercel)
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
   api_key: process.env.CLOUDINARY_API_KEY!,
   api_secret: process.env.CLOUDINARY_API_SECRET!,
 });
+
+// Validate Cloudinary configuration
+function validateCloudinaryConfig() {
+  const requiredVars = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'];
+  const missing = requiredVars.filter(varName => !process.env[varName]);
+  
+  if (missing.length > 0) {
+    console.warn(`⚠️ Missing Cloudinary environment variables: ${missing.join(', ')}`);
+    console.warn('File uploads will fail without proper Cloudinary configuration');
+    return false;
+  }
+  
+  return true;
+}
+
+// Check configuration on module load
+const isConfigured = validateCloudinaryConfig();
 
 /**
  * Upload a single file to a specific folder in Cloudinary
@@ -15,6 +33,10 @@ export async function uploadSingleToCloudinary(
   folder: string,
   publicId?: string
 ): Promise<UploadApiResponse> {
+  if (!isConfigured) {
+    throw new Error('Cloudinary is not properly configured. Check environment variables.');
+  }
+  
   try {
     const uploadResult = await cloudinary.uploader.upload(filePath, {
       folder,

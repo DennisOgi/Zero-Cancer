@@ -1,8 +1,7 @@
 import { sendPlainEmailSchema } from "@zerocancer/shared";
 import { z } from "zod";
 
-// Mock email service for Node.js development
-// In production with Cloudflare Workers, use worker-mailer
+// Email service that works in both Cloudflare Workers and Node.js (Vercel)
 let WorkerMailer: any;
 
 try {
@@ -10,20 +9,53 @@ try {
   const workerMailerModule = await import("worker-mailer");
   WorkerMailer = workerMailerModule.WorkerMailer;
 } catch (error) {
-  // Fallback for Node.js environment
-  console.log("📧 Running in Node.js mode - email sending will be mocked");
-  WorkerMailer = {
-    connect: async () => ({
-      send: async (options: any) => {
-        console.log("📧 [MOCK EMAIL]", {
-          to: options.to,
-          subject: options.subject,
-          from: options.from,
+  // Fallback for Node.js environment (Vercel)
+  console.log("📧 Running in Node.js mode - using nodemailer fallback");
+  
+  // Dynamic import of nodemailer for Node.js environments
+  try {
+    const nodemailer = await import("nodemailer");
+    WorkerMailer = {
+      connect: async (config: any) => {
+        const transporter = nodemailer.default.createTransporter({
+          host: config.host,
+          port: config.port,
+          secure: config.secure || false,
+          auth: {
+            user: config.credentials.username,
+            pass: config.credentials.password,
+          },
         });
-        return { success: true, messageId: "mock-" + Date.now() };
+        
+        return {
+          send: async (options: any) => {
+            try {
+              const result = await transporter.sendMail(options);
+              return { success: true, messageId: result.messageId };
+            } catch (error) {
+              console.error("Email send error:", error);
+              return { success: false, error };
+            }
+          },
+        };
       },
-    }),
-  };
+    };
+  } catch (nodemailerError) {
+    // Final fallback - mock email service
+    console.log("📧 Nodemailer not available - using mock email service");
+    WorkerMailer = {
+      connect: async () => ({
+        send: async (options: any) => {
+          console.log("📧 [MOCK EMAIL]", {
+            to: options.to,
+            subject: options.subject,
+            from: options.from,
+          });
+          return { success: true, messageId: "mock-" + Date.now() };
+        },
+      }),
+    };
+  }
 }
 
 export async function sendEmail(
@@ -33,19 +65,21 @@ export async function sendEmail(
   // Convert array to comma-separated string if needed
   const toAddress = Array.isArray(to) ? to.join(", ") : to;
 
-  const transporter = await WorkerMailer.connect({
+  // Get environment variables from either Hono context or process.env (for Vercel)
+  const smtpConfig = {
+    host: c.env?.SMTP_HOST || process.env.SMTP_HOST,
+    port: Number(c.env?.SMTP_PORT || process.env.SMTP_PORT || 587),
+    secure: (c.env?.SMTP_SECURE || process.env.SMTP_SECURE) === "true",
     credentials: {
-      username: c.env.SMTP_USER,
-      password: c.env.SMTP_PASS,
+      username: c.env?.SMTP_USER || process.env.SMTP_USER,
+      password: c.env?.SMTP_PASS || process.env.SMTP_PASS,
     },
-    authType: "plain",
-    host: c.env.SMTP_HOST,
-    port: Number(c.env.SMTP_PORT),
-    secure: c.env.SMTP_SECURE === "true",
-  });
+  };
+
+  const transporter = await WorkerMailer.connect(smtpConfig);
 
   return transporter.send({
-    from: c.env.SMTP_USER,
+    from: smtpConfig.credentials.username,
     to: toAddress!,
     subject: subject!,
     html,
