@@ -35,5 +35,6 @@
     "NODE_ENV": "production"
   },
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm --filter @zerocancer/shared build && pnpm --filter ./apps/backend prisma:generate && pnpm --filter ./apps/frontend build"
+  "buildCommand": "cd packages/shared && pnpm build && cd ../../apps/backend && pnpm prisma:generate && cd ../frontend && pnpm build",
+  "outputDirectory": "apps/frontend/dist"
 }
