@@ -6,7 +6,9 @@ This guide will help you deploy the ZeroCancer application to Vercel.
 
 1. **Vercel Account**: Sign up at [vercel.com](https://vercel.com)
 2. **GitHub Repository**: The code should be in a GitHub repository
-3. **Database**: Set up a PostgreSQL database (recommended: Neon, Supabase, or PlanetScale)
+3. **PostgreSQL Database**: **REQUIRED** - Set up a PostgreSQL database (recommended: Neon, Supabase, or PlanetScale)
+   - ⚠️ **Important**: SQLite doesn't work on Vercel serverless functions
+   - 📖 **Migration Guide**: See [`DATABASE_MIGRATION_GUIDE.md`](./DATABASE_MIGRATION_GUIDE.md) if migrating from SQLite
 
 ## Deployment Steps
 

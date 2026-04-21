@@ -7,20 +7,25 @@ declare global {
 
 export const getDB = (c: { env?: { DATABASE_URL?: string } }) => {
   // In Node.js environment, use process.env
-  const databaseUrl = c.env?.DATABASE_URL || process.env.DATABASE_URL || "file:./prisma/dev.db";
+  const databaseUrl = c.env?.DATABASE_URL || process.env.DATABASE_URL;
   
-  // If it's a local SQLite database, we don't need the Neon adapter
-  if (databaseUrl.startsWith("file:")) {
-    // Use singleton pattern for Node.js to avoid too many connections
-    if (!global.prisma) {
-      global.prisma = new PrismaClient();
-    }
-    return global.prisma;
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL environment variable is required");
   }
-
-  // Fallback for production (PostgreSQL/Neon) - Using dynamic imports for edge compatibility
-  // Note: Standard PrismaClient works for most local cases.
-  return new PrismaClient();
+  
+  // Use singleton pattern for Node.js to avoid too many connections
+  // This is especially important for serverless environments like Vercel
+  if (!global.prisma) {
+    global.prisma = new PrismaClient({
+      datasources: {
+        db: {
+          url: databaseUrl,
+        },
+      },
+    });
+  }
+  
+  return global.prisma;
 };
 
 export type TDB = PrismaClient;
