@@ -9,6 +9,7 @@
     "setup:production": "node scripts/setup-production.js",
     "cleanup:production": "echo 'Run this SQL script on your production database: scripts/production-cleanup.sql'",
     "verify:security": "node scripts/setup-production.js --security-check-only",
-    "verify:demo": "node scripts/verify-demo.js"
+    "verify:demo": "node scripts/verify-demo.js",
+    "demo:local": "node scripts/start-demo.js"
   }
 }
