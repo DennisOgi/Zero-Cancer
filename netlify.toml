@@ -5,7 +5,6 @@
 
 [build.environment]
   NODE_VERSION = "20"
-  NPM_CONFIG_IGNORE_SCRIPTS = "true"
 
 [[redirects]]
   from = "/api/*"
