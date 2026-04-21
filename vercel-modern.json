@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "functions": {
+    "apps/backend/api/index.ts": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/v1/(.*)",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index"
+    }
+  ],
+  "buildCommand": "pnpm vercel-build",
+  "installCommand": "pnpm install",
+  "outputDirectory": "apps/frontend/dist"
+}
