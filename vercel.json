@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "name": "zerocancer-app",
+  "name": "zerocancer-v2",
   "builds": [
     {
       "src": "apps/frontend/package.json",
