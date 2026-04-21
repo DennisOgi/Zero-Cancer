@@ -1,33 +1,14 @@
 {
-  "name": "hono-react-monorepo",
+  "name": "zerocancer-frontend",
   "private": true,
   "type": "module",
   "version": "1.0.0",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "devDependencies": {
-    "concurrently": "^9.2.0",
-    "typescript": "^5.8.3"
-  },
   "scripts": {
-    "build": "pnpm --filter @zerocancer/shared build && pnpm --filter ./apps/backend build && pnpm --filter ./apps/frontend build",
-    "build:copy-frontend": "node scripts/copy-frontend.js",
-    "dev": "pnpm --filter ./apps/backend prisma:generate && pnpm --filter @zerocancer/shared build && concurrently -c green,blue \"pnpm backend:dev\" \"pnpm --filter ./apps/frontend dev\"",
-    "backend:dev": "pnpm --filter @zerocancer/shared build && pnpm --filter ./apps/backend dev",
-    "frontend:dev": "pnpm --filter ./apps/frontend dev",
-    "prisma:generate": "pnpm --filter ./apps/backend prisma:generate",
-    "build-backend": "pnpm --filter @zerocancer/shared build && pnpm --filter ./apps/backend prisma:generate && pnpm --filter ./apps/backend build",
-    "build:production": "pnpm build && pnpm build:copy-frontend",
-    "start:production": "cd apps/backend && pnpm dlx wrangler deploy",
-    "test:production": "pnpm build:production && cd apps/backend && pnpm dlx wrangler dev",
-    "vercel-build": "pnpm --filter @zerocancer/shared build && pnpm --filter ./apps/backend prisma:generate && pnpm --filter ./apps/frontend build",
-    "build:shared": "cd packages/shared && pnpm build",
-    "build:backend": "cd apps/backend && pnpm prisma:generate",
-    "build:frontend": "cd apps/frontend && NODE_OPTIONS='--max-old-space-size=8192' pnpm build",
-    "build:shared:fast": "cd packages/shared && tsc --noEmit false --skipLibCheck",
-    "build:backend:fast": "cd apps/backend && prisma generate",
-    "build:frontend:fast": "cd apps/frontend && NODE_OPTIONS='--max-old-space-size=8192' SKIP_TYPE_CHECK=true vite build"
+    "build": "cd apps/frontend && npm install && npm run build",
+    "dev": "cd apps/frontend && npm run dev",
+    "start": "cd apps/frontend && npm run preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
   }
 }

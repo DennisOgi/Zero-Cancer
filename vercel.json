@@ -1,43 +1,8 @@
 {
   "version": 2,
-  "name": "zerocancer-2025-jan",
-  "builds": [
-    {
-      "src": "apps/frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    },
-    {
-      "src": "apps/backend/api/index.ts",
-      "use": "@vercel/node",
-      "config": {
-        "maxLambdaSize": "50mb"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/v1/(.*)",
-      "dest": "apps/backend/api/index.ts"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "apps/backend/api/index.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "apps/frontend/dist/$1"
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production",
-    "NODE_OPTIONS": "--max-old-space-size=8192",
-    "GENERATE_SOURCEMAP": "false",
-    "SKIP_TYPE_CHECK": "true"
-  },
-  "installCommand": "pnpm install --frozen-lockfile --prefer-offline",
-  "buildCommand": "pnpm run build:shared:fast && pnpm run build:backend:fast && pnpm run build:frontend:fast",
-  "outputDirectory": "apps/frontend/dist"
+  "name": "zerocancer-frontend-only",
+  "buildCommand": "cd apps/frontend && npm install && npm run build",
+  "outputDirectory": "apps/frontend/dist",
+  "installCommand": "echo 'Skipping root install'",
+  "framework": null
 }
