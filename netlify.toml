@@ -5,6 +5,8 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  VITE_ENV_MODE = "production"
+  VITE_DEV_API_BASE_URL = "https://app.go54.com"
 
 [[redirects]]
   from = "/api/*"
