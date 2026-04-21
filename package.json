@@ -22,6 +22,9 @@
     "build:production": "pnpm build && pnpm build:copy-frontend",
     "start:production": "cd apps/backend && pnpm dlx wrangler deploy",
     "test:production": "pnpm build:production && cd apps/backend && pnpm dlx wrangler dev",
-    "vercel-build": "pnpm --filter @zerocancer/shared build && pnpm --filter ./apps/backend prisma:generate && pnpm --filter ./apps/frontend build"
+    "vercel-build": "pnpm --filter @zerocancer/shared build && pnpm --filter ./apps/backend prisma:generate && pnpm --filter ./apps/frontend build",
+    "build:shared": "cd packages/shared && pnpm build",
+    "build:backend": "cd apps/backend && pnpm prisma:generate",
+    "build:frontend": "cd apps/frontend && pnpm build"
   }
 }

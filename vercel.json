@@ -35,6 +35,6 @@
     "NODE_ENV": "production"
   },
   "installCommand": "pnpm install",
-  "buildCommand": "cd packages/shared && pnpm build && cd ../../apps/backend && pnpm prisma:generate && cd ../frontend && pnpm build",
+  "buildCommand": "pnpm run build:shared && pnpm run build:backend && pnpm run build:frontend",
   "outputDirectory": "apps/frontend/dist"
 }
