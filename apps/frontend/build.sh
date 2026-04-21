@@ -3,15 +3,23 @@ set -e
 
 echo "Starting build process with Node $(node --version)..."
 
-# Clean any existing installations
-rm -rf node_modules package-lock.json
+# Install pnpm if not available
+if ! command -v pnpm &> /dev/null; then
+    echo "Installing pnpm..."
+    npm install -g pnpm
+fi
 
-# Install dependencies with optional packages included (needed for esbuild)
-npm ci --include=optional --legacy-peer-deps --no-fund --no-audit
+echo "Using pnpm version: $(pnpm --version)"
+
+# Clean any existing installations
+rm -rf node_modules
+
+# Install dependencies with pnpm (project uses pnpm-lock.yaml)
+pnpm install --frozen-lockfile || pnpm install
 
 echo "Dependencies installed, starting build..."
 
 # Build the project
-npm run build
+pnpm run build
 
 echo "Build completed successfully!"
