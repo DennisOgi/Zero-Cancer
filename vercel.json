@@ -35,5 +35,5 @@
     "NODE_ENV": "production"
   },
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm vercel-build"
+  "buildCommand": "pnpm --filter @zerocancer/shared build && pnpm --filter ./apps/backend prisma:generate && pnpm --filter ./apps/frontend build"
 }
