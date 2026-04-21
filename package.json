@@ -1,14 +1,10 @@
 {
-  "name": "zerocancer-frontend",
+  "name": "zerocancer-simple",
   "private": true,
   "type": "module",
   "version": "1.0.0",
   "scripts": {
-    "build": "cd apps/frontend && npm install && npm run build",
-    "dev": "cd apps/frontend && npm run dev",
-    "start": "cd apps/frontend && npm run preview"
-  },
-  "devDependencies": {
-    "typescript": "^5.8.3"
+    "build": "echo 'Building...' && cd apps/frontend && npm install --legacy-peer-deps && npm run build",
+    "dev": "cd apps/frontend && npm run dev"
   }
 }

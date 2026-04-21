@@ -1,8 +1,5 @@
 {
-  "version": 2,
-  "name": "zerocancer-frontend-only",
-  "buildCommand": "cd apps/frontend && npm install && npm run build",
+  "buildCommand": "cd apps/frontend && npm install --legacy-peer-deps --force && npm run build",
   "outputDirectory": "apps/frontend/dist",
-  "installCommand": "echo 'Skipping root install'",
-  "framework": null
+  "installCommand": "echo 'Skip root install'"
 }
