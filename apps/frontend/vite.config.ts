@@ -22,4 +22,31 @@ export default defineConfig({
       '@zerocancer/shared': resolve(__dirname, '../../packages/shared'),
     },
   },
+  build: {
+    // Optimize for memory usage
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split vendor libraries into separate chunks
+          'react-vendor': ['react', 'react-dom'],
+          'router-vendor': ['@tanstack/react-router', '@tanstack/react-query'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
+          'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          'utils-vendor': ['axios', 'date-fns', 'clsx', 'tailwind-merge']
+        }
+      }
+    },
+    // Reduce memory usage during build
+    minify: 'esbuild',
+    sourcemap: false,
+    // Optimize asset handling
+    assetsInlineLimit: 4096
+  },
+  // Optimize dev server memory
+  server: {
+    hmr: {
+      overlay: false
+    }
+  }
 })

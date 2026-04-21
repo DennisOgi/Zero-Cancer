@@ -32,7 +32,8 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "NODE_OPTIONS": "--max-old-space-size=4096"
   },
   "installCommand": "pnpm install",
   "buildCommand": "pnpm run build:shared && pnpm run build:backend && pnpm run build:frontend",

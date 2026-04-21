@@ -25,6 +25,6 @@
     "vercel-build": "pnpm --filter @zerocancer/shared build && pnpm --filter ./apps/backend prisma:generate && pnpm --filter ./apps/frontend build",
     "build:shared": "cd packages/shared && pnpm build",
     "build:backend": "cd apps/backend && pnpm prisma:generate",
-    "build:frontend": "cd apps/frontend && pnpm build"
+    "build:frontend": "cd apps/frontend && NODE_OPTIONS='--max-old-space-size=4096' pnpm build"
   }
 }

@@ -12,7 +12,7 @@
     "lint": "eslint",
     "format": "prettier",
     "check": "prettier --write . && eslint --fix",
-    "vercel-build": "vite build"
+    "vercel-build": "NODE_OPTIONS='--max-old-space-size=4096' vite build"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
