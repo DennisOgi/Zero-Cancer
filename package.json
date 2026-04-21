@@ -5,6 +5,9 @@
   "version": "1.0.0",
   "scripts": {
     "build": "echo 'Building...' && cd apps/frontend && npm install --legacy-peer-deps && npm run build",
-    "dev": "cd apps/frontend && npm run dev"
+    "dev": "cd apps/frontend && npm run dev",
+    "setup:production": "node scripts/setup-production.js",
+    "cleanup:production": "echo 'Run this SQL script on your production database: scripts/production-cleanup.sql'",
+    "verify:security": "node scripts/setup-production.js --security-check-only"
   }
 }
