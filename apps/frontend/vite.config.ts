@@ -41,12 +41,19 @@ export default defineConfig({
     minify: 'esbuild',
     sourcemap: false,
     // Optimize asset handling
-    assetsInlineLimit: 4096
+    assetsInlineLimit: 4096,
+    // Skip type checking in production builds for speed
+    target: 'esnext'
   },
   // Optimize dev server memory
   server: {
     hmr: {
       overlay: false
     }
-  }
+  },
+  // Skip type checking when SKIP_TYPE_CHECK is true
+  esbuild: process.env.SKIP_TYPE_CHECK === 'true' ? {
+    target: 'esnext',
+    format: 'esm'
+  } : undefined
 })

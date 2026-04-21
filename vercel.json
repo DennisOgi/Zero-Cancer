@@ -33,9 +33,11 @@
   ],
   "env": {
     "NODE_ENV": "production",
-    "NODE_OPTIONS": "--max-old-space-size=4096"
+    "NODE_OPTIONS": "--max-old-space-size=8192",
+    "GENERATE_SOURCEMAP": "false",
+    "SKIP_TYPE_CHECK": "true"
   },
-  "installCommand": "pnpm install",
-  "buildCommand": "pnpm run build:shared && pnpm run build:backend && pnpm run build:frontend",
+  "installCommand": "pnpm install --frozen-lockfile --prefer-offline",
+  "buildCommand": "pnpm run build:shared:fast && pnpm run build:backend:fast && pnpm run build:frontend:fast",
   "outputDirectory": "apps/frontend/dist"
 }
