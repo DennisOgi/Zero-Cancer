@@ -1,11 +1,11 @@
 [build]
   base = "apps/frontend"
-  command = "npm install --legacy-peer-deps --ignore-scripts && npm run build"
+  command = "chmod +x build.sh && ./build.sh"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "18"
-  NPM_FLAGS = "--legacy-peer-deps --ignore-scripts"
+  NPM_CONFIG_IGNORE_SCRIPTS = "true"
 
 [[redirects]]
   from = "/api/*"
