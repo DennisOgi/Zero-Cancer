@@ -5,7 +5,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
-  VITE_ENV_MODE = "production"
+  VITE_ENV_MODE = "development"
   VITE_DEV_API_BASE_URL = "https://zerocancer.daunderlord.workers.dev"
 
 [[redirects]]

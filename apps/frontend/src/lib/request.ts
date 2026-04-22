@@ -177,10 +177,6 @@ export function setupAxiosInterceptors(queryClient: QueryClient) {
   // Axios request interceptor to attach access token from React Query cache
   axios.interceptors.request.use(
     (config) => {
-      console.log('Request interceptor - original URL:', config.url)
-      console.log('Request interceptor - VITE_ENV_MODE:', import.meta.env.VITE_ENV_MODE)
-      console.log('Request interceptor - VITE_DEV_API_BASE_URL:', import.meta.env.VITE_DEV_API_BASE_URL)
-      
       // Handle API URL rewriting for both dev and production
       if (
         config.url?.startsWith('/api/') &&
@@ -189,19 +185,15 @@ export function setupAxiosInterceptors(queryClient: QueryClient) {
       ) {
         if (import.meta.env.VITE_ENV_MODE !== 'production') {
           // Development: Frontend (3000) -> Backend (8787)
-          const newUrl = config.url.replace(
+          config.url = config.url.replace(
             '/api/',
             `${import.meta.env.VITE_DEV_API_BASE_URL || 'http://localhost:8787'}/api/v1/`,
           )
-          console.log('Request interceptor - rewriting URL to:', newUrl)
-          config.url = newUrl
         } else {
           // Production: Same server, just rewrite path
           config.url = config.url.replace('/api/', '/api/v1/')
         }
       }
-
-      console.log('Request interceptor - final URL:', config.url)
 
       // Get access token from React Query cache
       const token = queryClient.getQueryData<string>([ACCESS_TOKEN_KEY])
