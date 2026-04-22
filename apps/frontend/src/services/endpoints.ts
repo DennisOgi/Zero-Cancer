@@ -154,8 +154,6 @@ export const getCenters = (params: {
     state: params.state,
     lga: params.lga,
   })
-  console.log('getCenters endpoint - params:', params)
-  console.log('getCenters endpoint - query string:', query)
   return `/api/center${query}`
 }
 

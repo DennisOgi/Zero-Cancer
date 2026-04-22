@@ -25,7 +25,6 @@ export const loginUser = async (
 export const authUser = async (): Promise<TAuthMeResponse | null> => {
   try {
     const response = await request.get<TAuthMeResponse>(endpoints.authUser())
-    console.log('Auth User Email & Profile:', response.data.user)
     return response
   } catch (error) {
     console.error('Error fetching authenticated user:', error)
