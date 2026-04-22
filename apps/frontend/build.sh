@@ -11,8 +11,10 @@ fi
 
 echo "Using pnpm version: $(pnpm --version)"
 
-# Clean any existing installations
+# Clean any existing installations and caches
 rm -rf node_modules
+rm -rf .vite
+rm -rf dist
 
 # Install dependencies with pnpm (project uses pnpm-lock.yaml)
 pnpm install --frozen-lockfile || pnpm install

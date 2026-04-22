@@ -18,6 +18,7 @@ export function CenterLayout() {
   const isStaff = user?.profile === 'CENTER_STAFF'
   const isAdmin = user?.profile === 'CENTER'
 
+  // Navigation links - Updated: 2026-04-22 14:10
   const baseNavLinks = [
     { to: '/center', label: 'Dashboard', icon: cross },
     { to: '/center/register-patient', label: 'Register Patient', icon: people }, // v1.0 - Walk-in patient registration
