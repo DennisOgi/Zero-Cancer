@@ -20,7 +20,7 @@ export function CenterLayout() {
 
   const baseNavLinks = [
     { to: '/center', label: 'Dashboard', icon: cross },
-    { to: '/center/register-patient', label: 'Register Patient', icon: people },
+    { to: '/center/register-patient', label: 'Register Patient', icon: people }, // v1.0 - Walk-in patient registration
     { to: '/center/appointments', label: 'Appointments', icon: calendar },
     { to: '/center/verify-code', label: 'Verify Code', icon: screening },
     { to: '/center/upload-results', label: 'Upload Results', icon: treatment },
