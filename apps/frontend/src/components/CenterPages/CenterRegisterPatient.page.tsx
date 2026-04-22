@@ -23,9 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/ui/select'
-import { nigeriaStates } from '@/data/nigeria-locations'
+import { NIGERIA_STATES_LGAS as nigeriaStates } from '@/data/nigeria-locations'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useRegisterPatient } from '@/services/providers/register.provider'
+import { usePatientRegistration } from '@/services/providers/register.provider'
 import { useNavigate } from '@tanstack/react-router'
 import { patientSchema } from '@zerocancer/shared/schemas/register.schema'
 import { Loader2, UserPlus, CheckCircle2 } from 'lucide-react'
@@ -41,7 +41,7 @@ type WalkInPatientFormData = z.infer<typeof walkInPatientSchema>
 
 export function CenterRegisterPatientPage() {
   const navigate = useNavigate()
-  const registerMutation = useRegisterPatient()
+  const registerMutation = usePatientRegistration()
   const [selectedState, setSelectedState] = useState<string>('')
   const [registeredPatient, setRegisteredPatient] = useState<{
     fullName: string
