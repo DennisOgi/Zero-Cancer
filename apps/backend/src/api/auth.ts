@@ -52,123 +52,135 @@ authApp.post(
       );
   }),
   async (c) => {
-    const { JWT_TOKEN_SECRET } = env<TEnvs>(c);
-    const db = getDB(c);
+    try {
+      const { JWT_TOKEN_SECRET } = env<TEnvs>(c);
+      const db = getDB(c);
 
-    const { email, password } = c.req.valid("json");
-    const { actor } = c.req.valid("query");
+      const { email, password } = c.req.valid("json");
+      const { actor } = c.req.valid("query");
 
-    let user: any = null;
-    let passwordHash = "";
-    let id = "";
+      let user: any = null;
+      let passwordHash = "";
+      let id = "";
 
-    if (actor === "center") {
-      user = await db.serviceCenter.findUnique({ where: { email: email! } });
-      passwordHash = user?.passwordHash!;
-      id = user?.id!;
-    } else {
-      let { user: justUser, profiles: userProfiles } =
-        await getUserWithProfiles(c, {
-          email: email!,
-        });
+      if (actor === "center") {
+        user = await db.serviceCenter.findUnique({ where: { email: email! } });
+        passwordHash = user?.passwordHash!;
+        id = user?.id!;
+      } else {
+        let { user: justUser, profiles: userProfiles } =
+          await getUserWithProfiles(c, {
+            email: email!,
+          });
 
-      user = { ...justUser, profiles: userProfiles };
+        user = { ...justUser, profiles: userProfiles };
 
-      if (!justUser) {
-        return c.json<TErrorResponse>(
-          {
-            ok: false,
-            err_code: "user_not_found",
-            error: "User not found.",
-          },
-          404
-        );
+        if (!justUser) {
+          return c.json<TErrorResponse>(
+            {
+              ok: false,
+              err_code: "user_not_found",
+              error: "User not found.",
+            },
+            404
+          );
+        }
+
+        if (!userProfiles.includes(actor.toUpperCase() as "PATIENT" | "DONOR")) {
+          return c.json<TErrorResponse>(
+            {
+              ok: false,
+              err_code: "invalid_credentials",
+              error: "Invalid email or password.",
+            },
+            400
+          );
+        }
+
+        if (
+          justUser.donorProfile?.emailVerified === null ||
+          justUser.patientProfile?.emailVerified === null
+        ) {
+          return c.json<TErrorResponse>(
+            {
+              ok: false,
+              err_code: "email_not_verified",
+              error: "Email not verified. Please verify your email first.",
+            },
+            403
+          );
+        }
+
+        passwordHash = user.passwordHash!;
+        id = user.id!;
       }
 
-      if (!userProfiles.includes(actor.toUpperCase() as "PATIENT" | "DONOR")) {
+      // If user not found or password doesn't match
+      if (!user || !(await bcrypt.compare(password!, passwordHash!))) {
         return c.json<TErrorResponse>(
           {
             ok: false,
             err_code: "invalid_credentials",
-            error: "Invalid email or password.",
+            error: `Invalid ${actor} email or password.`,
           },
           400
         );
       }
 
-      if (
-        justUser.donorProfile?.emailVerified === null ||
-        justUser.patientProfile?.emailVerified === null
-      ) {
-        return c.json<TErrorResponse>(
-          {
-            ok: false,
-            err_code: "email_not_verified",
-            error: "Email not verified. Please verify your email first.",
+      const authProfile =
+        actor === "center"
+          ? "CENTER"
+          : user.profiles.includes(actor.toUpperCase())
+          ? actor.toUpperCase()
+          : user.profiles[0]; // Use first profile for non-center actors
+
+      const payload = {
+        id: id!,
+        email: user.email!,
+        profile: authProfile,
+      };
+
+      const token = await sign(
+        { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 5 },
+        JWT_TOKEN_SECRET
+      );
+      const refreshToken = await sign(
+        { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 },
+        JWT_TOKEN_SECRET
+      ); // 7 days
+
+      // Set refresh token as httpOnly, secure cookie using Hono's setCookie
+      setCookie(c, "refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7, // 7 days in seconds
+      });
+
+      return c.json<TLoginResponse>({
+        ok: true,
+        data: {
+          token,
+          user: {
+            userId: id!,
+            fullName: user.fullName!,
+            email: user.email!,
+            profile: payload.profile,
           },
-          403
-        );
-      }
-
-      passwordHash = user.passwordHash!;
-      id = user.id!;
-    }
-
-    // If user not found or password doesn't match
-    if (!user || !(await bcrypt.compare(password!, passwordHash!))) {
+        },
+      });
+    } catch (error) {
+      console.error("Login error:", error);
       return c.json<TErrorResponse>(
         {
           ok: false,
-          err_code: "invalid_credentials",
-          error: `Invalid ${actor} email or password.`,
+          err_code: "internal_error",
+          error: "Database connection failed. Please try again later.",
         },
-        400
+        500
       );
     }
-
-    const authProfile =
-      actor === "center"
-        ? "CENTER"
-        : user.profiles.includes(actor.toUpperCase())
-        ? actor.toUpperCase()
-        : user.profiles[0]; // Use first profile for non-center actors
-
-    const payload = {
-      id: id!,
-      email: user.email!,
-      profile: authProfile,
-    };
-
-    const token = await sign(
-      { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 5 },
-      JWT_TOKEN_SECRET
-    );
-    const refreshToken = await sign(
-      { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 },
-      JWT_TOKEN_SECRET
-    ); // 7 days
-
-    // Set refresh token as httpOnly, secure cookie using Hono's setCookie
-    setCookie(c, "refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "None",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days in seconds
-    });
-
-    return c.json<TLoginResponse>({
-      ok: true,
-      data: {
-        token,
-        user: {
-          userId: id!,
-          fullName: user.fullName!,
-          email: user.email!,
-          profile: payload.profile,
-        },
-      },
-    });
   }
 );
 

@@ -10,7 +10,8 @@ export type THonoApp = {
 };
 
 export type TEnvs = {
-  DATABASE_URL: string;
+  DB: D1Database; // D1 binding for Cloudflare Workers
+  DATABASE_URL?: string; // Optional fallback for other environments
   JWT_TOKEN_SECRET: string;
   SMTP_HOST: string;
   SMTP_PORT: number;

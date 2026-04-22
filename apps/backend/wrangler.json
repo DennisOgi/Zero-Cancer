@@ -1,0 +1,42 @@
+{
+  "name": "zerocancer",
+  "main": "src/app.ts",
+  "compatibility_date": "2025-07-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "keep_vars": true,
+  "assets": {
+    "directory": "frontend-dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "zerocancer-demo",
+      "database_id": "88ddcdee-3aae-4c94-acde-311da1ceb10c"
+    }
+  ],
+  "vars": {
+    "ENV_MODE": "production",
+    "DATABASE_URL": "postgresql://zerocancer_owner:demo_password@ep-demo-database.us-east-1.aws.neon.tech/zerocancer?sslmode=require",
+    "JWT_TOKEN_SECRET": "demo-jwt-secret-key-for-testing-only-not-production-secure",
+    "FRONTEND_URL": "https://zerocancerafrica.netlify.app",
+    "SMTP_HOST": "smtp.gmail.com",
+    "SMTP_PORT": "587",
+    "SMTP_USER": "demo@zerocancer.org",
+    "SMTP_PASS": "demo-password",
+    "PAYSTACK_SECRET_KEY": "sk_test_demo_key",
+    "PAYSTACK_PUBLIC_KEY": "pk_test_demo_key",
+    "CLOUDINARY_CLOUD_NAME": "demo-cloud",
+    "CLOUDINARY_API_KEY": "demo-api-key",
+    "CLOUDINARY_API_SECRET": "demo-api-secret",
+    "CRON_API_KEY": "demo-cron-key",
+    "WAITLIST_BATCH_SIZE": "50",
+    "WAITLIST_MAX_TOTAL": "1000",
+    "WAITLIST_PARALLEL": "5",
+    "WAITLIST_CONCURRENT": "3",
+    "WAITLIST_DEMOGRAPHICS": "true",
+    "WAITLIST_GEOGRAPHIC_TARGETING": "true",
+    "WAITLIST_EXPIRY_DAYS": "30"
+  }
+}

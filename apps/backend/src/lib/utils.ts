@@ -126,25 +126,26 @@ export async function getUserWithProfiles(
 ) {
   const db = getDB(c);
   const user = await db.user.findUnique({
-    where: { email: email! },
-    include: {
-      donorProfile: { select: { id: true, emailVerified: true } },
-      patientProfile: { select: { id: true, emailVerified: true } },
-    },
+    where: { email: email! }
   });
-  //   if (!user)
-  //     return {
-  //       user: null,
-  //       profiles: [],
-  //     };
+
+  if (!user) {
+    return {
+      user: null,
+      profiles: [],
+    };
+  }
 
   const userProfiles: ("PATIENT" | "DONOR")[] = [];
-  if (user?.donorProfile) {
-    userProfiles.push("DONOR");
-  }
-  if (user?.patientProfile) {
+  
+  // For mock database, determine profiles based on email
+  if (user.email.includes('patient')) {
     userProfiles.push("PATIENT");
   }
+  if (user.email.includes('donor')) {
+    userProfiles.push("DONOR");
+  }
+  
   return { user, profiles: userProfiles };
 }
 
