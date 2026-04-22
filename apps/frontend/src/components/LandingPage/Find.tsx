@@ -6,8 +6,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/ui/select'
+import { NIGERIA_STATES_LGAS, getLGAsForState } from '@/data/nigeria-locations'
+import { useNavigate } from '@tanstack/react-router'
+import { useState } from 'react'
 
 export default function Find() {
+  const navigate = useNavigate()
+  const [selectedState, setSelectedState] = useState<string>('')
+  const [selectedLGA, setSelectedLGA] = useState<string>('')
+  const [lgas, setLgas] = useState<string[]>([])
+
+  const handleStateChange = (state: string) => {
+    setSelectedState(state)
+    setSelectedLGA('') // Reset LGA when state changes
+    const stateLGAs = getLGAsForState(state)
+    setLgas(stateLGAs)
+  }
+
+  const handleFindCenters = () => {
+    if (!selectedState) {
+      alert('Please select a state')
+      return
+    }
+    
+    // Navigate to centers search page with query params
+    navigate({
+      to: '/centers',
+      search: {
+        state: selectedState,
+        lga: selectedLGA || undefined,
+      },
+    })
+  }
+
   return (
     <div className="wrapper py-20 grid md:grid-cols-2 gap-10 items-center">
       <div className="space-y-6">
@@ -23,34 +54,45 @@ export default function Find() {
             <label htmlFor="state" className="text-sm font-medium">
               Select state
             </label>
-            <Select>
+            <Select value={selectedState} onValueChange={handleStateChange}>
               <SelectTrigger id="state" className="w-full">
-                <SelectValue placeholder="Lagos" />
+                <SelectValue placeholder="Select a state" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="lagos">Lagos</SelectItem>
-                <SelectItem value="abuja">Abuja</SelectItem>
-                <SelectItem value="rivers">Rivers</SelectItem>
+                {NIGERIA_STATES_LGAS.map((location) => (
+                  <SelectItem key={location.state} value={location.state}>
+                    {location.state}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div>
             <label htmlFor="lga" className="text-sm font-medium">
-              Select local government
+              Select local government (optional)
             </label>
-            <Select>
+            <Select
+              value={selectedLGA}
+              onValueChange={setSelectedLGA}
+              disabled={!selectedState}
+            >
               <SelectTrigger id="lga" className="w-full">
-                <SelectValue placeholder="Surulere" />
+                <SelectValue placeholder={selectedState ? "Select LGA" : "Select state first"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="surulere">Surulere</SelectItem>
-                <SelectItem value="ikeja">Ikeja</SelectItem>
-                <SelectItem value="lekki">Lekki</SelectItem>
+                {lgas.map((lga) => (
+                  <SelectItem key={lga} value={lga}>
+                    {lga}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
         </div>
-        <button className="px-8 py-2 bg-secondary text-white rounded-lg">
+        <button
+          onClick={handleFindCenters}
+          className="px-8 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90 transition-colors"
+        >
           Find Centers
         </button>
       </div>

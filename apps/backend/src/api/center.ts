@@ -97,6 +97,15 @@ centerApp.get(
       bankName: center.bankName,
       status: center.status.toString(),
       createdAt: center.createdAt.toISOString(),
+      // Funding and Kit Information
+      isFunded: center.isFunded || false,
+      fundingSource: center.fundingSource || null,
+      fundingAmount: center.fundingAmount || null,
+      fundingDate: center.fundingDate ? center.fundingDate.toISOString() : null,
+      fundingExpiry: center.fundingExpiry ? center.fundingExpiry.toISOString() : null,
+      totalKits: center.totalKits || 0,
+      usedKits: center.usedKits || 0,
+      availableKits: center.availableKits || 0,
       services: center.services.map((service) => ({
         id: service.id,
         name: service.name,

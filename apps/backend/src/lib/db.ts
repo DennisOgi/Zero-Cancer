@@ -19,6 +19,16 @@ type MockServiceCenter = {
   lga: string;
   status: string;
   createdAt: Date;
+  phone?: string;
+  // Funding and Kit Tracking
+  isFunded: boolean;
+  fundingSource?: string;
+  fundingAmount?: number;
+  fundingDate?: Date;
+  fundingExpiry?: Date;
+  totalKits: number;
+  usedKits: number;
+  availableKits: number;
 };
 
 type MockAdmin = {
@@ -60,7 +70,16 @@ const MOCK_CENTERS: MockServiceCenter[] = [
     state: "Lagos",
     lga: "Lagos Island",
     status: "ACTIVE",
-    createdAt: new Date()
+    phone: "+234 801 234 5678",
+    createdAt: new Date(),
+    isFunded: true,
+    fundingSource: "Federal Government",
+    fundingAmount: 5000000,
+    fundingDate: new Date("2025-01-15"),
+    fundingExpiry: new Date("2026-12-31"),
+    totalKits: 150,
+    usedKits: 95,
+    availableKits: 55
   },
   {
     id: "center-lagos-2", 
@@ -71,7 +90,16 @@ const MOCK_CENTERS: MockServiceCenter[] = [
     state: "Lagos",
     lga: "Ikeja",
     status: "ACTIVE",
-    createdAt: new Date()
+    phone: "+234 802 345 6789",
+    createdAt: new Date(),
+    isFunded: true,
+    fundingSource: "Lagos State Government",
+    fundingAmount: 3500000,
+    fundingDate: new Date("2025-03-01"),
+    fundingExpiry: new Date("2026-06-30"),
+    totalKits: 100,
+    usedKits: 72,
+    availableKits: 28
   },
   {
     id: "center-abuja",
@@ -82,7 +110,16 @@ const MOCK_CENTERS: MockServiceCenter[] = [
     state: "FCT",
     lga: "Municipal",
     status: "ACTIVE",
-    createdAt: new Date()
+    phone: "+234 803 456 7890",
+    createdAt: new Date(),
+    isFunded: true,
+    fundingSource: "WHO/UNICEF Partnership",
+    fundingAmount: 8000000,
+    fundingDate: new Date("2024-11-01"),
+    fundingExpiry: new Date("2027-10-31"),
+    totalKits: 200,
+    usedKits: 120,
+    availableKits: 80
   },
   {
     id: "center-kano",
@@ -93,7 +130,16 @@ const MOCK_CENTERS: MockServiceCenter[] = [
     state: "Kano",
     lga: "Nassarawa",
     status: "ACTIVE",
-    createdAt: new Date()
+    phone: "+234 804 567 8901",
+    createdAt: new Date(),
+    isFunded: false,
+    fundingSource: undefined,
+    fundingAmount: undefined,
+    fundingDate: undefined,
+    fundingExpiry: undefined,
+    totalKits: 30,
+    usedKits: 25,
+    availableKits: 5
   },
   {
     id: "center-portharcourt",
@@ -104,7 +150,16 @@ const MOCK_CENTERS: MockServiceCenter[] = [
     state: "Rivers",
     lga: "Port Harcourt",
     status: "ACTIVE",
-    createdAt: new Date()
+    phone: "+234 805 678 9012",
+    createdAt: new Date(),
+    isFunded: true,
+    fundingSource: "Shell Nigeria CSR",
+    fundingAmount: 4500000,
+    fundingDate: new Date("2025-02-10"),
+    fundingExpiry: new Date("2026-08-31"),
+    totalKits: 120,
+    usedKits: 85,
+    availableKits: 35
   },
   {
     id: "center-ibadan",
@@ -115,7 +170,16 @@ const MOCK_CENTERS: MockServiceCenter[] = [
     state: "Oyo", 
     lga: "Ibadan North",
     status: "ACTIVE",
-    createdAt: new Date()
+    phone: "+234 806 789 0123",
+    createdAt: new Date(),
+    isFunded: true,
+    fundingSource: "Oyo State Government",
+    fundingAmount: 2500000,
+    fundingDate: new Date("2025-04-01"),
+    fundingExpiry: new Date("2026-03-31"),
+    totalKits: 80,
+    usedKits: 60,
+    availableKits: 20
   },
   {
     id: "center-enugu",
@@ -126,7 +190,16 @@ const MOCK_CENTERS: MockServiceCenter[] = [
     state: "Enugu",
     lga: "Enugu North", 
     status: "ACTIVE",
-    createdAt: new Date()
+    phone: "+234 807 890 1234",
+    createdAt: new Date(),
+    isFunded: false,
+    fundingSource: undefined,
+    fundingAmount: undefined,
+    fundingDate: undefined,
+    fundingExpiry: undefined,
+    totalKits: 15,
+    usedKits: 12,
+    availableKits: 3
   }
 ];
 
@@ -226,7 +299,62 @@ export const getDB = (c: any) => {
         }
         return null;
       },
-      count: async () => MOCK_CENTERS.length
+      findMany: async ({ where, skip, take, orderBy, include }: any = {}) => {
+        let filtered = [...MOCK_CENTERS];
+        
+        // Apply filters
+        if (where) {
+          if (where.status) {
+            filtered = filtered.filter(c => c.status === where.status);
+          }
+          if (where.state) {
+            filtered = filtered.filter(c => c.state === where.state);
+          }
+          if (where.lga) {
+            filtered = filtered.filter(c => c.lga === where.lga);
+          }
+          if (where.OR && Array.isArray(where.OR)) {
+            // Search functionality
+            const searchTerm = where.OR[0]?.centerName?.contains?.toLowerCase() || '';
+            if (searchTerm) {
+              filtered = filtered.filter(c => 
+                c.centerName.toLowerCase().includes(searchTerm) ||
+                c.address.toLowerCase().includes(searchTerm) ||
+                c.email.toLowerCase().includes(searchTerm)
+              );
+            }
+          }
+        }
+        
+        // Apply pagination
+        const start = skip || 0;
+        const end = take ? start + take : filtered.length;
+        const paginated = filtered.slice(start, end);
+        
+        // Add mock includes if requested
+        return paginated.map(center => ({
+          ...center,
+          services: include?.services ? [] : undefined,
+          staff: include?.staff ? [] : undefined,
+        }));
+      },
+      count: async ({ where }: any = {}) => {
+        let filtered = [...MOCK_CENTERS];
+        
+        if (where) {
+          if (where.status) {
+            filtered = filtered.filter(c => c.status === where.status);
+          }
+          if (where.state) {
+            filtered = filtered.filter(c => c.state === where.state);
+          }
+          if (where.lga) {
+            filtered = filtered.filter(c => c.lga === where.lga);
+          }
+        }
+        
+        return filtered.length;
+      }
     },
     
     // Mock user operations  
