@@ -43,6 +43,7 @@ import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
 import { Route as AdminBlogRouteImport } from './routes/admin/blog'
 import { Route as AdminAppointmentsRouteImport } from './routes/admin/appointments'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
+import { Route as publicCentersRouteImport } from './routes/(public)/centers'
 import { Route as publicAboutRouteImport } from './routes/(public)/about'
 import { Route as authVerifyEmailRouteImport } from './routes/(auth)/verify-email'
 import { Route as authResetPasswordRouteImport } from './routes/(auth)/reset-password'
@@ -239,6 +240,11 @@ const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const publicCentersRoute = publicCentersRouteImport.update({
+  id: '/centers',
+  path: '/centers',
+  getParentRoute: () => publicRouteRoute,
+} as any)
 const publicAboutRoute = publicAboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -392,6 +398,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof authResetPasswordRoute
   '/verify-email': typeof authVerifyEmailRoute
   '/about': typeof publicAboutRoute
+  '/centers': typeof publicCentersRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
   '/admin/blog': typeof AdminBlogRouteWithChildren
@@ -449,6 +456,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof authResetPasswordRoute
   '/verify-email': typeof authVerifyEmailRoute
   '/about': typeof publicAboutRoute
+  '/centers': typeof publicCentersRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
   '/admin/blog': typeof AdminBlogRouteWithChildren
@@ -513,6 +521,7 @@ export interface FileRoutesById {
   '/(auth)/reset-password': typeof authResetPasswordRoute
   '/(auth)/verify-email': typeof authVerifyEmailRoute
   '/(public)/about': typeof publicAboutRoute
+  '/(public)/centers': typeof publicCentersRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
   '/admin/blog': typeof AdminBlogRouteWithChildren
@@ -576,6 +585,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email'
     | '/about'
+    | '/centers'
     | '/admin/analytics'
     | '/admin/appointments'
     | '/admin/blog'
@@ -633,6 +643,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email'
     | '/about'
+    | '/centers'
     | '/admin/analytics'
     | '/admin/appointments'
     | '/admin/blog'
@@ -696,6 +707,7 @@ export interface FileRouteTypes {
     | '/(auth)/reset-password'
     | '/(auth)/verify-email'
     | '/(public)/about'
+    | '/(public)/centers'
     | '/admin/analytics'
     | '/admin/appointments'
     | '/admin/blog'
@@ -997,6 +1009,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAnalyticsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/(public)/centers': {
+      id: '/(public)/centers'
+      path: '/centers'
+      fullPath: '/centers'
+      preLoaderRoute: typeof publicCentersRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
     '/(public)/about': {
       id: '/(public)/about'
       path: '/about'
@@ -1223,6 +1242,7 @@ const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
 
 interface publicRouteRouteChildren {
   publicAboutRoute: typeof publicAboutRoute
+  publicCentersRoute: typeof publicCentersRoute
   publicBlogSlugRoute: typeof publicBlogSlugRoute
   publicDonationPaymentStatusRoute: typeof publicDonationPaymentStatusRoute
   publicBlogIndexRoute: typeof publicBlogIndexRoute
@@ -1230,6 +1250,7 @@ interface publicRouteRouteChildren {
 
 const publicRouteRouteChildren: publicRouteRouteChildren = {
   publicAboutRoute: publicAboutRoute,
+  publicCentersRoute: publicCentersRoute,
   publicBlogSlugRoute: publicBlogSlugRoute,
   publicDonationPaymentStatusRoute: publicDonationPaymentStatusRoute,
   publicBlogIndexRoute: publicBlogIndexRoute,

@@ -331,11 +331,11 @@ export const getDB = (c: any) => {
         const end = take ? start + take : filtered.length;
         const paginated = filtered.slice(start, end);
         
-        // Add mock includes if requested
+        // Add mock includes - always return arrays
         return paginated.map(center => ({
           ...center,
-          services: include?.services ? [] : undefined,
-          staff: include?.staff ? [] : undefined,
+          services: [],
+          staff: [],
         }));
       },
       count: async ({ where }: any = {}) => {
