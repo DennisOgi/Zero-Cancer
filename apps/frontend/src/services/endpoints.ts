@@ -145,15 +145,19 @@ export const getCenters = (params: {
   status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
   state?: string
   lga?: string
-}) =>
-  `/api/center${buildQuery({
-    page: params.page ?? 1,
-    pageSize: params.pageSize ?? 20,
-    search: params.search ?? undefined,
-    status: params.status ?? undefined,
-    state: params.state ?? undefined,
-    lga: params.lga ?? undefined,
-  })}`
+}) => {
+  const query = buildQuery({
+    page: params.page,
+    pageSize: params.pageSize,
+    search: params.search,
+    status: params.status,
+    state: params.state,
+    lga: params.lga,
+  })
+  console.log('getCenters endpoint - params:', params)
+  console.log('getCenters endpoint - query string:', query)
+  return `/api/center${query}`
+}
 
 export const getCenterById = (id: string) => `/api/center/${id}`
 

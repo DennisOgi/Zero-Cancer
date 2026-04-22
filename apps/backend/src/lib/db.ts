@@ -300,6 +300,7 @@ export const getDB = (c: any) => {
         return null;
       },
       findMany: async ({ where, skip, take, orderBy, include }: any = {}) => {
+        console.log("Mock DB findMany called with where:", JSON.stringify(where));
         let filtered = [...MOCK_CENTERS];
         
         // Apply filters
@@ -308,10 +309,16 @@ export const getDB = (c: any) => {
             filtered = filtered.filter(c => c.status === where.status);
           }
           if (where.state) {
+            console.log("Filtering by state:", where.state);
+            console.log("Available states:", filtered.map(c => c.state));
             filtered = filtered.filter(c => c.state === where.state);
+            console.log("After state filter:", filtered.length, "centers");
           }
           if (where.lga) {
+            console.log("Filtering by LGA:", where.lga);
+            console.log("Available LGAs:", filtered.map(c => c.lga));
             filtered = filtered.filter(c => c.lga === where.lga);
+            console.log("After LGA filter:", filtered.length, "centers");
           }
           if (where.OR && Array.isArray(where.OR)) {
             // Search functionality
@@ -325,6 +332,8 @@ export const getDB = (c: any) => {
             }
           }
         }
+        
+        console.log("Final filtered count:", filtered.length);
         
         // Apply pagination
         const start = skip || 0;

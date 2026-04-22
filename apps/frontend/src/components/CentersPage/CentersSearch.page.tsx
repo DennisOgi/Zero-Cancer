@@ -8,6 +8,8 @@ export default function CentersSearchPage() {
   const search = useSearch({ from: '/(public)/centers' })
   const { state, lga } = search
 
+  console.log('CentersSearchPage - search params:', { state, lga })
+
   const { data } = useSuspenseQuery(
     centers({
       state: state || undefined,
@@ -16,7 +18,11 @@ export default function CentersSearchPage() {
     })
   )
 
+  console.log('CentersSearchPage - API response:', data)
+
   const centersData = data?.data?.centers || []
+
+  console.log('CentersSearchPage - centers count:', centersData.length)
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
