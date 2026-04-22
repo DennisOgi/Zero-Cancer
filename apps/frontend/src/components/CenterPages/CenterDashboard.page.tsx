@@ -124,6 +124,12 @@ export function CenterDashboard() {
 
   const quickActions = [
     {
+      label: 'Register Patient',
+      link: '/center/register-patient',
+      icon: peopleIcon,
+      isPrimary: true,
+    },
+    {
       label: 'Verify Check-in',
       link: '/center/verify-code',
       icon: screeningIcon,
