@@ -202,8 +202,8 @@ export default function CentersSearchPage() {
                   {/* Action Button */}
                   <button
                     onClick={() => {
-                      // Navigate to patient registration/login
-                      navigate({ to: '/register', search: { actor: 'patient' } })
+                      // Navigate to patient sign-up page
+                      navigate({ to: '/sign-up/patient' })
                     }}
                     className="w-full px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90 transition-colors text-sm font-medium"
                     disabled={center.availableKits === 0}
