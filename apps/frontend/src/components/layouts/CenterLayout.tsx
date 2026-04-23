@@ -9,6 +9,7 @@ import people from '@/assets/images/people.png'
 import screening from '@/assets/images/screening.png'
 import treatment from '@/assets/images/treatment.png'
 import { useAuthUser, useLogout } from '@/services/providers/auth.provider'
+import { useNotifications } from '@/services/providers/notification.provider'
 
 export function CenterLayout() {
   const { mutate: logout } = useLogout()
@@ -17,6 +18,10 @@ export function CenterLayout() {
   const user = authUserQuery.data?.data?.user
   const isStaff = user?.profile === 'CENTER_STAFF'
   const isAdmin = user?.profile === 'CENTER'
+
+  // Fetch notifications for unread count
+  const { data: notificationsData } = useQuery(useNotifications())
+  const unreadCount = notificationsData?.data?.filter((n: any) => !n.read).length || 0
 
   // Navigation links - Updated: 2026-04-22 14:10
   const baseNavLinks = [
@@ -54,12 +59,17 @@ export function CenterLayout() {
                   key={link.to}
                   to={link.to}
                   preload="render"
-                  className="flex items-center gap-4 rounded-lg px-3 py-3 text-white transition-all hover:bg-white/20"
+                  className="flex items-center gap-4 rounded-lg px-3 py-3 text-white transition-all hover:bg-white/20 relative"
                   activeOptions={{ exact: true }}
                   activeProps={{ className: 'bg-white/30 font-semibold' }}
                 >
                   <img src={link.icon} alt={link.label} className="h-6 w-6" />
                   {link.label}
+                  {link.to === '/center/notifications' && unreadCount > 0 && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
               ))}
             </nav>
@@ -102,10 +112,15 @@ export function CenterLayout() {
       <div className="fixed bottom-2 inset-x-2 md:hidden bg-white z-50 shadow-lg rounded-xl">
         <nav className="flex justify-around items-center h-16 px-1">
           {navLinks.map((link) => (
-            <Link key={link.to} to={link.to} className="flex-1" activeOptions={{ exact: link.to === '/center' }} preload="render">
+            <Link key={link.to} to={link.to} className="flex-1 relative" activeOptions={{ exact: link.to === '/center' }} preload="render">
               <div className="flex h-16 w-full flex-col items-center justify-center rounded-lg p-1 transition-colors duration-200">
                 <img src={link.icon} alt={link.label} className="h-6 w-6" />
                 <span className={'mt-2 text-xs text-muted-foreground'}>{link.label.split(' ')[0]}</span>
+                {link.to === '/center/notifications' && unreadCount > 0 && (
+                  <span className="absolute top-2 right-1/2 translate-x-3 bg-red-500 text-white text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
               </div>
             </Link>
           ))}
