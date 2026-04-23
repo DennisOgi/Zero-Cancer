@@ -19,6 +19,7 @@ import { Link } from '@tanstack/react-router'
 import { AppointmentTable } from './AppointmentTable'
 import { DashboardStats } from './DashboardStats'
 import { QuickActions } from './QuickActions'
+import { WaitlistWidget } from './WaitlistWidget'
 
 // Asset imports
 import appointmentIcon from '@/assets/images/appointment.png'
@@ -130,10 +131,15 @@ export function CenterDashboard() {
       isPrimary: true,
     },
     {
+      label: 'Refer Patient',
+      link: '/center/refer-patient',
+      icon: treatmentIcon,
+      isPrimary: true,
+    },
+    {
       label: 'Verify Check-in',
       link: '/center/verify-code',
       icon: screeningIcon,
-      isPrimary: true,
     },
     {
       label: 'Manage Appointment',
@@ -146,7 +152,6 @@ export function CenterDashboard() {
       link: '/center/upload-results',
       icon: treatmentIcon,
     },
-    { label: 'View Report', link: '#', icon: viewIcon },
   ]
 
   return (
@@ -181,19 +186,7 @@ export function CenterDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Activity Feed</CardTitle>
-            <Button variant="link" size="sm">
-              See All
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-center py-8 text-muted-foreground">
-              No recent activity.
-            </div>
-          </CardContent>
-        </Card>
+        <WaitlistWidget />
       </div>
     </div>
   )

@@ -26,6 +26,8 @@ import { Route as PatientAppointmentsRouteImport } from './routes/patient/appoin
 import { Route as CenterVerifyCodeRouteImport } from './routes/center/verify-code'
 import { Route as CenterUploadResultsRouteImport } from './routes/center/upload-results'
 import { Route as CenterStaffRouteImport } from './routes/center/staff'
+import { Route as CenterRegisterPatientRouteImport } from './routes/center/register-patient'
+import { Route as CenterReferPatientRouteImport } from './routes/center/refer-patient'
 import { Route as CenterReceiptHistoryRouteImport } from './routes/center/receipt-history'
 import { Route as CenterAppointmentsRouteImport } from './routes/center/appointments'
 import { Route as AdminWaitlistRouteImport } from './routes/admin/waitlist'
@@ -153,6 +155,16 @@ const CenterUploadResultsRoute = CenterUploadResultsRouteImport.update({
 const CenterStaffRoute = CenterStaffRouteImport.update({
   id: '/staff',
   path: '/staff',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterRegisterPatientRoute = CenterRegisterPatientRouteImport.update({
+  id: '/register-patient',
+  path: '/register-patient',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterReferPatientRoute = CenterReferPatientRouteImport.update({
+  id: '/refer-patient',
+  path: '/refer-patient',
   getParentRoute: () => CenterRouteRoute,
 } as any)
 const CenterReceiptHistoryRoute = CenterReceiptHistoryRouteImport.update({
@@ -416,6 +428,8 @@ export interface FileRoutesByFullPath {
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/receipt-history': typeof CenterReceiptHistoryRoute
+  '/center/refer-patient': typeof CenterReferPatientRoute
+  '/center/register-patient': typeof CenterRegisterPatientRoute
   '/center/staff': typeof CenterStaffRoute
   '/center/upload-results': typeof CenterUploadResultsRoute
   '/center/verify-code': typeof CenterVerifyCodeRoute
@@ -474,6 +488,8 @@ export interface FileRoutesByTo {
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/receipt-history': typeof CenterReceiptHistoryRoute
+  '/center/refer-patient': typeof CenterReferPatientRoute
+  '/center/register-patient': typeof CenterRegisterPatientRoute
   '/center/staff': typeof CenterStaffRoute
   '/center/upload-results': typeof CenterUploadResultsRoute
   '/center/verify-code': typeof CenterVerifyCodeRoute
@@ -539,6 +555,8 @@ export interface FileRoutesById {
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/receipt-history': typeof CenterReceiptHistoryRoute
+  '/center/refer-patient': typeof CenterReferPatientRoute
+  '/center/register-patient': typeof CenterRegisterPatientRoute
   '/center/staff': typeof CenterStaffRoute
   '/center/upload-results': typeof CenterUploadResultsRoute
   '/center/verify-code': typeof CenterVerifyCodeRoute
@@ -603,6 +621,8 @@ export interface FileRouteTypes {
     | '/admin/waitlist'
     | '/center/appointments'
     | '/center/receipt-history'
+    | '/center/refer-patient'
+    | '/center/register-patient'
     | '/center/staff'
     | '/center/upload-results'
     | '/center/verify-code'
@@ -661,6 +681,8 @@ export interface FileRouteTypes {
     | '/admin/waitlist'
     | '/center/appointments'
     | '/center/receipt-history'
+    | '/center/refer-patient'
+    | '/center/register-patient'
     | '/center/staff'
     | '/center/upload-results'
     | '/center/verify-code'
@@ -725,6 +747,8 @@ export interface FileRouteTypes {
     | '/admin/waitlist'
     | '/center/appointments'
     | '/center/receipt-history'
+    | '/center/refer-patient'
+    | '/center/register-patient'
     | '/center/staff'
     | '/center/upload-results'
     | '/center/verify-code'
@@ -888,6 +912,20 @@ declare module '@tanstack/react-router' {
       path: '/staff'
       fullPath: '/center/staff'
       preLoaderRoute: typeof CenterStaffRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/register-patient': {
+      id: '/center/register-patient'
+      path: '/register-patient'
+      fullPath: '/center/register-patient'
+      preLoaderRoute: typeof CenterRegisterPatientRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/refer-patient': {
+      id: '/center/refer-patient'
+      path: '/refer-patient'
+      fullPath: '/center/refer-patient'
+      preLoaderRoute: typeof CenterReferPatientRouteImport
       parentRoute: typeof CenterRouteRoute
     }
     '/center/receipt-history': {
@@ -1319,6 +1357,8 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
 interface CenterRouteRouteChildren {
   CenterAppointmentsRoute: typeof CenterAppointmentsRoute
   CenterReceiptHistoryRoute: typeof CenterReceiptHistoryRoute
+  CenterReferPatientRoute: typeof CenterReferPatientRoute
+  CenterRegisterPatientRoute: typeof CenterRegisterPatientRoute
   CenterStaffRoute: typeof CenterStaffRoute
   CenterUploadResultsRoute: typeof CenterUploadResultsRoute
   CenterVerifyCodeRoute: typeof CenterVerifyCodeRoute
@@ -1328,6 +1368,8 @@ interface CenterRouteRouteChildren {
 const CenterRouteRouteChildren: CenterRouteRouteChildren = {
   CenterAppointmentsRoute: CenterAppointmentsRoute,
   CenterReceiptHistoryRoute: CenterReceiptHistoryRoute,
+  CenterReferPatientRoute: CenterReferPatientRoute,
+  CenterRegisterPatientRoute: CenterRegisterPatientRoute,
   CenterStaffRoute: CenterStaffRoute,
   CenterUploadResultsRoute: CenterUploadResultsRoute,
   CenterVerifyCodeRoute: CenterVerifyCodeRoute,
