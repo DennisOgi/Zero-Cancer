@@ -39,6 +39,19 @@ type MockAdmin = {
   createdAt: Date;
 };
 
+type MockScreeningType = {
+  id: string;
+  name: string;
+  description?: string;
+  screeningTypeCategoryId: string;
+  active: boolean;
+};
+
+type MockScreeningTypeCategory = {
+  id: string;
+  name: string;
+};
+
 // Test data - correct password hashes
 const PASSWORD_HASH_123 = "$2b$10$p7OAjfPNchoVnCrZpBfL2ub0YuUqoxN50Z0mWUemwAAVK4V24FOdu"; // password123
 const PASSWORD_HASH_FAKE = "$2b$10$PkIqWetkVeWCnKLT4249Xetofw.Sl.qgGCngM0BBfBr67FeXUQV6"; // fake.password
@@ -57,6 +70,85 @@ const MOCK_ADMINS: MockAdmin[] = [
     email: "admin@zerocancer.org",
     passwordHash: PASSWORD_HASH_123,
     createdAt: new Date()
+  }
+];
+
+const MOCK_SCREENING_TYPE_CATEGORIES: MockScreeningTypeCategory[] = [
+  { id: "category-cancer", name: "Cancer Screening" },
+  { id: "category-general", name: "General Health" },
+  { id: "category-specialized", name: "Specialized Tests" }
+];
+
+const MOCK_SCREENING_TYPES: MockScreeningType[] = [
+  {
+    id: "screening-breast-cancer",
+    name: "Breast Cancer Screening",
+    description: "Mammography and clinical breast examination",
+    screeningTypeCategoryId: "category-cancer",
+    active: true
+  },
+  {
+    id: "screening-cervical-cancer",
+    name: "Cervical Cancer Screening",
+    description: "Pap smear and HPV testing",
+    screeningTypeCategoryId: "category-cancer",
+    active: true
+  },
+  {
+    id: "screening-prostate-cancer",
+    name: "Prostate Cancer Screening",
+    description: "PSA test and digital rectal examination",
+    screeningTypeCategoryId: "category-cancer",
+    active: true
+  },
+  {
+    id: "screening-colorectal-cancer",
+    name: "Colorectal Cancer Screening",
+    description: "Colonoscopy and fecal occult blood test",
+    screeningTypeCategoryId: "category-cancer",
+    active: true
+  },
+  {
+    id: "screening-lung-cancer",
+    name: "Lung Cancer Screening",
+    description: "Low-dose CT scan for high-risk individuals",
+    screeningTypeCategoryId: "category-cancer",
+    active: true
+  },
+  {
+    id: "screening-skin-cancer",
+    name: "Skin Cancer Screening",
+    description: "Full body skin examination",
+    screeningTypeCategoryId: "category-cancer",
+    active: true
+  },
+  {
+    id: "screening-general-health",
+    name: "General Health Checkup",
+    description: "Comprehensive health assessment",
+    screeningTypeCategoryId: "category-general",
+    active: true
+  },
+  {
+    id: "screening-blood-pressure",
+    name: "Blood Pressure Screening",
+    description: "Hypertension screening and monitoring",
+    screeningTypeCategoryId: "category-general",
+    active: true
+  },
+  {
+    id: "screening-diabetes",
+    name: "Diabetes Screening",
+    description: "Blood glucose and HbA1c testing",
+    screeningTypeCategoryId: "category-general",
+    active: true
+  },
+  {
+    id: "screening-cholesterol",
+    name: "Cholesterol Screening",
+    description: "Lipid profile testing",
+    screeningTypeCategoryId: "category-general",
+    active: true
   }
 ];
 
@@ -354,6 +446,41 @@ export const getDB = (c: any) => {
         }
         
         return filtered.length;
+      },
+      create: async ({ data, include }: any) => {
+        const newCenter: MockServiceCenter = {
+          id: `center-${Date.now()}`,
+          email: data.email,
+          passwordHash: data.passwordHash,
+          centerName: data.centerName,
+          address: data.address,
+          state: data.state,
+          lga: data.lga,
+          status: "PENDING",
+          phone: data.phone,
+          createdAt: new Date(),
+          isFunded: false,
+          fundingSource: undefined,
+          fundingAmount: undefined,
+          fundingDate: undefined,
+          fundingExpiry: undefined,
+          totalKits: 0,
+          usedKits: 0,
+          availableKits: 0
+        };
+        
+        MOCK_CENTERS.push(newCenter);
+        
+        // Return with services if included
+        if (include?.services) {
+          const serviceIds = data.services?.connect?.map((s: any) => s.id) || [];
+          return {
+            ...newCenter,
+            services: serviceIds.map((id: string) => ({ id }))
+          };
+        }
+        
+        return newCenter;
       }
     },
     
@@ -395,6 +522,103 @@ export const getDB = (c: any) => {
         return null;
       },
       count: async () => MOCK_USERS.length
+    },
+
+    // Mock screening type operations
+    screeningType: {
+      findMany: async ({ where, skip, take, orderBy, select }: any = {}) => {
+        let filtered = [...MOCK_SCREENING_TYPES];
+        
+        // Apply filters
+        if (where) {
+          if (where.active !== undefined) {
+            filtered = filtered.filter(st => st.active === where.active);
+          }
+          if (where.screeningTypeCategoryId) {
+            filtered = filtered.filter(st => st.screeningTypeCategoryId === where.screeningTypeCategoryId);
+          }
+          if (where.name?.contains) {
+            const searchTerm = where.name.contains.toLowerCase();
+            filtered = filtered.filter(st => st.name.toLowerCase().includes(searchTerm));
+          }
+        }
+        
+        // Apply sorting
+        if (orderBy?.name === 'asc') {
+          filtered.sort((a, b) => a.name.localeCompare(b.name));
+        }
+        
+        // Apply pagination
+        const start = skip || 0;
+        const end = take ? start + take : filtered.length;
+        
+        return filtered.slice(start, end);
+      },
+      findUnique: async ({ where }: { where: { id?: string } }) => {
+        if (where.id) {
+          return MOCK_SCREENING_TYPES.find(st => st.id === where.id) || null;
+        }
+        return null;
+      },
+      findFirst: async ({ where }: { where: { name?: string } }) => {
+        if (where.name) {
+          return MOCK_SCREENING_TYPES.find(st => st.name === where.name) || null;
+        }
+        return null;
+      },
+      count: async ({ where }: any = {}) => {
+        let filtered = [...MOCK_SCREENING_TYPES];
+        
+        if (where) {
+          if (where.active !== undefined) {
+            filtered = filtered.filter(st => st.active === where.active);
+          }
+          if (where.screeningTypeCategoryId) {
+            filtered = filtered.filter(st => st.screeningTypeCategoryId === where.screeningTypeCategoryId);
+          }
+        }
+        
+        return filtered.length;
+      }
+    },
+
+    // Mock screening type category operations
+    screeningTypeCategory: {
+      findMany: async ({ select, orderBy }: any = {}) => {
+        let categories = [...MOCK_SCREENING_TYPE_CATEGORIES];
+        
+        if (orderBy?.name === 'asc') {
+          categories.sort((a, b) => a.name.localeCompare(b.name));
+        }
+        
+        return categories;
+      },
+      findUnique: async ({ where }: { where: { id?: string } }) => {
+        if (where.id) {
+          return MOCK_SCREENING_TYPE_CATEGORIES.find(cat => cat.id === where.id) || null;
+        }
+        return null;
+      }
+    },
+
+    // Mock center staff operations
+    centerStaff: {
+      create: async ({ data }: any) => {
+        const newStaff = {
+          id: `staff-${Date.now()}`,
+          centerId: data.centerId,
+          email: data.email,
+          passwordHash: data.passwordHash,
+          role: data.role,
+          createdAt: new Date()
+        };
+        
+        return newStaff;
+      },
+      findUnique: async ({ where }: { where: { email?: string; id?: string } }) => {
+        // For mock purposes, return null (no existing staff)
+        return null;
+      }
     }
   };
 };
