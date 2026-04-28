@@ -74,80 +74,80 @@ const MOCK_ADMINS: MockAdmin[] = [
 ];
 
 const MOCK_SCREENING_TYPE_CATEGORIES: MockScreeningTypeCategory[] = [
-  { id: "category-cancer", name: "Cancer Screening" },
-  { id: "category-general", name: "General Health" },
-  { id: "category-specialized", name: "Specialized Tests" }
+  { id: "11111111-1111-1111-1111-111111111111", name: "Cancer Screening" },
+  { id: "22222222-2222-2222-2222-222222222222", name: "Preventive Care" },
+  { id: "33333333-3333-3333-3333-333333333333", name: "Diagnostic Tests" }
 ];
 
 const MOCK_SCREENING_TYPES: MockScreeningType[] = [
   {
-    id: "screening-breast-cancer",
+    id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    name: "Cervical Cancer Screening",
+    description: "Pap smear and HPV testing for cervical cancer detection",
+    screeningTypeCategoryId: "11111111-1111-1111-1111-111111111111",
+    active: true
+  },
+  {
+    id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
     name: "Breast Cancer Screening",
     description: "Mammography and clinical breast examination",
-    screeningTypeCategoryId: "category-cancer",
+    screeningTypeCategoryId: "11111111-1111-1111-1111-111111111111",
     active: true
   },
   {
-    id: "screening-cervical-cancer",
-    name: "Cervical Cancer Screening",
-    description: "Pap smear and HPV testing",
-    screeningTypeCategoryId: "category-cancer",
-    active: true
-  },
-  {
-    id: "screening-prostate-cancer",
+    id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
     name: "Prostate Cancer Screening",
-    description: "PSA test and digital rectal examination",
-    screeningTypeCategoryId: "category-cancer",
+    description: "PSA blood test and digital rectal examination",
+    screeningTypeCategoryId: "11111111-1111-1111-1111-111111111111",
     active: true
   },
   {
-    id: "screening-colorectal-cancer",
+    id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
     name: "Colorectal Cancer Screening",
     description: "Colonoscopy and fecal occult blood test",
-    screeningTypeCategoryId: "category-cancer",
+    screeningTypeCategoryId: "11111111-1111-1111-1111-111111111111",
     active: true
   },
   {
-    id: "screening-lung-cancer",
+    id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
     name: "Lung Cancer Screening",
     description: "Low-dose CT scan for high-risk individuals",
-    screeningTypeCategoryId: "category-cancer",
+    screeningTypeCategoryId: "11111111-1111-1111-1111-111111111111",
     active: true
   },
   {
-    id: "screening-skin-cancer",
-    name: "Skin Cancer Screening",
-    description: "Full body skin examination",
-    screeningTypeCategoryId: "category-cancer",
-    active: true
-  },
-  {
-    id: "screening-general-health",
-    name: "General Health Checkup",
-    description: "Comprehensive health assessment",
-    screeningTypeCategoryId: "category-general",
-    active: true
-  },
-  {
-    id: "screening-blood-pressure",
-    name: "Blood Pressure Screening",
+    id: "ffffffff-ffff-ffff-ffff-ffffffffffff",
+    name: "Blood Pressure Check",
     description: "Hypertension screening and monitoring",
-    screeningTypeCategoryId: "category-general",
+    screeningTypeCategoryId: "22222222-2222-2222-2222-222222222222",
     active: true
   },
   {
-    id: "screening-diabetes",
+    id: "10101010-1010-1010-1010-101010101010",
     name: "Diabetes Screening",
     description: "Blood glucose and HbA1c testing",
-    screeningTypeCategoryId: "category-general",
+    screeningTypeCategoryId: "22222222-2222-2222-2222-222222222222",
     active: true
   },
   {
-    id: "screening-cholesterol",
-    name: "Cholesterol Screening",
-    description: "Lipid profile testing",
-    screeningTypeCategoryId: "category-general",
+    id: "20202020-2020-2020-2020-202020202020",
+    name: "Cholesterol Test",
+    description: "Lipid profile and cardiovascular risk assessment",
+    screeningTypeCategoryId: "22222222-2222-2222-2222-222222222222",
+    active: true
+  },
+  {
+    id: "30303030-3030-3030-3030-303030303030",
+    name: "Hepatitis B Screening",
+    description: "HBsAg and anti-HBs testing",
+    screeningTypeCategoryId: "33333333-3333-3333-3333-333333333333",
+    active: true
+  },
+  {
+    id: "40404040-4040-4040-4040-404040404040",
+    name: "HIV Screening",
+    description: "HIV antibody and antigen testing",
+    screeningTypeCategoryId: "33333333-3333-3333-3333-333333333333",
     active: true
   }
 ];
