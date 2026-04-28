@@ -18,7 +18,7 @@
   ],
   "vars": {
     "ENV_MODE": "production",
-    "DATABASE_URL": "postgresql://zerocancer_owner:demo_password@ep-demo-database.us-east-1.aws.neon.tech/zerocancer?sslmode=require",
+    "DATABASE_URL": "postgresql://postgres.ouiikyvcjnanhwyobqwp:%40Blackboi787898@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true",
     "JWT_TOKEN_SECRET": "demo-jwt-secret-key-for-testing-only-not-production-secure",
     "FRONTEND_URL": "https://zerocancerafrica.netlify.app",
     "SMTP_HOST": "smtp.gmail.com",

@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./temp.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // Enums replaced with String for SQLite compatibility
