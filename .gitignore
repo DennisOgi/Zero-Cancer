@@ -50,6 +50,13 @@ tasks.md
 hono-docs.txt
 backend-implementation-rules.md
 
+# documentation files (generated during development)
+*.md
+!README.md
+!CONTRIBUTING.md
+!LICENSE.md
+!CHANGELOG.md
+
 # lockfiles
 package-lock.json
 yarn.lock
