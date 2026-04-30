@@ -430,6 +430,130 @@ export const getDB = (c: Context) => {
         return data;
       },
     },
+    
+    // Waitlist operations
+    waitlist: {
+      findMany: async ({ where, skip, take, include, orderBy }: any = {}) => {
+        let query = supabase.from('Waitlist').select('*');
+        
+        if (where) {
+          if (where.status) query = query.eq('status', where.status);
+          if (where.screeningTypeId) query = query.eq('screeningTypeId', where.screeningTypeId);
+          if (where.patientId) query = query.eq('patientId', where.patientId);
+        }
+        
+        if (orderBy) {
+          if (orderBy.joinedAt) query = query.order('joinedAt', { ascending: orderBy.joinedAt === 'asc' });
+        }
+        
+        if (skip) query = query.range(skip, skip + (take || 10) - 1);
+        else if (take) query = query.limit(take);
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        
+        // Return empty arrays for includes (would need joins for real data)
+        return (data || []).map(w => ({
+          ...w,
+          screening: include?.screening ? {} : undefined,
+          patient: include?.patient ? {} : undefined,
+        }));
+      },
+      
+      count: async ({ where }: any = {}) => {
+        let query = supabase.from('Waitlist').select('*', { count: 'exact', head: true });
+        
+        if (where) {
+          if (where.status) query = query.eq('status', where.status);
+          if (where.screeningTypeId) query = query.eq('screeningTypeId', where.screeningTypeId);
+        }
+        
+        const { count, error } = await query;
+        if (error) throw error;
+        return count || 0;
+      },
+    },
+    
+    // Appointment operations
+    appointment: {
+      findMany: async ({ where, skip, take, include, orderBy }: any = {}) => {
+        let query = supabase.from('Appointment').select('*');
+        
+        if (where) {
+          if (where.centerId) query = query.eq('centerId', where.centerId);
+          if (where.patientId) query = query.eq('patientId', where.patientId);
+          if (where.status) query = query.eq('status', where.status);
+          if (where.screeningTypeId) query = query.eq('screeningTypeId', where.screeningTypeId);
+        }
+        
+        if (orderBy) {
+          if (orderBy.createdAt) query = query.order('createdAt', { ascending: orderBy.createdAt === 'asc' });
+          if (orderBy.appointmentDateTime) query = query.order('appointmentDateTime', { ascending: orderBy.appointmentDateTime === 'asc' });
+        }
+        
+        if (skip) query = query.range(skip, skip + (take || 10) - 1);
+        else if (take) query = query.limit(take);
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        
+        // Return empty objects for includes
+        return (data || []).map(a => ({
+          ...a,
+          patient: include?.patient ? {} : undefined,
+          center: include?.center ? {} : undefined,
+          screeningType: include?.screeningType ? {} : undefined,
+          transaction: include?.transaction ? {} : undefined,
+        }));
+      },
+      
+      count: async ({ where }: any = {}) => {
+        let query = supabase.from('Appointment').select('*', { count: 'exact', head: true });
+        
+        if (where) {
+          if (where.centerId) query = query.eq('centerId', where.centerId);
+          if (where.patientId) query = query.eq('patientId', where.patientId);
+          if (where.status) query = query.eq('status', where.status);
+        }
+        
+        const { count, error } = await query;
+        if (error) throw error;
+        return count || 0;
+      },
+      
+      findUnique: async ({ where, include }: any) => {
+        const { data, error } = await supabase
+          .from('Appointment')
+          .select('*')
+          .eq('id', where.id)
+          .single();
+          
+        if (error && error.code !== 'PGRST116') throw error;
+        return data;
+      },
+    },
+    
+    // Notification operations
+    notificationRecipient: {
+      findMany: async ({ where, include, orderBy }: any = {}) => {
+        let query = supabase.from('NotificationRecipient').select('*');
+        
+        if (where?.userId) query = query.eq('userId', where.userId);
+        
+        if (orderBy) {
+          // Handle orderBy if needed
+        }
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        
+        // Return empty objects for includes
+        return (data || []).map(nr => ({
+          ...nr,
+          notification: include?.notification ? {} : undefined,
+        }));
+      },
+    },
   };
 };
 
