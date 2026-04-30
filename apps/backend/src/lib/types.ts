@@ -12,6 +12,8 @@ export type THonoApp = {
 export type TEnvs = {
   DB: D1Database; // D1 binding for Cloudflare Workers
   DATABASE_URL?: string; // Optional fallback for other environments
+  SUPABASE_URL: string; // Supabase project URL
+  SUPABASE_ANON_KEY: string; // Supabase anon/public key
   JWT_TOKEN_SECRET: string;
   SMTP_HOST: string;
   SMTP_PORT: number;

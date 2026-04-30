@@ -18,6 +18,8 @@
   ],
   "vars": {
     "ENV_MODE": "production",
+    "SUPABASE_URL": "https://ouiikyvcjnanhwyobqwp.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91aWlreXZjam5hbmh3eW9icXdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0MDE2NTIsImV4cCI6MjA5Mjk3NzY1Mn0.Rmd5xGZXtz35VftBTcjQ7i0zS9XkodgdlJrh4Nu06MU",
     "DATABASE_URL": "postgresql://postgres.ouiikyvcjnanhwyobqwp:%40Blackboi787898@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true",
     "JWT_TOKEN_SECRET": "demo-jwt-secret-key-for-testing-only-not-production-secure",
     "FRONTEND_URL": "https://zerocancerafrica.netlify.app",
