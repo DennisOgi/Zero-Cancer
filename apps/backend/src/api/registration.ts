@@ -128,16 +128,6 @@ registerApp.post(
 
       const hashedPassword = await bcrypt.hash(data.password!, 10);
       
-      console.log('[PATIENT_REG] Creating patient with data:', {
-        fullName: data.fullName,
-        email: data.email,
-        phone: data.phone,
-        gender: data.gender,
-        dateOfBirth: data.dateOfBirth,
-        state: data.state,
-        city: data.localGovernment,
-      });
-      
       const patient = await db.user.create({
         data: {
           fullName: data.fullName!,
@@ -158,8 +148,6 @@ registerApp.post(
         include: { patientProfile: true },
       });
 
-      console.log('[PATIENT_REG] Patient created successfully:', patient.id);
-
       // Email verification disabled for now
       // TODO: Re-enable when SMTP is properly configured
       // const verifyToken = crypto.randomBytes(32).toString("hex");
@@ -172,8 +160,6 @@ registerApp.post(
       //   },
       // });
       // await sendEmail(c, { ... });
-
-      console.log('[PATIENT_REG] Registration complete');
 
       return c.json<TPatientRegisterResponse>(
         {
@@ -200,8 +186,7 @@ registerApp.post(
         201
       );
     } catch (error) {
-      console.error('[PATIENT_REG] Error during registration:', error);
-      console.error('[PATIENT_REG] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('[PATIENT_REG] Registration error:', error instanceof Error ? error.message : 'Unknown error');
       
       throw new HTTPException(500, { 
         message: error instanceof Error ? error.message : 'Unknown error during registration',

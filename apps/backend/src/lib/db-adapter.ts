@@ -163,13 +163,6 @@ export const getDB = (c: Context) => {
       },
       
       create: async ({ data, include }: any) => {
-        console.log('[DB_ADAPTER] Creating user with data:', {
-          fullName: data.fullName,
-          email: data.email,
-          phone: data.phone,
-          hasPassword: !!data.passwordHash,
-        });
-        
         const { data: user, error: userError } = await supabase
           .from('User')
           .insert({
@@ -181,25 +174,12 @@ export const getDB = (c: Context) => {
           .select()
           .single();
           
-        if (userError) {
-          console.error('[DB_ADAPTER] User creation error:', userError);
-          throw userError;
-        }
-        
-        console.log('[DB_ADAPTER] User created successfully:', user.id);
+        if (userError) throw userError;
         
         // Create patient profile if provided
         if (data.patientProfile?.create) {
           const dob = data.patientProfile.create.dateOfBirth;
           const dobString = dob instanceof Date ? dob.toISOString() : new Date(dob).toISOString();
-          
-          console.log('[DB_ADAPTER] Creating patient profile with data:', {
-            userId: user.id,
-            gender: data.patientProfile.create.gender,
-            dateOfBirth: dobString,
-            city: data.patientProfile.create.city,
-            state: data.patientProfile.create.state,
-          });
           
           const { data: profile, error: profileError } = await supabase
             .from('PatientProfile')
@@ -215,12 +195,7 @@ export const getDB = (c: Context) => {
             .select()
             .single();
             
-          if (profileError) {
-            console.error('[DB_ADAPTER] Patient profile creation error:', profileError);
-            throw profileError;
-          }
-          
-          console.log('[DB_ADAPTER] Patient profile created successfully');
+          if (profileError) throw profileError;
           user.patientProfile = profile;
         }
         
