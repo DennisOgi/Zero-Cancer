@@ -13,13 +13,11 @@ import {
   TScreeningCenterRegisterResponse,
 } from "@zerocancer/shared/types";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 import { Hono } from "hono";
 import { env } from "hono/adapter";
 import { HTTPException } from "hono/http-exception";
 import { getDB } from "../lib/db";
-import { sendEmail } from "../lib/email";
-// import { sendEmail } from "../lib/email";
+// import { sendEmail } from "../lib/email"; // Disabled for now
 import { THonoApp } from "../lib/types";
 import { getUserWithProfiles } from "../lib/utils";
 
@@ -49,14 +47,15 @@ registerApp.post(
     if (!result.success) throw new HTTPException(400, { cause: result.error });
   }),
   async (c) => {
-    const db = getDB(c);
-    const data = c.req.valid("json");
+    try {
+      const db = getDB(c);
+      const data = c.req.valid("json");
 
-    // Concurrently check if user exists and if center with same email exists
-    const [userResult, existingCenter] = await Promise.all([
-      getUserWithProfiles(c, { email: data.email! }),
-      db.serviceCenter.findUnique({ where: { email: data.email! } }),
-    ]);
+      // Concurrently check if user exists and if center with same email exists
+      const [userResult, existingCenter] = await Promise.all([
+        getUserWithProfiles(c, { email: data.email! }),
+        db.serviceCenter.findUnique({ where: { email: data.email! } }),
+      ]);
 
     if (existingCenter)
       return c.json<TErrorResponse>(
@@ -127,71 +126,88 @@ registerApp.post(
         409
       );
 
-    const hashedPassword = await bcrypt.hash(data.password!, 10);
-    const patient = await db.user.create({
-      data: {
-        fullName: data.fullName!,
-        email: data.email!,
-        phone: data.phone!,
-        passwordHash: hashedPassword,
-        patientProfile: {
-          create: {
-            gender: data.gender!,
-            dateOfBirth: data.dateOfBirth!,
-            city: data.localGovernment!,
-            state: data.state!,
-            associationId: data.associationId || null,
-            groupId: data.groupId || null,
+      const hashedPassword = await bcrypt.hash(data.password!, 10);
+      
+      console.log('[PATIENT_REG] Creating patient with data:', {
+        fullName: data.fullName,
+        email: data.email,
+        phone: data.phone,
+        gender: data.gender,
+        dateOfBirth: data.dateOfBirth,
+        state: data.state,
+        city: data.localGovernment,
+      });
+      
+      const patient = await db.user.create({
+        data: {
+          fullName: data.fullName!,
+          email: data.email!,
+          phone: data.phone!,
+          passwordHash: hashedPassword,
+          patientProfile: {
+            create: {
+              gender: data.gender!,
+              dateOfBirth: data.dateOfBirth!,
+              city: data.localGovernment!,
+              state: data.state!,
+              associationId: data.associationId || null,
+              groupId: data.groupId || null,
+            },
           },
         },
-      },
-      include: { patientProfile: true },
-    });
+        include: { patientProfile: true },
+      });
 
-    // When registering, generate and send verification email (example usage):
-    const verifyToken = crypto.randomBytes(32).toString("hex");
+      console.log('[PATIENT_REG] Patient created successfully:', patient.id);
 
-    await db.emailVerificationToken.create({
-      data: {
-        userId: patient.id,
-        profileType: "PATIENT",
-        token: verifyToken,
-        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
-      },
-    });
+      // Email verification disabled for now
+      // TODO: Re-enable when SMTP is properly configured
+      // const verifyToken = crypto.randomBytes(32).toString("hex");
+      // await db.emailVerificationToken.create({
+      //   data: {
+      //     userId: patient.id,
+      //     profileType: "PATIENT",
+      //     token: verifyToken,
+      //     expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
+      //   },
+      // });
+      // await sendEmail(c, { ... });
 
-    await sendEmail(c, {
-      to: patient.email,
-      subject: "Verify your email",
-      html: `<p>Click <a href='${
-        env<{ FRONTEND_URL: string }>(c).FRONTEND_URL || "http://localhost:3000"
-      }/verify-email?token=${verifyToken}'>here</a> to verify your email.</p>`,
-    });
+      console.log('[PATIENT_REG] Registration complete');
 
-    return c.json<TPatientRegisterResponse>(
-      {
-        ok: true,
-        message: "Patient registered successfully",
-        data: {
-          patientId: patient.id,
-          email: patient.email,
-          fullName: patient.fullName,
-          phone: patient.phone ?? "",
-          dateOfBirth:
-            patient.patientProfile?.dateOfBirth instanceof Date
-              ? patient.patientProfile.dateOfBirth.toISOString()
-              : patient.patientProfile?.dateOfBirth ?? "",
-          gender:
-            patient.patientProfile?.gender === "MALE" ||
-            patient.patientProfile?.gender === "FEMALE"
-              ? patient.patientProfile.gender
-              : "MALE",
-          state: patient.patientProfile?.state ?? "",
-          localGovernment: patient.patientProfile?.city ?? "",
+      return c.json<TPatientRegisterResponse>(
+        {
+          ok: true,
+          message: "Patient registered successfully",
+          data: {
+            patientId: patient.id,
+            email: patient.email,
+            fullName: patient.fullName,
+            phone: patient.phone ?? "",
+            dateOfBirth:
+              patient.patientProfile?.dateOfBirth instanceof Date
+                ? patient.patientProfile.dateOfBirth.toISOString()
+                : patient.patientProfile?.dateOfBirth ?? "",
+            gender:
+              patient.patientProfile?.gender === "MALE" ||
+              patient.patientProfile?.gender === "FEMALE"
+                ? patient.patientProfile.gender
+                : "MALE",
+            state: patient.patientProfile?.state ?? "",
+            localGovernment: patient.patientProfile?.city ?? "",
+          },
         },
-      },
-      201
-    );
+        201
+      );
+    } catch (error) {
+      console.error('[PATIENT_REG] Error during registration:', error);
+      console.error('[PATIENT_REG] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      
+      throw new HTTPException(500, { 
+        message: error instanceof Error ? error.message : 'Unknown error during registration',
+        cause: error 
+      });
+    }
   }
 );
 
@@ -272,25 +288,18 @@ registerApp.post(
       include: { donorProfile: true },
     });
 
-    // When registering, generate and send verification email (example usage):
-    const verifyToken = crypto.randomBytes(32).toString("hex");
-
-    await db.emailVerificationToken.create({
-      data: {
-        userId: donor.id,
-        profileType: "DONOR",
-        token: verifyToken,
-        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
-      },
-    });
-
-    await sendEmail(c, {
-      to: donor.email,
-      subject: "Verify your email",
-      html: `<p>Click <a href='${
-        env<{ FRONTEND_URL: string }>(c).FRONTEND_URL || "http://localhost:3000"
-      }/verify-email?token=${verifyToken}'>here</a> to verify your email.</p>`,
-    });
+    // Email verification disabled for now
+    // TODO: Re-enable when SMTP is properly configured
+    // const verifyToken = crypto.randomBytes(32).toString("hex");
+    // await db.emailVerificationToken.create({
+    //   data: {
+    //     userId: donor.id,
+    //     profileType: "DONOR",
+    //     token: verifyToken,
+    //     expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
+    //   },
+    // });
+    // await sendEmail(c, { ... });
 
     return c.json<TDonorRegisterResponse>(
       {

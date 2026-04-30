@@ -126,7 +126,11 @@ export async function getUserWithProfiles(
 ) {
   const db = getDB(c);
   const user = await db.user.findUnique({
-    where: { email: email! }
+    where: { email: email! },
+    include: {
+      patientProfile: true,
+      donorProfile: true,
+    }
   });
 
   if (!user) {
@@ -138,11 +142,11 @@ export async function getUserWithProfiles(
 
   const userProfiles: ("PATIENT" | "DONOR")[] = [];
   
-  // For mock database, determine profiles based on email
-  if (user.email.includes('patient')) {
+  // Check if user has patient or donor profiles
+  if (user.patientProfile) {
     userProfiles.push("PATIENT");
   }
-  if (user.email.includes('donor')) {
+  if (user.donorProfile) {
     userProfiles.push("DONOR");
   }
   

@@ -123,17 +123,34 @@ export const getDB = (c: Context) => {
     // User operations
     user: {
       findUnique: async ({ where, include }: { where: { email?: string; id?: string }, include?: any }) => {
-        let query = supabase.from('User').select(`
-          *,
-          patientProfile:PatientProfile(*),
-          donorProfile:DonorProfile(*)
-        `);
+        // Build select query based on includes
+        let selectQuery = '*';
+        if (include?.patientProfile || include?.donorProfile) {
+          selectQuery = `
+            *,
+            patientProfile:PatientProfile(*),
+            donorProfile:DonorProfile(*)
+          `;
+        }
+        
+        let query = supabase.from('User').select(selectQuery);
         
         if (where.email) query = query.eq('email', where.email);
         if (where.id) query = query.eq('id', where.id);
         
         const { data, error } = await query.single();
         if (error && error.code !== 'PGRST116') throw error;
+        
+        // Handle the case where profiles are returned as arrays (Supabase behavior)
+        if (data) {
+          if (Array.isArray(data.patientProfile)) {
+            data.patientProfile = data.patientProfile[0] || null;
+          }
+          if (Array.isArray(data.donorProfile)) {
+            data.donorProfile = data.donorProfile[0] || null;
+          }
+        }
+        
         return data;
       },
       
@@ -146,6 +163,13 @@ export const getDB = (c: Context) => {
       },
       
       create: async ({ data, include }: any) => {
+        console.log('[DB_ADAPTER] Creating user with data:', {
+          fullName: data.fullName,
+          email: data.email,
+          phone: data.phone,
+          hasPassword: !!data.passwordHash,
+        });
+        
         const { data: user, error: userError } = await supabase
           .from('User')
           .insert({
@@ -157,16 +181,32 @@ export const getDB = (c: Context) => {
           .select()
           .single();
           
-        if (userError) throw userError;
+        if (userError) {
+          console.error('[DB_ADAPTER] User creation error:', userError);
+          throw userError;
+        }
+        
+        console.log('[DB_ADAPTER] User created successfully:', user.id);
         
         // Create patient profile if provided
         if (data.patientProfile?.create) {
+          const dob = data.patientProfile.create.dateOfBirth;
+          const dobString = dob instanceof Date ? dob.toISOString() : new Date(dob).toISOString();
+          
+          console.log('[DB_ADAPTER] Creating patient profile with data:', {
+            userId: user.id,
+            gender: data.patientProfile.create.gender,
+            dateOfBirth: dobString,
+            city: data.patientProfile.create.city,
+            state: data.patientProfile.create.state,
+          });
+          
           const { data: profile, error: profileError } = await supabase
             .from('PatientProfile')
             .insert({
               userId: user.id,
               gender: data.patientProfile.create.gender,
-              dateOfBirth: new Date(data.patientProfile.create.dateOfBirth).toISOString(),
+              dateOfBirth: dobString,
               city: data.patientProfile.create.city,
               state: data.patientProfile.create.state,
               associationId: data.patientProfile.create.associationId || null,
@@ -175,7 +215,12 @@ export const getDB = (c: Context) => {
             .select()
             .single();
             
-          if (profileError) throw profileError;
+          if (profileError) {
+            console.error('[DB_ADAPTER] Patient profile creation error:', profileError);
+            throw profileError;
+          }
+          
+          console.log('[DB_ADAPTER] Patient profile created successfully');
           user.patientProfile = profile;
         }
         
@@ -215,12 +260,15 @@ export const getDB = (c: Context) => {
         
         // Create patient profile if provided
         if (data.patientProfile?.create) {
+          const dob = data.patientProfile.create.dateOfBirth;
+          const dobString = dob instanceof Date ? dob.toISOString() : new Date(dob).toISOString();
+          
           const { data: profile, error: profileError } = await supabase
             .from('PatientProfile')
             .insert({
               userId: user.id,
               gender: data.patientProfile.create.gender,
-              dateOfBirth: new Date(data.patientProfile.create.dateOfBirth).toISOString(),
+              dateOfBirth: dobString,
               city: data.patientProfile.create.city,
               state: data.patientProfile.create.state,
               associationId: data.patientProfile.create.associationId || null,
