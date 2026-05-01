@@ -8,7 +8,9 @@ export default function Footer() {
       <div className="wrapper pb-12">
         <div className="grid lg:grid-cols-3 gap-10">
           <div className="space-y-4 lg:col-span-2">
-            <img src={logo} alt="ZeroCancer Logo" className="w-32" />
+            <Link to="/" className="inline-block">
+              <img src={logo} alt="ZeroCancer Logo" className="w-32 cursor-pointer hover:opacity-90 transition-opacity" />
+            </Link>
             <p className="text-muted-foreground max-w-md">
               No matter where you are, we're here for you. Reach out, get to
               know us better, and discover what we can do for your brand. We're

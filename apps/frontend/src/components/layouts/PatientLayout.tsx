@@ -29,8 +29,8 @@ export function PatientLayout() {
       <div className="fixed inset-y-0 left-0 z-50 w-60 xl:w-72 hidden md:block bg-primary">
         <div className="flex h-full flex-col">
           <div className="flex h-20 items-center px-4 lg:h-[80px] lg:px-6">
-            <Link to="/patient" className="flex items-center gap-2 font-semibold">
-              <img src={logo} alt="ZeroCancer" className="h-12" />
+            <Link to="/" className="flex items-center gap-2 font-semibold">
+              <img src={logo} alt="ZeroCancer" className="h-12 cursor-pointer hover:opacity-90 transition-opacity" />
             </Link>
           </div>
           <div className="flex-1 overflow-y-auto flex flex-col justify-between">
@@ -74,8 +74,8 @@ export function PatientLayout() {
       {/* Mobile Topbar */}
       <div className="flex flex-col md:ml-60 xl:ml-72">
         <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b bg-primary px-4 py-6 shadow-md md:hidden">
-          <Link to="/patient" className="flex items-center gap-2 font-semibold">
-            <img src={logo} alt="ZeroCancer" className="h-12" />
+          <Link to="/" className="flex items-center gap-2 font-semibold">
+            <img src={logo} alt="ZeroCancer" className="h-12 cursor-pointer hover:opacity-90 transition-opacity" />
           </Link>
           <div className="flex items-center gap-2">
             <button
