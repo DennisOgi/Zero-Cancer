@@ -14,6 +14,7 @@ export default function Find() {
   const navigate = useNavigate()
   const [selectedState, setSelectedState] = useState<string>('')
   const [selectedLGA, setSelectedLGA] = useState<string>('')
+  const [serviceType, setServiceType] = useState<string>('')
   const [lgas, setLgas] = useState<string[]>([])
 
   const handleStateChange = (state: string) => {
@@ -35,6 +36,7 @@ export default function Find() {
       search: {
         state: selectedState,
         lga: selectedLGA || undefined,
+        serviceType: serviceType || undefined,
       },
     })
   }
@@ -50,6 +52,21 @@ export default function Find() {
           wherever you are.
         </p>
         <div className="space-y-4">
+          <div>
+            <label htmlFor="serviceType" className="text-sm font-medium">
+              Service type
+            </label>
+            <Select value={serviceType} onValueChange={setServiceType}>
+              <SelectTrigger id="serviceType" className="w-full">
+                <SelectValue placeholder="All services" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Services</SelectItem>
+                <SelectItem value="screening">Cancer Screening</SelectItem>
+                <SelectItem value="vaccination">Vaccination</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <label htmlFor="state" className="text-sm font-medium">
               Select state

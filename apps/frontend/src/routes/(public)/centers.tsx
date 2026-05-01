@@ -6,6 +6,7 @@ import { z } from 'zod'
 const centersSearchSchema = z.object({
   state: z.string().optional(),
   lga: z.string().optional(),
+  serviceType: z.string().optional(),
 })
 
 export const Route = createFileRoute('/(public)/centers')({

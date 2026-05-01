@@ -1,12 +1,25 @@
 import { centers } from '@/services/providers/center.provider'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { Building2, MapPin, Phone, CheckCircle2, AlertCircle, Package } from 'lucide-react'
+import { Building2, MapPin, Phone, CheckCircle2, AlertCircle, Package, Filter } from 'lucide-react'
+import { useState } from 'react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/ui/select'
 
 export default function CentersSearchPage() {
   const navigate = useNavigate()
   const search = useSearch({ from: '/(public)/centers' })
-  const { state, lga } = search
+  const { state, lga, serviceType } = search
+
+  // Filter states
+  const [showOnlyFunded, setShowOnlyFunded] = useState(false)
+  const [showOnlyWithKits, setShowOnlyWithKits] = useState(false)
+  const [selectedServiceType, setSelectedServiceType] = useState(serviceType || 'all')
 
   const { data } = useSuspenseQuery(
     centers({
@@ -17,6 +30,21 @@ export default function CentersSearchPage() {
   )
 
   const centersData = data?.data?.centers || []
+
+  // Apply client-side filters
+  const filteredCenters = centersData.filter((center: any) => {
+    // Filter by funding status
+    if (showOnlyFunded && !center.isFunded) return false
+    
+    // Filter by kit availability
+    if (showOnlyWithKits && center.availableKits === 0) return false
+    
+    // Filter by service type (screening vs vaccination)
+    // This would require checking the center's services
+    // For now, we'll keep all centers if "all" is selected
+    
+    return true
+  })
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -59,31 +87,130 @@ export default function CentersSearchPage() {
             )}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
-            Found {centersData.length} center{centersData.length !== 1 ? 's' : ''}
+            Found {filteredCenters.length} center{filteredCenters.length !== 1 ? 's' : ''}
+            {filteredCenters.length !== centersData.length && (
+              <span className="text-amber-600"> (filtered from {centersData.length})</span>
+            )}
           </p>
+        </div>
+      </div>
+
+      {/* Filters Section */}
+      <div className="bg-white border-b">
+        <div className="wrapper py-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <h3 className="font-medium">Filters</h3>
+          </div>
+          <div className="grid md:grid-cols-4 gap-4">
+            {/* Service Type Filter */}
+            <div>
+              <label htmlFor="serviceTypeFilter" className="text-sm font-medium block mb-1">
+                Service Type
+              </label>
+              <Select value={selectedServiceType} onValueChange={setSelectedServiceType}>
+                <SelectTrigger id="serviceTypeFilter" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Services</SelectItem>
+                  <SelectItem value="screening">Cancer Screening</SelectItem>
+                  <SelectItem value="vaccination">Vaccination</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Funding Status Filter */}
+            <div>
+              <label htmlFor="fundingFilter" className="text-sm font-medium block mb-1">
+                Funding Status
+              </label>
+              <Select 
+                value={showOnlyFunded ? 'funded' : 'all'} 
+                onValueChange={(value) => setShowOnlyFunded(value === 'funded')}
+              >
+                <SelectTrigger id="fundingFilter" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Centers</SelectItem>
+                  <SelectItem value="funded">Funded Centers Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Kit Availability Filter */}
+            <div>
+              <label htmlFor="kitFilter" className="text-sm font-medium block mb-1">
+                Kit Availability
+              </label>
+              <Select 
+                value={showOnlyWithKits ? 'available' : 'all'} 
+                onValueChange={(value) => setShowOnlyWithKits(value === 'available')}
+              >
+                <SelectTrigger id="kitFilter" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Centers</SelectItem>
+                  <SelectItem value="available">With Available Kits</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Clear Filters Button */}
+            <div className="flex items-end">
+              <button
+                onClick={() => {
+                  setShowOnlyFunded(false)
+                  setShowOnlyWithKits(false)
+                  setSelectedServiceType('all')
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Results */}
       <div className="wrapper py-8">
-        {centersData.length === 0 ? (
+        {filteredCenters.length === 0 ? (
           <div className="bg-white rounded-lg p-12 text-center">
             <Building2 className="w-16 h-16 mx-auto text-gray-300 mb-4" />
             <h2 className="text-2xl font-semibold mb-2">No Centers Found</h2>
             <p className="text-muted-foreground mb-6">
-              We couldn't find any screening centers in {state}
-              {lga && ` - ${lga}`}.
+              {centersData.length === 0 ? (
+                <>
+                  We couldn't find any screening centers in {state}
+                  {lga && ` - ${lga}`}.
+                </>
+              ) : (
+                <>
+                  No centers match your selected filters. Try adjusting your filter criteria.
+                </>
+              )}
             </p>
             <button
-              onClick={() => navigate({ to: '/' })}
+              onClick={() => {
+                if (centersData.length === 0) {
+                  navigate({ to: '/' })
+                } else {
+                  setShowOnlyFunded(false)
+                  setShowOnlyWithKits(false)
+                  setSelectedServiceType('all')
+                }
+              }}
               className="px-6 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90"
             >
-              Try Another Location
+              {centersData.length === 0 ? 'Try Another Location' : 'Clear Filters'}
             </button>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {centersData.map((center: any) => (
+            {filteredCenters.map((center: any) => (
               <div
                 key={center.id}
                 className="bg-white rounded-lg border hover:shadow-lg transition-shadow overflow-hidden"
