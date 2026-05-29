@@ -475,7 +475,10 @@ export const getDB = (c: Context) => {
         
         if (where) {
           if (where.active !== undefined) query = query.eq('active', where.active);
-          if (where.id?.in) query = query.in('id', where.id.in);
+          if (where.id?.in) {
+            if (where.id.in.length === 0) return [];
+            query = query.in('id', where.id.in);
+          }
           if (where.screeningTypeCategoryId) query = query.eq('screeningTypeCategoryId', where.screeningTypeCategoryId);
           if (where.name?.contains) query = query.ilike('name', `%${where.name.contains}%`);
         }

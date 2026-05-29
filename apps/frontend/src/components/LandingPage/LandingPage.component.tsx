@@ -20,9 +20,9 @@ function LandingPage() {
       <Why />
       <Education />
       <Fight />
+      <AnonymousDonate />
       <Find />
       <How />
-      <AnonymousDonate />
       <Faq />
       <Cta />
       <Footer />

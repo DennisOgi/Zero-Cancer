@@ -147,7 +147,7 @@ centerApp.get(
           phone: center.phone,
           bankAccount: center.bankAccount,
           bankName: center.bankName,
-          status: center.status.toString(),
+          status: center.status?.toString?.() ?? String(center.status ?? ''),
           createdAt:
             center.createdAt instanceof Date
               ? center.createdAt.toISOString()
