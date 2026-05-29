@@ -78,11 +78,15 @@ export default function Navbar() {
           label: 'Donate Now',
           sectionId: 'donate-section',
           href: '#donate-section',
+          className:
+            'bg-pink-600 text-white hover:bg-pink-700 shadow-pink-600/20 hover:shadow-pink-600/30',
         }
       : {
-          label: 'Screening Now',
+          label: 'Screen now',
           sectionId: 'find-center-section',
           href: '#find-center-section',
+          className:
+            'bg-green-400 text-white hover:bg-green-500 shadow-green-400/20 hover:shadow-green-400/30',
         }
 
   const countries = [
@@ -148,7 +152,7 @@ export default function Navbar() {
           key={activeCta}
           href={activeCtaConfig.href}
           onClick={(e) => scrollToSection(activeCtaConfig.sectionId, e)}
-          className="bg-secondary text-white hover:bg-secondary/90 px-6 py-2.5 rounded-lg font-semibold cursor-pointer shadow-md shadow-secondary/10 hover:shadow-secondary/20 hover:-translate-y-0.5 transition-all text-sm"
+          className={`px-6 py-2.5 rounded-lg font-semibold cursor-pointer shadow-md hover:-translate-y-0.5 transition-all text-sm ${activeCtaConfig.className}`}
         >
           {activeCtaConfig.label}
         </a>
@@ -275,7 +279,7 @@ export default function Navbar() {
               key={activeCta}
               href={activeCtaConfig.href}
               onClick={(e) => scrollToSection(activeCtaConfig.sectionId, e)}
-              className="bg-secondary text-white text-center w-48 py-2.5 rounded-lg font-semibold shadow-md text-base"
+              className={`text-center w-48 py-2.5 rounded-lg font-semibold shadow-md text-base transition-all ${activeCtaConfig.className}`}
             >
               {activeCtaConfig.label}
             </a>
