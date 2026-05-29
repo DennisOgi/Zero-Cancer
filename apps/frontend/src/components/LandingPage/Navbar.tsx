@@ -79,14 +79,14 @@ export default function Navbar() {
           sectionId: 'donate-section',
           href: '#donate-section',
           className:
-            'bg-pink-600 text-white hover:bg-pink-700 shadow-pink-600/20 hover:shadow-pink-600/30',
+            'bg-secondary text-white hover:bg-secondary/90 shadow-secondary/10 hover:shadow-secondary/20',
         }
       : {
           label: 'Screen now',
           sectionId: 'find-center-section',
           href: '#find-center-section',
           className:
-            'bg-green-400 text-white hover:bg-green-500 shadow-green-400/20 hover:shadow-green-400/30',
+            'bg-green-700 text-white hover:bg-green-800 shadow-green-700/20 hover:shadow-green-700/30',
         }
 
   const countries = [
