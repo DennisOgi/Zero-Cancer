@@ -8,6 +8,7 @@ import { ChevronDown, Globe } from 'lucide-react'
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isCountryOpen, setIsCountryOpen] = useState(false)
+  const [activeCta, setActiveCta] = useState<'donate' | 'screening'>('donate')
   const countryDropdownRef = useRef<HTMLDivElement>(null)
   const { data: authData } = useQuery(useAuthUser())
 
@@ -25,6 +26,16 @@ export default function Navbar() {
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setActiveCta((current) =>
+        current === 'donate' ? 'screening' : 'donate',
+      )
+    }, 5000)
+
+    return () => window.clearInterval(interval)
   }, [])
 
   const getDashboardLink = () => {
@@ -48,14 +59,31 @@ export default function Navbar() {
 
   const dashboardLink = getDashboardLink()
 
-  const scrollToDonate = (e: React.MouseEvent) => {
+  const scrollToSection = (sectionId: string, e: React.MouseEvent) => {
     e.preventDefault()
     setIsOpen(false)
-    const element = document.getElementById('donate-section')
+    const element = document.getElementById(sectionId)
     if (element) {
+      window.history.replaceState(null, '', `#${sectionId}`)
       element.scrollIntoView({ behavior: 'smooth' })
+      return
     }
+
+    window.location.href = `/#${sectionId}`
   }
+
+  const activeCtaConfig =
+    activeCta === 'donate'
+      ? {
+          label: 'Donate Now',
+          sectionId: 'donate-section',
+          href: '#donate-section',
+        }
+      : {
+          label: 'Screening Now',
+          sectionId: 'find-center-section',
+          href: '#find-center-section',
+        }
 
   const countries = [
     { name: 'Nigeria 🇳🇬', active: true },
@@ -117,11 +145,12 @@ export default function Navbar() {
       </div>
       <div className="hidden md:flex items-center gap-6">
         <a
-          href="#donate-section"
-          onClick={scrollToDonate}
+          key={activeCta}
+          href={activeCtaConfig.href}
+          onClick={(e) => scrollToSection(activeCtaConfig.sectionId, e)}
           className="bg-secondary text-white hover:bg-secondary/90 px-6 py-2.5 rounded-lg font-semibold cursor-pointer shadow-md shadow-secondary/10 hover:shadow-secondary/20 hover:-translate-y-0.5 transition-all text-sm"
         >
-          Donate Now
+          {activeCtaConfig.label}
         </a>
         {isAuthenticated && dashboardLink ? (
           <Link to={dashboardLink} preload="render">
@@ -243,11 +272,12 @@ export default function Navbar() {
               </div>
             </div>
             <a
-              href="#donate-section"
-              onClick={scrollToDonate}
+              key={activeCta}
+              href={activeCtaConfig.href}
+              onClick={(e) => scrollToSection(activeCtaConfig.sectionId, e)}
               className="bg-secondary text-white text-center w-48 py-2.5 rounded-lg font-semibold shadow-md text-base"
             >
-              Donate Now
+              {activeCtaConfig.label}
             </a>
             {isAuthenticated && dashboardLink ? (
               <Link to={dashboardLink} onClick={() => setIsOpen(false)}>

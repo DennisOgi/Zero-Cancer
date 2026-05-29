@@ -8,6 +8,15 @@ export const getSupabaseClient = (c: Context) => {
   const { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY } =
     env<TEnvs>(c);
   const supabaseKey = SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY;
+
+  if (!SUPABASE_URL || !supabaseKey) {
+    console.error("Supabase configuration missing", {
+      hasUrl: Boolean(SUPABASE_URL),
+      hasAnonKey: Boolean(SUPABASE_ANON_KEY),
+      hasServiceRoleKey: Boolean(SUPABASE_SERVICE_ROLE_KEY),
+    });
+    throw new Error("Supabase configuration missing");
+  }
   
   return createClient(SUPABASE_URL, supabaseKey, {
     auth: {

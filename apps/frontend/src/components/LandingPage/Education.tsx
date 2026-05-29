@@ -10,6 +10,19 @@ export default function Education() {
 
   const videoData = [
     {
+      id: 'cervical',
+      src: '/ZeroCancer_Video_ewxn02.webm',
+      title: 'Cervical Cancer Awareness',
+      description:
+        'Understand the risks, symptoms, and importance of early detection.',
+    },
+    {
+      id: 'self-sample',
+      src: '/Zerocancer_video_rchsqf.webm',
+      title: 'How to Collect Self Samples',
+      description: 'Follow these easy steps to collect your sample correctly.',
+    },
+    {
       id: 'mobilab-hpv-test',
       src: '/Mobilab HPV Testing Video.mp4',
       title: 'How to Test for HPV Using Mobilab Rapid Test Kit',

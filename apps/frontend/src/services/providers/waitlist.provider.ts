@@ -17,6 +17,7 @@ export const allWaitlists = (params: z.infer<typeof getAllWaitlistsSchema>) =>
     queryFn: () => waitlistService.getAllWaitlists(params),
     staleTime: 30 * 1000, // 30 seconds
     refetchInterval: 60 * 1000, // Check every minute
+    retry: false,
   })
 
 // Get all waitlists with infinite loading (paginated, sortable)

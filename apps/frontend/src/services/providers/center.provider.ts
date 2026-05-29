@@ -16,6 +16,7 @@ export const centers = (params: z.infer<typeof getCentersQuerySchema>) =>
   queryOptions({
     queryKey: [QueryKeys.centers, params],
     queryFn: () => centerService.getCenters(params),
+    retry: false,
   })
 
 // Get centers with infinite loading (paginated, filterable)

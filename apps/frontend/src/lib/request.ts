@@ -121,6 +121,12 @@ export function setupAxiosInterceptors(queryClient: QueryClient) {
       if (originalRequest.url?.includes('/api/auth/logout') === true) {
         return Promise.reject(error)
       }
+      if (
+        originalRequest.url?.includes('/api/auth/me') === true &&
+        error.response.status === 401
+      ) {
+        return Promise.reject(error)
+      }
 
       if (error.response.status === 401 && !originalRequest._retry) {
         console.warn(

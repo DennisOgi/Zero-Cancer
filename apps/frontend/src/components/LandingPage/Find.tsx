@@ -76,10 +76,13 @@ export default function Find() {
   }
 
   return (
-    <div className="wrapper py-20 grid md:grid-cols-2 gap-10 items-center">
+    <div
+      id="find-center-section"
+      className="wrapper py-20 grid md:grid-cols-2 gap-10 items-center"
+    >
       <div className="space-y-6">
         <h2 className="text-4xl lg:text-5xl font-bold leading-tight">
-          Find a Cancer Management Center Near You
+          Find a Center Near You
         </h2>
         <p className="text-muted-foreground">
           Search for vaccination, screening, and treatment centers easily,

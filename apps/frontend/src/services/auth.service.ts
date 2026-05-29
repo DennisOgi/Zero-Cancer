@@ -27,6 +27,11 @@ export const authUser = async (): Promise<TAuthMeResponse | null> => {
     const response = await request.get<TAuthMeResponse>(endpoints.authUser())
     return response
   } catch (error) {
+    const status = (error as any)?.response?.status
+    if (status === 401 || status === 403) {
+      return null
+    }
+
     console.error('Error fetching authenticated user:', error)
     return null
   }
