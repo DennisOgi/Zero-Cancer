@@ -82,7 +82,7 @@ export default function Navbar() {
             'bg-secondary text-white hover:bg-secondary/90 shadow-secondary/10 hover:shadow-secondary/20',
         }
       : {
-          label: 'Screen now',
+          label: 'Screen Now',
           sectionId: 'find-center-section',
           href: '#find-center-section',
           className:
