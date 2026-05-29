@@ -6,20 +6,31 @@ import { z } from 'zod'
 const centersSearchSchema = z.object({
   state: z.string().optional(),
   lga: z.string().optional(),
-  serviceType: z.string().optional(),
+  serviceType: z
+    .enum(['vaccination', 'screening', 'treatment'])
+    .optional()
+    .catch(undefined),
 })
 
 export const Route = createFileRoute('/(public)/centers')({
   validateSearch: centersSearchSchema,
   loader: ({ context: { queryClient }, location }) => {
     const search = centersSearchSchema.parse(location.search)
-    return queryClient.ensureQueryData(
+    void queryClient.prefetchQuery(
       centers({
         state: search.state,
         lga: search.lga,
+        serviceType: search.serviceType,
         pageSize: 50,
+      }),
+    ).catch((error) => {
+      console.error('Centers route prefetch failed', {
+        filters: search,
+        error,
       })
-    )
+    })
+
+    return search
   },
   component: CentersSearchPage,
 })

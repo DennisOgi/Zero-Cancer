@@ -12,9 +12,9 @@ export default function Footer() {
               <img src={logo} alt="ZeroCancer Logo" className="w-32 cursor-pointer hover:opacity-90 transition-opacity" />
             </Link>
             <p className="text-muted-foreground max-w-md">
-              No matter where you are, we're here for you. Reach out, get to
-              know us better, and discover what we can do for your brand. We're
-              ready when you are.
+              No matter where you are in Africa, we're here for you. Reach out,
+              create a free account, and discover how we can help you and your
+              loved ones prevent cancer. We're ready when you are.
             </p>
           </div>
           <div className="">
@@ -24,24 +24,27 @@ export default function Footer() {
                 <Link to="/" className="block hover:text-primary">
                   Home
                 </Link>
-                <a href="#" className="block hover:text-primary">
+                <Link to="/login" className="block hover:text-primary">
                   My Account
-                </a>
-                <a href="#" className="block hover:text-primary">
+                </Link>
+                <a
+                  href="/#donate-section"
+                  className="block hover:text-primary"
+                >
                   Make a Donation
                 </a>
-                <a href="#" className="block hover:text-primary">
-                  Find a Screening Center
-                </a>
+                <Link to="/centers" className="block hover:text-primary">
+                  Find a Center
+                </Link>
               </div>
               <div className="space-y-2">
-                <a href="#" className="block hover:text-primary">
+                <Link to="/about" className="block hover:text-primary">
                   Contact Us
-                </a>
+                </Link>
                 <Link to="/about" className="block hover:text-primary">
                   About Us
                 </Link>
-                <a href="#" className="block hover:text-primary">
+                <a href="/#faq" className="block hover:text-primary">
                   FAQs
                 </a>
                 <Link to="/blog" className="block hover:text-primary">

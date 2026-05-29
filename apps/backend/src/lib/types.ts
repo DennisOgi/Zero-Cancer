@@ -14,6 +14,7 @@ export type TEnvs = {
   DATABASE_URL?: string; // Optional fallback for other environments
   SUPABASE_URL: string; // Supabase project URL
   SUPABASE_ANON_KEY: string; // Supabase anon/public key
+  SUPABASE_SERVICE_ROLE_KEY?: string; // Server-only key for backend Supabase access
   JWT_TOKEN_SECRET: string;
   SMTP_HOST: string;
   SMTP_PORT: number;

@@ -44,12 +44,58 @@ export const getDB = (c: Context) => {
       
       findMany: async ({ where, skip, take, orderBy, include }: any = {}) => {
         let query = supabase.from('ServiceCenter').select('*');
+        const serviceTypeFilter = where?.screeningTypes?.some?.screeningType?.OR;
+        let matchingCenterIds: string[] | undefined;
+
+        if (Array.isArray(serviceTypeFilter)) {
+          const categoryIds = serviceTypeFilter
+            .map((filter: any) => filter.screeningTypeCategoryId?.in)
+            .flat()
+            .filter(Boolean);
+          const terms = serviceTypeFilter
+            .map((filter: any) => filter.name?.contains || filter.category?.name?.contains)
+            .filter(Boolean)
+            .map((term: string) => term.toLowerCase());
+
+          const { data: screeningTypes, error: screeningTypesError } = await supabase
+            .from('ScreeningType')
+            .select('id,name,screeningTypeCategoryId');
+
+          if (screeningTypesError) throw screeningTypesError;
+
+          const matchingScreeningTypeIds = (screeningTypes || [])
+            .filter((screeningType: any) => {
+              const name = String(screeningType.name || '').toLowerCase();
+              return (
+                categoryIds.includes(screeningType.screeningTypeCategoryId) ||
+                terms.some((term: string) => name.includes(term))
+              );
+            })
+            .map((screeningType: any) => screeningType.id);
+
+          if (matchingScreeningTypeIds.length === 0) {
+            matchingCenterIds = [];
+          } else {
+            const { data: links, error: linksError } = await supabase
+              .from('ServiceCenterScreeningType')
+              .select('centerId')
+              .in('screeningTypeId', matchingScreeningTypeIds);
+
+            if (linksError) throw linksError;
+            matchingCenterIds = [...new Set((links || []).map((link: any) => link.centerId))];
+          }
+        }
         
         // Apply filters
         if (where) {
           if (where.status) query = query.eq('status', where.status);
           if (where.state) query = query.eq('state', where.state);
           if (where.lga) query = query.eq('lga', where.lga);
+          if (matchingCenterIds) {
+            query = matchingCenterIds.length > 0
+              ? query.in('id', matchingCenterIds)
+              : query.eq('id', '__no_matching_centers__');
+          }
           if (where.OR && Array.isArray(where.OR)) {
             const searchTerm = where.OR[0]?.centerName?.contains;
             if (searchTerm) {
@@ -64,22 +110,116 @@ export const getDB = (c: Context) => {
         
         const { data, error } = await query;
         if (error) throw error;
+
+        const centerIds = (data || []).map((center: any) => center.id);
+        let servicesByCenter = new Map<string, any[]>();
+
+        if (centerIds.length > 0) {
+          const { data: serviceLinks, error: serviceLinksError } = await supabase
+            .from('ServiceCenterScreeningType')
+            .select('*')
+            .in('centerId', centerIds);
+
+          if (serviceLinksError) throw serviceLinksError;
+
+          const screeningTypeIds = [
+            ...new Set((serviceLinks || []).map((link: any) => link.screeningTypeId)),
+          ];
+
+          const { data: screeningTypes, error: screeningTypesError } = screeningTypeIds.length > 0
+            ? await supabase.from('ScreeningType').select('id,name').in('id', screeningTypeIds)
+            : { data: [], error: null };
+
+          if (screeningTypesError) throw screeningTypesError;
+
+          const screeningTypesById = new Map(
+            (screeningTypes || []).map((screeningType: any) => [screeningType.id, screeningType])
+          );
+
+          servicesByCenter = (serviceLinks || []).reduce((acc: Map<string, any[]>, link: any) => {
+            const screeningType = screeningTypesById.get(link.screeningTypeId);
+            if (!screeningType) return acc;
+
+            const centerServices = acc.get(link.centerId) || [];
+            centerServices.push({
+              id: screeningType.id,
+              name: screeningType.name,
+              price: link.amount || 0,
+              amount: link.amount || 0,
+              screeningType,
+            });
+            acc.set(link.centerId, centerServices);
+            return acc;
+          }, new Map<string, any[]>());
+        }
         
-        // Add empty arrays for includes
         return (data || []).map(center => ({
           ...center,
-          services: [],
+          services: servicesByCenter.get(center.id) || [],
+          screeningTypes: (servicesByCenter.get(center.id) || []).map((service: any) => ({
+            amount: service.amount,
+            screeningType: {
+              id: service.id,
+              name: service.name,
+            },
+          })),
           staff: [],
         }));
       },
       
       count: async ({ where }: any = {}) => {
         let query = supabase.from('ServiceCenter').select('*', { count: 'exact', head: true });
+        const serviceTypeFilter = where?.screeningTypes?.some?.screeningType?.OR;
+        let matchingCenterIds: string[] | undefined;
+
+        if (Array.isArray(serviceTypeFilter)) {
+          const categoryIds = serviceTypeFilter
+            .map((filter: any) => filter.screeningTypeCategoryId?.in)
+            .flat()
+            .filter(Boolean);
+          const terms = serviceTypeFilter
+            .map((filter: any) => filter.name?.contains || filter.category?.name?.contains)
+            .filter(Boolean)
+            .map((term: string) => term.toLowerCase());
+
+          const { data: screeningTypes, error: screeningTypesError } = await supabase
+            .from('ScreeningType')
+            .select('id,name,screeningTypeCategoryId');
+
+          if (screeningTypesError) throw screeningTypesError;
+
+          const matchingScreeningTypeIds = (screeningTypes || [])
+            .filter((screeningType: any) => {
+              const name = String(screeningType.name || '').toLowerCase();
+              return (
+                categoryIds.includes(screeningType.screeningTypeCategoryId) ||
+                terms.some((term: string) => name.includes(term))
+              );
+            })
+            .map((screeningType: any) => screeningType.id);
+
+          if (matchingScreeningTypeIds.length === 0) {
+            matchingCenterIds = [];
+          } else {
+            const { data: links, error: linksError } = await supabase
+              .from('ServiceCenterScreeningType')
+              .select('centerId')
+              .in('screeningTypeId', matchingScreeningTypeIds);
+
+            if (linksError) throw linksError;
+            matchingCenterIds = [...new Set((links || []).map((link: any) => link.centerId))];
+          }
+        }
         
         if (where) {
           if (where.status) query = query.eq('status', where.status);
           if (where.state) query = query.eq('state', where.state);
           if (where.lga) query = query.eq('lga', where.lga);
+          if (matchingCenterIds) {
+            query = matchingCenterIds.length > 0
+              ? query.in('id', matchingCenterIds)
+              : query.eq('id', '__no_matching_centers__');
+          }
         }
         
         const { count, error } = await query;
@@ -335,6 +475,7 @@ export const getDB = (c: Context) => {
         
         if (where) {
           if (where.active !== undefined) query = query.eq('active', where.active);
+          if (where.id?.in) query = query.in('id', where.id.in);
           if (where.screeningTypeCategoryId) query = query.eq('screeningTypeCategoryId', where.screeningTypeCategoryId);
           if (where.name?.contains) query = query.ilike('name', `%${where.name.contains}%`);
         }
@@ -456,6 +597,31 @@ export const getDB = (c: Context) => {
     
     // Waitlist operations
     waitlist: {
+      groupBy: async ({ where, orderBy }: any = {}) => {
+        let query = supabase.from('Waitlist').select('id, screeningTypeId');
+
+        if (where?.status) query = query.eq('status', where.status);
+        if (where?.screeningTypeId) query = query.eq('screeningTypeId', where.screeningTypeId);
+        if (where?.patientId) query = query.eq('patientId', where.patientId);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const counts = (data || []).reduce((acc: Map<string, number>, waitlist: any) => {
+          const currentCount = acc.get(waitlist.screeningTypeId) || 0;
+          acc.set(waitlist.screeningTypeId, currentCount + 1);
+          return acc;
+        }, new Map<string, number>());
+
+        const sortDirection = orderBy?._count?.id === 'asc' ? 1 : -1;
+        return [...counts.entries()]
+          .map(([screeningTypeId, count]) => ({
+            screeningTypeId,
+            _count: { id: count },
+          }))
+          .sort((a, b) => (a._count.id - b._count.id) * sortDirection);
+      },
+
       findMany: async ({ where, skip, take, include, orderBy }: any = {}) => {
         let query = supabase.from('Waitlist').select('*');
         
@@ -554,6 +720,24 @@ export const getDB = (c: Context) => {
         if (error && error.code !== 'PGRST116') throw error;
         return data;
       },
+      
+      update: async ({ where, data }: any) => {
+        const updates: any = {};
+        if (data.basePriceSnapshot !== undefined) updates.basePriceSnapshot = data.basePriceSnapshot;
+        if (data.retailPriceSnapshot !== undefined) updates.retailPriceSnapshot = data.retailPriceSnapshot;
+        if (data.paymentStatus) updates.paymentStatus = data.paymentStatus;
+        if (data.status) updates.status = data.status;
+        
+        const { data: appointment, error } = await supabase
+          .from('Appointment')
+          .update(updates)
+          .eq('id', where.id)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return appointment;
+      },
     },
     
     // Notification operations
@@ -575,6 +759,275 @@ export const getDB = (c: Context) => {
           ...nr,
           notification: include?.notification ? {} : undefined,
         }));
+      },
+    },
+    
+    // ============================================
+    // WALLET OPERATIONS
+    // ============================================
+    
+    // Platform Wallet operations
+    platformWallet: {
+      findFirst: async ({ select }: any = {}) => {
+        const { data, error } = await supabase
+          .from('PlatformWallet')
+          .select('*')
+          .limit(1)
+          .single();
+        if (error && error.code !== 'PGRST116') throw error;
+        return data;
+      },
+    },
+    
+    // Platform Wallet Transaction operations
+    platformWalletTransaction: {
+      findMany: async ({ where, orderBy, take, skip }: any = {}) => {
+        let query = supabase.from('PlatformWalletTransaction').select('*');
+        
+        if (where?.walletId) query = query.eq('walletId', where.walletId);
+        if (where?.createdAt?.gte) query = query.gte('createdAt', where.createdAt.gte.toISOString());
+        if (where?.createdAt?.lte) query = query.lte('createdAt', where.createdAt.lte.toISOString());
+        
+        if (orderBy?.createdAt) query = query.order('createdAt', { ascending: orderBy.createdAt === 'asc' });
+        
+        if (skip) query = query.range(skip, skip + (take || 10) - 1);
+        else if (take) query = query.limit(take);
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+      },
+      
+      count: async ({ where }: any = {}) => {
+        let query = supabase.from('PlatformWalletTransaction').select('*', { count: 'exact', head: true });
+        
+        if (where?.walletId) query = query.eq('walletId', where.walletId);
+        if (where?.createdAt?.gte) query = query.gte('createdAt', where.createdAt.gte.toISOString());
+        if (where?.createdAt?.lte) query = query.lte('createdAt', where.createdAt.lte.toISOString());
+        
+        const { count, error } = await query;
+        if (error) throw error;
+        return count || 0;
+      },
+      
+      aggregate: async ({ where, _sum }: any = {}) => {
+        let query = supabase.from('PlatformWalletTransaction').select('amount');
+        
+        if (where?.walletId) query = query.eq('walletId', where.walletId);
+        if (where?.type) query = query.eq('type', where.type);
+        if (where?.createdAt?.gte) query = query.gte('createdAt', where.createdAt.gte.toISOString());
+        if (where?.createdAt?.lte) query = query.lte('createdAt', where.createdAt.lte.toISOString());
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        
+        const sum = (data || []).reduce((acc, row) => acc + (row.amount || 0), 0);
+        return { _sum: { amount: sum } };
+      },
+    },
+    
+    // Center Wallet operations
+    centerWallet: {
+      findUnique: async ({ where, select, include }: any = {}) => {
+        let query = supabase.from('CenterWallet').select('*');
+        
+        if (where.id) query = query.eq('id', where.id);
+        if (where.centerId) query = query.eq('centerId', where.centerId);
+        
+        const { data, error } = await query.single();
+        if (error && error.code !== 'PGRST116') throw error;
+        
+        // If include.center, fetch center data
+        if (data && include?.center) {
+          const { data: center } = await supabase
+            .from('ServiceCenter')
+            .select('*')
+            .eq('id', data.centerId)
+            .single();
+          data.center = center;
+        }
+        
+        return data;
+      },
+      
+      findMany: async ({ include, orderBy, take, skip }: any = {}) => {
+        let query = supabase.from('CenterWallet').select('*');
+        
+        if (orderBy?.balance) query = query.order('balance', { ascending: orderBy.balance === 'asc' });
+        
+        if (skip) query = query.range(skip, skip + (take || 10) - 1);
+        else if (take) query = query.limit(take);
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        
+        // If include.center, fetch center data for each wallet
+        if (data && include?.center) {
+          const centerIds = data.map(w => w.centerId);
+          const { data: centers } = await supabase
+            .from('ServiceCenter')
+            .select('id, centerName')
+            .in('id', centerIds);
+          
+          return data.map(wallet => ({
+            ...wallet,
+            center: centers?.find(c => c.id === wallet.centerId) || null,
+          }));
+        }
+        
+        return data || [];
+      },
+      
+      count: async () => {
+        const { count, error } = await supabase
+          .from('CenterWallet')
+          .select('*', { count: 'exact', head: true });
+        if (error) throw error;
+        return count || 0;
+      },
+    },
+    
+    // Center Wallet Transaction operations
+    centerWalletTransaction: {
+      findMany: async ({ where, orderBy, take, skip }: any = {}) => {
+        let query = supabase.from('CenterWalletTransaction').select('*');
+        
+        if (where?.walletId) query = query.eq('walletId', where.walletId);
+        if (where?.createdAt?.gte) query = query.gte('createdAt', where.createdAt.gte.toISOString());
+        if (where?.createdAt?.lte) query = query.lte('createdAt', where.createdAt.lte.toISOString());
+        
+        if (orderBy?.createdAt) query = query.order('createdAt', { ascending: orderBy.createdAt === 'asc' });
+        
+        if (skip) query = query.range(skip, skip + (take || 10) - 1);
+        else if (take) query = query.limit(take);
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+      },
+      
+      count: async ({ where }: any = {}) => {
+        let query = supabase.from('CenterWalletTransaction').select('*', { count: 'exact', head: true });
+        
+        if (where?.walletId) query = query.eq('walletId', where.walletId);
+        if (where?.createdAt?.gte) query = query.gte('createdAt', where.createdAt.gte.toISOString());
+        if (where?.createdAt?.lte) query = query.lte('createdAt', where.createdAt.lte.toISOString());
+        
+        const { count, error } = await query;
+        if (error) throw error;
+        return count || 0;
+      },
+      
+      aggregate: async ({ where, _sum }: any = {}) => {
+        let query = supabase.from('CenterWalletTransaction').select('amount');
+        
+        if (where?.walletId) query = query.eq('walletId', where.walletId);
+        if (where?.type) query = query.eq('type', where.type);
+        if (where?.createdAt?.gte) query = query.gte('createdAt', where.createdAt.gte.toISOString());
+        if (where?.createdAt?.lte) query = query.lte('createdAt', where.createdAt.lte.toISOString());
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        
+        const sum = (data || []).reduce((acc, row) => acc + (row.amount || 0), 0);
+        return { _sum: { amount: sum } };
+      },
+    },
+    
+    // Center Cashout operations
+    centerCashout: {
+      create: async ({ data }: any) => {
+        const { data: cashout, error } = await supabase
+          .from('CenterCashout')
+          .insert({
+            walletId: data.walletId,
+            amount: data.amount,
+            fee: data.fee,
+            netAmount: data.netAmount,
+            status: data.status,
+            initiatedBy: data.initiatedBy,
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return cashout;
+      },
+      
+      findUnique: async ({ where, include }: any) => {
+        const { data, error } = await supabase
+          .from('CenterCashout')
+          .select('*')
+          .eq('id', where.id)
+          .single();
+        
+        if (error && error.code !== 'PGRST116') throw error;
+        
+        // If include.wallet, fetch wallet and center data
+        if (data && include?.wallet) {
+          const { data: wallet } = await supabase
+            .from('CenterWallet')
+            .select('*')
+            .eq('id', data.walletId)
+            .single();
+          
+          if (wallet && include.wallet.include?.center) {
+            const { data: center } = await supabase
+              .from('ServiceCenter')
+              .select('*')
+              .eq('id', wallet.centerId)
+              .single();
+            wallet.center = center;
+          }
+          
+          data.wallet = wallet;
+        }
+        
+        return data;
+      },
+      
+      update: async ({ where, data }: any) => {
+        const updates: any = {};
+        if (data.status) updates.status = data.status;
+        if (data.paystackReference) updates.paystackReference = data.paystackReference;
+        if (data.failureReason) updates.failureReason = data.failureReason;
+        if (data.processedAt) updates.processedAt = data.processedAt.toISOString();
+        if (data.completedAt) updates.completedAt = data.completedAt.toISOString();
+        
+        const { data: cashout, error } = await supabase
+          .from('CenterCashout')
+          .update(updates)
+          .eq('id', where.id)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return cashout;
+      },
+      
+      findMany: async ({ where, orderBy, take, skip }: any = {}) => {
+        let query = supabase.from('CenterCashout').select('*');
+        
+        if (where?.walletId) query = query.eq('walletId', where.walletId);
+        
+        if (orderBy?.createdAt) query = query.order('createdAt', { ascending: orderBy.createdAt === 'asc' });
+        
+        if (skip) query = query.range(skip, skip + (take || 10) - 1);
+        else if (take) query = query.limit(take);
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+      },
+      
+      count: async ({ where }: any = {}) => {
+        let query = supabase.from('CenterCashout').select('*', { count: 'exact', head: true });
+        
+        if (where?.walletId) query = query.eq('walletId', where.walletId);
+        
+        const { count, error } = await query;
+        if (error) throw error;
+        return count || 0;
       },
     },
   };

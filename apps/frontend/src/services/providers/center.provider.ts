@@ -25,6 +25,7 @@ export const centersInfinite = (params: {
   status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
   state?: string
   lga?: string
+  serviceType?: 'vaccination' | 'screening' | 'treatment'
 }) =>
   infiniteQueryOptions({
     queryKey: [QueryKeys.centers, 'infinite', params],

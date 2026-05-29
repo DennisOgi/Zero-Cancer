@@ -37,8 +37,8 @@ export default function LoginForm() {
   const form = useForm<TLoginParams>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: 'testdonor3@example.com',
-      password: 'demo789',
+      email: '',
+      password: '',
     },
   })
 
@@ -161,7 +161,7 @@ export default function LoginForm() {
           <div className="flex justify-end">
             <Link
               className=" text-primary cursor-pointer"
-              to="/forgot-password"
+              to={role === 'center' ? '/forgot-password-center' : '/forgot-password'}
             >
               Forgot Password?
             </Link>

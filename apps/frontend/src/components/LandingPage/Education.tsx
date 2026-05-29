@@ -5,22 +5,16 @@ import { useState } from 'react'
 
 export default function Education() {
   const [currentVideo, setCurrentVideo] = useState(
-    'Zerocancer_video_rchsqf.webm',
+    '/Mobilab HPV Testing Video.mp4',
   )
 
   const videoData = [
     {
-      id: 'cervical',
-      src: 'ZeroCancer_Video_ewxn02.webm',
-      title: 'Cervical Cancer Awareness',
+      id: 'mobilab-hpv-test',
+      src: '/Mobilab HPV Testing Video.mp4',
+      title: 'How to Test for HPV Using Mobilab Rapid Test Kit',
       description:
-        'Understand the risks, symptoms, and importance of early detection.',
-    },
-    {
-      id: 'self-sample',
-      src: 'Zerocancer_video_rchsqf.webm',
-      title: 'How to Collect Self Samples',
-      description: 'Follow these easy steps to collect your sample correctly.',
+        'Learn how to use the Mobilab rapid test kit for HPV screening.',
     },
   ]
 

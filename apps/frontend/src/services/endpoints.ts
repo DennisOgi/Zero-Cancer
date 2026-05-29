@@ -145,6 +145,7 @@ export const getCenters = (params: {
   status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
   state?: string
   lga?: string
+  serviceType?: 'vaccination' | 'screening' | 'treatment'
 }) => {
   const query = buildQuery({
     page: params.page,
@@ -153,6 +154,7 @@ export const getCenters = (params: {
     status: params.status,
     state: params.state,
     lga: params.lga,
+    serviceType: params.serviceType,
   })
   return `/api/center${query}`
 }

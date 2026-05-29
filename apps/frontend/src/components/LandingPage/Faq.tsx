@@ -7,7 +7,7 @@ import {
 
 export default function Faq() {
   return (
-    <div className="wrapper py-20 grid md:grid-cols-2 gap-10">
+    <div id="faq" className="wrapper py-20 grid md:grid-cols-2 gap-10">
       <div className="space-y-4">
         <h2 className="text-4xl lg:text-5xl font-bold">
           Got Questions? We Have Got Answers!
@@ -41,8 +41,8 @@ export default function Faq() {
             <AccordionTrigger>Where can I go for a screening?</AccordionTrigger>
             <AccordionContent>
               We have a network of partner screening centers across the country.
-              You can use our "Find a Screening Center" tool to locate the one
-              nearest to you.
+              You can use our "Find a Cancer Management Center" tool to locate
+              the one nearest to you.
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="item-4" className="bg-blue-50 rounded-lg px-4">

@@ -1,65 +1,51 @@
 import { centers } from '@/services/providers/center.provider'
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { Building2, MapPin, Phone, CheckCircle2, AlertCircle, Package, Filter } from 'lucide-react'
-import { useState } from 'react'
+import type { TCenter } from '@zerocancer/shared/types'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/shared/ui/select'
+  Building2,
+  MapPin,
+  Phone,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+} from 'lucide-react'
+import { useEffect } from 'react'
+
+const serviceTypeLabel = {
+  vaccination: 'Vaccination',
+  screening: 'Screening',
+  treatment: 'Treatment',
+} as const
 
 export default function CentersSearchPage() {
   const navigate = useNavigate()
   const search = useSearch({ from: '/(public)/centers' })
   const { state, lga, serviceType } = search
 
-  // Filter states
-  const [showOnlyFunded, setShowOnlyFunded] = useState(false)
-  const [showOnlyWithKits, setShowOnlyWithKits] = useState(false)
-  const [selectedServiceType, setSelectedServiceType] = useState(serviceType || 'all')
-
-  const { data } = useSuspenseQuery(
+  const {
+    data,
+    isLoading,
+    error,
+  } = useQuery(
     centers({
       state: state || undefined,
       lga: lga || undefined,
+      serviceType: serviceType || undefined,
       pageSize: 50,
-    })
+    }),
   )
 
   const centersData = data?.data?.centers || []
 
-  // Apply client-side filters
-  const filteredCenters = centersData.filter((center: any) => {
-    // Filter by funding status
-    if (showOnlyFunded && !center.isFunded) return false
-    
-    // Filter by kit availability
-    if (showOnlyWithKits && center.availableKits === 0) return false
-    
-    // Filter by service type (screening vs vaccination)
-    // This would require checking the center's services
-    // For now, we'll keep all centers if "all" is selected
-    
-    return true
-  })
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-      minimumFractionDigits: 0,
-    }).format(amount)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-NG', {
-      year: 'numeric',
-      month: 'long',
-    })
-  }
+  useEffect(() => {
+    if (error) {
+      console.error('Centers search query failed', {
+        filters: { state, lga, serviceType },
+        error,
+      })
+    }
+  }, [error, lga, serviceType, state])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -72,7 +58,7 @@ export default function CentersSearchPage() {
           >
             ← Back to Home
           </button>
-          <h1 className="text-3xl font-bold">Screening Centers</h1>
+          <h1 className="text-3xl font-bold">Cancer Management Centers</h1>
           <p className="text-muted-foreground mt-2">
             {state && (
               <>
@@ -85,153 +71,67 @@ export default function CentersSearchPage() {
                 )}
               </>
             )}
-          </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Found {filteredCenters.length} center{filteredCenters.length !== 1 ? 's' : ''}
-            {filteredCenters.length !== centersData.length && (
-              <span className="text-amber-600"> (filtered from {centersData.length})</span>
+            {serviceType && (
+              <>
+                {' '}
+                for{' '}
+                <span className="font-semibold">
+                  {serviceTypeLabel[serviceType]}
+                </span>
+              </>
             )}
           </p>
-        </div>
-      </div>
-
-      {/* Filters Section */}
-      <div className="bg-white border-b">
-        <div className="wrapper py-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Filter className="w-4 h-4 text-muted-foreground" />
-            <h3 className="font-medium">Filters</h3>
-          </div>
-          <div className="grid md:grid-cols-4 gap-4">
-            {/* Service Type Filter */}
-            <div>
-              <label htmlFor="serviceTypeFilter" className="text-sm font-medium block mb-1">
-                Service Type
-              </label>
-              <Select value={selectedServiceType} onValueChange={setSelectedServiceType}>
-                <SelectTrigger id="serviceTypeFilter" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Services</SelectItem>
-                  <SelectItem value="screening">Cancer Screening</SelectItem>
-                  <SelectItem value="vaccination">Vaccination</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Funding Status Filter */}
-            <div>
-              <label htmlFor="fundingFilter" className="text-sm font-medium block mb-1">
-                Funding Status
-              </label>
-              <Select 
-                value={showOnlyFunded ? 'funded' : 'all'} 
-                onValueChange={(value) => setShowOnlyFunded(value === 'funded')}
-              >
-                <SelectTrigger id="fundingFilter" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Centers</SelectItem>
-                  <SelectItem value="funded">Funded Centers Only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Kit Availability Filter */}
-            <div>
-              <label htmlFor="kitFilter" className="text-sm font-medium block mb-1">
-                Kit Availability
-              </label>
-              <Select 
-                value={showOnlyWithKits ? 'available' : 'all'} 
-                onValueChange={(value) => setShowOnlyWithKits(value === 'available')}
-              >
-                <SelectTrigger id="kitFilter" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Centers</SelectItem>
-                  <SelectItem value="available">With Available Kits</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Clear Filters Button */}
-            <div className="flex items-end">
-              <button
-                onClick={() => {
-                  setShowOnlyFunded(false)
-                  setShowOnlyWithKits(false)
-                  setSelectedServiceType('all')
-                }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-              >
-                Clear Filters
-              </button>
-            </div>
-          </div>
+          <p className="text-sm text-muted-foreground mt-1">
+            Found {centersData.length} center{centersData.length !== 1 ? 's' : ''}
+          </p>
         </div>
       </div>
 
       {/* Results */}
       <div className="wrapper py-8">
-        {filteredCenters.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center rounded-lg bg-white p-12 text-muted-foreground">
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            Loading centers...
+          </div>
+        ) : error ? (
+          <div className="bg-white rounded-lg p-12 text-center">
+            <AlertCircle className="w-16 h-16 mx-auto text-red-300 mb-4" />
+            <h2 className="text-2xl font-semibold mb-2">
+              We couldn't load centers
+            </h2>
+            <p className="text-muted-foreground mb-6">
+              Please try again, or search another location.
+            </p>
+            <button
+              onClick={() => navigate({ to: '/' })}
+              className="px-6 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90"
+            >
+              Try Another Location
+            </button>
+          </div>
+        ) : centersData.length === 0 ? (
           <div className="bg-white rounded-lg p-12 text-center">
             <Building2 className="w-16 h-16 mx-auto text-gray-300 mb-4" />
             <h2 className="text-2xl font-semibold mb-2">No Centers Found</h2>
             <p className="text-muted-foreground mb-6">
-              {centersData.length === 0 ? (
-                <>
-                  We couldn't find any screening centers in {state}
-                  {lga && ` - ${lga}`}.
-                </>
-              ) : (
-                <>
-                  No centers match your selected filters. Try adjusting your filter criteria.
-                </>
-              )}
+              We couldn't find any cancer management centers in {state}
+              {lga && ` - ${lga}`}.
             </p>
             <button
-              onClick={() => {
-                if (centersData.length === 0) {
-                  navigate({ to: '/' })
-                } else {
-                  setShowOnlyFunded(false)
-                  setShowOnlyWithKits(false)
-                  setSelectedServiceType('all')
-                }
-              }}
+              onClick={() => navigate({ to: '/' })}
               className="px-6 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90"
             >
-              {centersData.length === 0 ? 'Try Another Location' : 'Clear Filters'}
+              Try Another Location
             </button>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCenters.map((center: any) => (
+            {centersData.map((center: TCenter) => (
               <div
                 key={center.id}
                 className="bg-white rounded-lg border hover:shadow-lg transition-shadow overflow-hidden"
               >
-                {/* Funding Status Banner */}
-                {center.isFunded ? (
-                  <div className="bg-green-50 border-b border-green-100 px-4 py-2 flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-green-600" />
-                    <span className="text-sm font-medium text-green-700">
-                      Funded by {center.fundingSource}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="bg-amber-50 border-b border-amber-100 px-4 py-2 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-amber-600" />
-                    <span className="text-sm font-medium text-amber-700">
-                      Seeking Funding
-                    </span>
-                  </div>
-                )}
-
                 <div className="p-6">
                   {/* Center Name */}
                   <h3 className="text-lg font-semibold mb-3 line-clamp-2">
@@ -257,73 +157,35 @@ export default function CentersSearchPage() {
                     </div>
                   )}
 
-                  {/* Kit Availability */}
-                  <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <Package className="w-4 h-4 text-gray-600" />
-                        <span className="text-sm font-medium">Kit Availability</span>
-                      </div>
-                      <span
-                        className={`text-sm font-semibold ${
-                          center.availableKits > 20
-                            ? 'text-green-600'
-                            : center.availableKits > 5
-                            ? 'text-amber-600'
-                            : 'text-red-600'
-                        }`}
-                      >
-                        {center.availableKits} available
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${
-                          center.availableKits > 20
-                            ? 'bg-green-500'
-                            : center.availableKits > 5
-                            ? 'bg-amber-500'
-                            : 'bg-red-500'
-                        }`}
-                        style={{
-                          width: `${Math.min(
-                            (center.availableKits / center.totalKits) * 100,
-                            100
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {center.usedKits} of {center.totalKits} kits used
-                    </p>
-                  </div>
-
-                  {/* Funding Details */}
-                  {center.isFunded && center.fundingAmount && (
-                    <div className="text-sm space-y-1 mb-4 pb-4 border-b">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Funding Amount:</span>
-                        <span className="font-semibold">
-                          {formatCurrency(center.fundingAmount)}
-                        </span>
-                      </div>
-                      {center.fundingExpiry && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Valid Until:</span>
-                          <span className="font-medium">
-                            {formatDate(center.fundingExpiry)}
-                          </span>
-                        </div>
+                  {/* Status Badge */}
+                  <div className="mb-4">
+                    <span
+                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
+                        center.status === 'ACTIVE'
+                          ? 'bg-green-50 text-green-700 border border-green-200'
+                          : 'bg-gray-50 text-gray-700 border border-gray-200'
+                      }`}
+                    >
+                      {center.status === 'ACTIVE' ? (
+                        <CheckCircle2 className="w-3 h-3" />
+                      ) : (
+                        <AlertCircle className="w-3 h-3" />
                       )}
-                    </div>
-                  )}
+                      {center.status}
+                    </span>
+                  </div>
 
                   {/* Services Count */}
                   {center.services && center.services.length > 0 && (
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Offers {center.services.length} screening service
-                      {center.services.length !== 1 ? 's' : ''}
-                    </p>
+                    <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                      <p className="text-sm font-medium text-gray-700 mb-2">
+                        Available Services
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {center.services.length} service
+                        {center.services.length !== 1 ? 's' : ''} offered
+                      </p>
+                    </div>
                   )}
 
                   {/* Action Button */}
@@ -333,9 +195,9 @@ export default function CentersSearchPage() {
                       navigate({ to: '/sign-up/patient' })
                     }}
                     className="w-full px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90 transition-colors text-sm font-medium"
-                    disabled={center.availableKits === 0}
+                    disabled={center.status !== 'ACTIVE'}
                   >
-                    {center.availableKits === 0 ? 'No Kits Available' : 'Book Screening'}
+                    {center.status !== 'ACTIVE' ? 'Center Unavailable' : 'Book Service'}
                   </button>
                 </div>
               </div>

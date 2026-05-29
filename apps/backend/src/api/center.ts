@@ -33,6 +33,21 @@ import { authMiddleware } from "../middleware/auth.middleware";
 
 export const centerApp = new Hono<THonoApp>();
 
+const serviceTypeFilters = {
+  vaccination: {
+    categoryIds: ["vaccine"],
+    terms: ["vaccine", "vaccination"],
+  },
+  screening: {
+    categoryIds: ["cancer", "screening"],
+    terms: ["screening"],
+  },
+  treatment: {
+    categoryIds: ["treatment", "treatement"],
+    terms: ["treatment"],
+  },
+} as const;
+
 // GET /api/center - List centers (paginated, filtered, searched)
 centerApp.get(
   "/",
@@ -49,81 +64,120 @@ centerApp.get(
       status,
       state,
       lga,
+      serviceType,
     } = c.req.valid("query");
 
-    const where: any = {};
-    if (search) {
-      where.OR = [
-        { centerName: { contains: search, mode: "insensitive" } },
-        { address: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
-      ];
-    }
-    if (status) where.status = status;
-    if (state) where.state = state;
-    if (lga) where.lga = lga;
+    try {
+      const where: any = {};
+      if (search) {
+        where.OR = [
+          { centerName: { contains: search, mode: "insensitive" } },
+          { address: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+        ];
+      }
+      if (status) where.status = status;
+      if (state) where.state = state;
+      if (lga) where.lga = lga;
 
-    const [centers, total] = await Promise.all([
-      db.serviceCenter.findMany({
-        where,
-        skip: (page! - 1) * pageSize!,
-        take: pageSize!,
-        orderBy: { createdAt: "desc" },
-        include: {
-          services: {
-            select: {
-              id: true,
-              name: true,
-              serviceCenters: { select: { amount: true } },
+      if (serviceType) {
+        const filter = serviceTypeFilters[serviceType];
+        where.screeningTypes = {
+          some: {
+            screeningType: {
+              OR: [
+                { screeningTypeCategoryId: { in: filter.categoryIds } },
+                ...filter.terms.map((term) => ({
+                  name: { contains: term, mode: "insensitive" },
+                })),
+                ...filter.terms.map((term) => ({
+                  category: { name: { contains: term, mode: "insensitive" } },
+                })),
+              ],
             },
           },
-          staff: {
-            select: { id: true, email: true },
+        };
+      }
+
+      const [centers, total] = await Promise.all([
+        db.serviceCenter.findMany({
+          where,
+          skip: (page! - 1) * pageSize!,
+          take: pageSize!,
+          orderBy: { createdAt: "desc" },
+          include: {
+            screeningTypes: {
+              include: {
+                screeningType: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+            staff: {
+              select: { id: true, email: true },
+            },
           },
+        }),
+        db.serviceCenter.count({ where }),
+      ]);
+
+      const formattedCenters = centers.map((center) => {
+        const services = Array.isArray(center.screeningTypes)
+          ? center.screeningTypes.map((service) => ({
+              id: service.screeningType.id,
+              name: service.screeningType.name,
+              price: service.amount || 0,
+            }))
+          : (center.services || []).map((service) => ({
+              id: service.id,
+              name: service.name,
+              price: service.price || service.amount || 0,
+            }));
+
+        return {
+          id: center.id,
+          email: center.email,
+          centerName: center.centerName,
+          address: center.address,
+          state: center.state,
+          lga: center.lga,
+          phone: center.phone,
+          bankAccount: center.bankAccount,
+          bankName: center.bankName,
+          status: center.status.toString(),
+          createdAt:
+            center.createdAt instanceof Date
+              ? center.createdAt.toISOString()
+              : center.createdAt,
+          services,
+          staff: center.staff,
+        };
+      });
+
+      return c.json<TGetCentersResponse>({
+        ok: true,
+        data: {
+          centers: formattedCenters!,
+          page: page!,
+          pageSize: pageSize!,
+          total: total!,
+          totalPages: Math.ceil(total / pageSize!),
         },
-      }),
-      db.serviceCenter.count({ where }),
-    ]);
+      });
+    } catch (error) {
+      console.error("List centers error:", {
+        query: { page, pageSize, search, status, state, lga, serviceType },
+        error,
+      });
 
-    const formattedCenters = centers.map((center) => ({
-      id: center.id,
-      email: center.email,
-      centerName: center.centerName,
-      address: center.address,
-      state: center.state,
-      lga: center.lga,
-      phone: center.phone,
-      bankAccount: center.bankAccount,
-      bankName: center.bankName,
-      status: center.status.toString(),
-      createdAt: center.createdAt.toISOString(),
-      // Funding and Kit Information
-      isFunded: center.isFunded || false,
-      fundingSource: center.fundingSource || null,
-      fundingAmount: center.fundingAmount || null,
-      fundingDate: center.fundingDate ? center.fundingDate.toISOString() : null,
-      fundingExpiry: center.fundingExpiry ? center.fundingExpiry.toISOString() : null,
-      totalKits: center.totalKits || 0,
-      usedKits: center.usedKits || 0,
-      availableKits: center.availableKits || 0,
-      services: center.services.map((service) => ({
-        id: service.id,
-        name: service.name,
-        price: service.serviceCenters?.[0]?.amount || 0, // Assuming amount is the price
-      })),
-      staff: center.staff,
-    }));
-
-    return c.json<TGetCentersResponse>({
-      ok: true,
-      data: {
-        centers: formattedCenters!,
-        page: page!,
-        pageSize: pageSize!,
-        total: total!,
-        totalPages: Math.ceil(total / pageSize!),
-      },
-    });
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to load centers" },
+        500
+      );
+    }
   }
 );
 
@@ -172,7 +226,7 @@ centerApp.get(
       bankAccount: center.bankAccount,
       bankName: center.bankName,
       status: center.status.toString(),
-      createdAt: center.createdAt.toISOString(),
+      createdAt: center.createdAt instanceof Date ? center.createdAt.toISOString() : center.createdAt,
       services: center.services.map((service) => ({
         id: service.id,
         name: service.name,

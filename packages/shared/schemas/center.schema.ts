@@ -12,6 +12,7 @@ export const getCentersQuerySchema = z.object({
   status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]).optional(),
   state: z.string().optional(),
   lga: z.string().optional(),
+  serviceType: z.enum(["vaccination", "screening", "treatment"]).optional(),
 });
 
 export const getCenterByIdSchema = z.object({

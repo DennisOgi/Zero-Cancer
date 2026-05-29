@@ -1,4 +1,5 @@
 import cta from '@/assets/images/cta.png'
+import { Link } from '@tanstack/react-router'
 
 export default function Cta() {
   return (
@@ -9,14 +10,17 @@ export default function Cta() {
             Ready to take control of your health?
           </h2>
           <p className="mt-4">
-            Join thousands of Nigerians already getting screened, referred, or
+            Join thousands of Africans already getting screened, referred, or
             sponsored.
           </p>
           <div className="mt-8 flex flex-col items-center lg:items-start gap-4">
-            <button className="bg-secondary px-8 py-3 rounded-lg font-semibold">
+            <Link
+              to="/sign-up"
+              className="bg-secondary px-8 py-3 rounded-lg font-semibold"
+            >
               Create A Free Account
-            </button>
-            <p className="text-sm">13,520 Nigerians have already joined.</p>
+            </Link>
+            <p className="text-sm">13,520 Africans have already joined.</p>
           </div>
         </div>
         <div className="hidden lg:block lg:w-1/2">

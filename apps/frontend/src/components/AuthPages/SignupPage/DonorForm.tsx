@@ -23,14 +23,18 @@ type FormData = z.infer<typeof donorSchema>
 
 type DonorFormProps = {
   onSubmitSuccess: (data: FormData) => void
+  initialEmail?: string
 }
 
-export default function DonorForm({ onSubmitSuccess }: DonorFormProps) {
+export default function DonorForm({
+  onSubmitSuccess,
+  initialEmail = '',
+}: DonorFormProps) {
   const form = useForm<FormData>({
     resolver: zodResolver(donorSchema),
     defaultValues: {
       fullName: '',
-      email: '',
+      email: initialEmail,
       password: '',
       phone: '',
       organization: '',

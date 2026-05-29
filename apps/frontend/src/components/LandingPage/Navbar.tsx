@@ -2,14 +2,30 @@ import logo from '@/assets/images/logo.svg'
 import { useAuthUser } from '@/services/providers/auth.provider'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { ChevronDown, Globe } from 'lucide-react'
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
+  const [isCountryOpen, setIsCountryOpen] = useState(false)
+  const countryDropdownRef = useRef<HTMLDivElement>(null)
   const { data: authData } = useQuery(useAuthUser())
 
   const isAuthenticated = !!authData?.data?.user
   const userProfile = authData?.data?.user?.profile?.toLowerCase()
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        countryDropdownRef.current &&
+        !countryDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsCountryOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const getDashboardLink = () => {
     if (!isAuthenticated) return null
@@ -32,35 +48,96 @@ export default function Navbar() {
 
   const dashboardLink = getDashboardLink()
 
+  const scrollToDonate = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsOpen(false)
+    const element = document.getElementById('donate-section')
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
+
+  const countries = [
+    { name: 'Nigeria 🇳🇬', active: true },
+    { name: 'Ghana 🇬🇭', active: false },
+    { name: 'Kenya 🇰🇪', active: false },
+    { name: 'South Africa 🇿🇦', active: false },
+    { name: 'Rwanda 🇷🇼', active: false },
+  ]
+
   return (
-    <div className="bg-primary py-4 wrapper flex justify-between items-center">
+    <div className="bg-primary py-4 wrapper flex justify-between items-center relative z-50">
       <div className="flex items-center gap-12 text-white">
         <Link to="/">
           <img src={logo} alt="ZeroCancer Logo" className="w-24 cursor-pointer hover:opacity-90 transition-opacity" />
         </Link>
-        <div className="hidden md:flex items-center gap-12 text-white">
-          <a href="#">How it Works</a>
-          <Link to="/blog">Blog</Link>
-          <Link to="/about">About</Link>
-          <a href="#">Contact Us</a>
+        <div className="hidden md:flex items-center gap-8 text-white">
+          <a href="#" className="hover:text-secondary transition-colors">How it Works</a>
+          <Link to="/blog" className="hover:text-secondary transition-colors">Blog</Link>
+          <Link to="/about" className="hover:text-secondary transition-colors">About</Link>
+          <a href="#" className="hover:text-secondary transition-colors">Contact Us</a>
+          
+          {/* Country Selection Dropdown */}
+          <div className="relative" ref={countryDropdownRef}>
+            <button
+              onClick={() => setIsCountryOpen(!isCountryOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/40 transition-all text-sm font-medium cursor-pointer"
+            >
+              <Globe size={14} className="text-secondary" />
+              <span>Nigeria 🇳🇬</span>
+              <ChevronDown size={14} className={`transition-transform duration-200 ${isCountryOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {isCountryOpen && (
+              <div className="absolute top-full left-0 mt-2 w-56 rounded-xl bg-white border border-neutral-100 shadow-xl py-2 text-neutral-800 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="px-3 py-1.5 text-xs font-semibold text-neutral-400 border-b border-neutral-50 mb-1">
+                  Target Countries
+                </div>
+                {countries.map((c) => (
+                  <div
+                    key={c.name}
+                    className={`px-4 py-2 text-sm flex items-center justify-between ${
+                      c.active
+                        ? 'bg-neutral-50 font-semibold text-primary cursor-pointer hover:bg-neutral-100'
+                        : 'text-neutral-400 cursor-not-allowed opacity-80'
+                    }`}
+                  >
+                    <span>{c.name}</span>
+                    {!c.active && (
+                      <span className="text-[10px] bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full border border-neutral-200">
+                        Soon
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-      <div className="hidden md:flex items-center gap-8">
+      <div className="hidden md:flex items-center gap-6">
+        <a
+          href="#donate-section"
+          onClick={scrollToDonate}
+          className="bg-secondary text-white hover:bg-secondary/90 px-6 py-2.5 rounded-lg font-semibold cursor-pointer shadow-md shadow-secondary/10 hover:shadow-secondary/20 hover:-translate-y-0.5 transition-all text-sm"
+        >
+          Donate Now
+        </a>
         {isAuthenticated && dashboardLink ? (
           <Link to={dashboardLink} preload="render">
-            <button className="bg-white text-primary px-8 py-2 rounded-lg font-semibold cursor-pointer">
+            <button className="bg-white text-primary hover:bg-neutral-50 px-6 py-2.5 rounded-lg font-semibold cursor-pointer border border-neutral-200 transition-all text-sm">
               Dashboard
             </button>
           </Link>
         ) : (
           <>
             <Link to="/login" preload="render">
-              <button className="border-2 border-white font-semibold px-8 py-2 rounded-lg text-white cursor-pointer">
+              <button className="border border-white/40 font-semibold px-6 py-2.5 rounded-lg text-white hover:bg-white/10 hover:border-white transition-all cursor-pointer text-sm">
                 Login
               </button>
             </Link>
             <Link to="/sign-up">
-              <button className="bg-white text-primary px-8 py-2 rounded-lg font-semibold cursor-pointer">
+              <button className="bg-white text-primary hover:bg-neutral-50 px-6 py-2.5 rounded-lg font-semibold cursor-pointer border border-neutral-200 transition-all text-sm">
                 Sign Up
               </button>
             </Link>
@@ -127,7 +204,7 @@ export default function Navbar() {
               />
             </svg>
           </button>
-          <div className="flex flex-col items-center gap-8 text-white text-2xl">
+          <div className="flex flex-col items-center gap-6 text-white text-xl">
             <a href="#" onClick={() => setIsOpen(false)}>
               How it Works
             </a>
@@ -140,25 +217,57 @@ export default function Navbar() {
             <a href="#" onClick={() => setIsOpen(false)}>
               Contact Us
             </a>
+            <div className="w-64 rounded-xl border border-white/10 bg-white/10 p-3 text-sm">
+              <div className="mb-2 flex items-center gap-2 font-semibold">
+                <Globe size={16} className="text-secondary" />
+                <span>Target Countries</span>
+              </div>
+              <div className="space-y-2">
+                {countries.map((c) => (
+                  <div
+                    key={c.name}
+                    className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2"
+                  >
+                    <span>{c.name}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        c.active
+                          ? 'bg-secondary text-white'
+                          : 'bg-white/10 text-white/70'
+                      }`}
+                    >
+                      {c.active ? 'Active' : 'Soon'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <a
+              href="#donate-section"
+              onClick={scrollToDonate}
+              className="bg-secondary text-white text-center w-48 py-2.5 rounded-lg font-semibold shadow-md text-base"
+            >
+              Donate Now
+            </a>
             {isAuthenticated && dashboardLink ? (
               <Link to={dashboardLink} onClick={() => setIsOpen(false)}>
-                <button className="bg-white text-primary px-8 py-2 rounded-lg font-semibold">
+                <button className="bg-white text-primary px-8 py-2 rounded-lg font-semibold w-48 text-base">
                   Dashboard
                 </button>
               </Link>
             ) : (
-              <>
-                <Link to="/login" preload="render">
-                  <button className="border-2 border-white font-semibold px-8 py-2 rounded-lg text-white">
+              <div className="flex flex-col gap-3">
+                <Link to="/login" preload="render" onClick={() => setIsOpen(false)}>
+                  <button className="border-2 border-white font-semibold px-8 py-2 rounded-lg text-white w-48 text-base">
                     Login
                   </button>
                 </Link>
-                <Link to="/sign-up" preload="render">
-                  <button className="bg-white text-primary px-8 py-2 rounded-lg font-semibold">
+                <Link to="/sign-up" preload="render" onClick={() => setIsOpen(false)}>
+                  <button className="bg-white text-primary px-8 py-2 rounded-lg font-semibold w-48 text-base">
                     Sign Up
                   </button>
                 </Link>
-              </>
+              </div>
             )}
           </div>
         </div>
