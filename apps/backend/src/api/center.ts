@@ -27,26 +27,12 @@ import { setCookie } from "hono/cookie";
 import { sign } from "hono/jwt";
 import { getDB } from "../lib/db";
 import { sendEmail } from "../lib/email";
+import { serviceTypeFilters } from "../lib/service-type-utils";
 import { TEnvs, THonoApp } from "../lib/types";
 import { comparePassword, hashPassword } from "../lib/utils";
 import { authMiddleware } from "../middleware/auth.middleware";
 
 export const centerApp = new Hono<THonoApp>();
-
-const serviceTypeFilters = {
-  vaccination: {
-    categoryIds: ["vaccine"],
-    terms: ["vaccine", "vaccination"],
-  },
-  screening: {
-    categoryIds: ["cancer", "screening"],
-    terms: ["screening"],
-  },
-  treatment: {
-    categoryIds: ["treatment", "treatement"],
-    terms: ["treatment"],
-  },
-} as const;
 
 // GET /api/center - List centers (paginated, filtered, searched)
 centerApp.get(

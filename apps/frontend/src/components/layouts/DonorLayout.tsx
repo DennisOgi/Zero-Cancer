@@ -10,6 +10,7 @@ export function DonorLayout() {
 
   const navLinks = [
     { to: '/donor', label: 'Dashboard', icon: cross },
+    { to: '/donor/fund', label: 'Fund Patients', icon: stethoscope },
     { to: '/donor/campaigns', label: 'My Campaigns', icon: stethoscope },
   ]
 

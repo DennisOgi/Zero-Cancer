@@ -15,10 +15,12 @@ import type {
   TFundCampaignResponse,
   TGetCampaignResponse,
   TGetCampaignsResponse,
+  TGetDonorWaitlistPatientsResponse,
   // TGetDonorReceiptsResponse,
   TPaymentVerificationResponse,
   TUpdateCampaignResponse,
 } from '@zerocancer/shared/types'
+import { getDonorWaitlistPatientsSchema } from '@zerocancer/shared/schemas/waitlist.schema'
 import { z } from 'zod'
 
 // Anonymous donation
@@ -142,4 +144,15 @@ export const verifyPayment = async (
 ): Promise<TPaymentVerificationResponse> => {
   const res = await request.get(endpoints.verifyPayment(reference))
   return res as TPaymentVerificationResponse
+}
+
+export const getDonorWaitlistPatients = async (
+  params: z.infer<typeof getDonorWaitlistPatientsSchema>,
+): Promise<TGetDonorWaitlistPatientsResponse> => {
+  const parsed = getDonorWaitlistPatientsSchema.safeParse(params)
+  if (!parsed.success) {
+    throw new Error('Invalid params for getDonorWaitlistPatients')
+  }
+  const res = await request.get(endpoints.getDonorWaitlistPatients(parsed.data))
+  return res as TGetDonorWaitlistPatientsResponse
 }

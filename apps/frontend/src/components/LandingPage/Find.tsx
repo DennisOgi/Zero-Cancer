@@ -1,4 +1,5 @@
 import screening from '@/assets/images/screening.png'
+import FeaturedCenterCard from '@/components/LandingPage/FeaturedCenterCard'
 import { centers } from '@/services/providers/center.provider'
 import {
   Select,
@@ -11,7 +12,7 @@ import { NIGERIA_STATES_LGAS, getLGAsForState } from '@/data/nigeria-locations'
 import type { TCenter } from '@zerocancer/shared/types'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 type ServiceType = 'vaccination' | 'screening' | 'treatment'
@@ -46,9 +47,8 @@ export default function Find() {
 
   const handleStateChange = (state: string) => {
     setSelectedState(state)
-    setSelectedLGA('') // Reset LGA when state changes
-    const stateLGAs = getLGAsForState(state)
-    setLgas(stateLGAs)
+    setSelectedLGA('')
+    setLgas(getLGAsForState(state))
   }
 
   const handleFindCenters = () => {
@@ -56,8 +56,7 @@ export default function Find() {
       alert('Please select a state')
       return
     }
-    
-    // Navigate to centers search page with query params
+
     navigate({
       to: '/centers',
       search: {
@@ -70,28 +69,104 @@ export default function Find() {
 
   const scrollFeaturedCenters = (direction: 'left' | 'right') => {
     featuredCentersRef.current?.scrollBy({
-      left: direction === 'left' ? -280 : 280,
+      left: direction === 'left' ? -300 : 300,
       behavior: 'smooth',
     })
   }
 
   return (
-    <div
-      id="find-center-section"
-      className="wrapper py-20 grid md:grid-cols-2 gap-10 items-center"
-    >
-      <div className="space-y-6">
-        <h2 className="text-4xl lg:text-5xl font-bold leading-tight">
-          Find a Center Near You
-        </h2>
-        <p className="text-muted-foreground">
-          Search for vaccination, screening, and treatment centers easily,
-          wherever you are.
-        </p>
-        {(featuredCentersLoading || featuredCenters.length > 0) && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-4">
-              <h3 className="font-semibold">Featured centers</h3>
+    <section id="find-center-section" className="relative overflow-hidden">
+      <div className="wrapper py-16 md:py-20">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="text-4xl lg:text-5xl font-bold leading-tight">
+            Find a Center Near You
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Search for vaccination, screening, and treatment centers easily,
+            wherever you are.
+          </p>
+
+          <div className="mx-auto mt-8 max-w-md space-y-4 text-left">
+            <div>
+              <label htmlFor="serviceType" className="text-sm font-medium">
+                Service type
+              </label>
+              <Select
+                value={serviceType}
+                onValueChange={(value) => setServiceType(value as ServiceType)}
+              >
+                <SelectTrigger id="serviceType" className="w-full">
+                  <SelectValue placeholder="Select a service" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="vaccination">Vaccination</SelectItem>
+                  <SelectItem value="screening">Screening</SelectItem>
+                  <SelectItem value="treatment">Treatment</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label htmlFor="state" className="text-sm font-medium">
+                Select state
+              </label>
+              <Select value={selectedState} onValueChange={handleStateChange}>
+                <SelectTrigger id="state" className="w-full">
+                  <SelectValue placeholder="Select a state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {NIGERIA_STATES_LGAS.map((location) => (
+                    <SelectItem key={location.state} value={location.state}>
+                      {location.state}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label htmlFor="lga" className="text-sm font-medium">
+                Select local government (optional)
+              </label>
+              <Select
+                value={selectedLGA}
+                onValueChange={setSelectedLGA}
+                disabled={!selectedState}
+              >
+                <SelectTrigger id="lga" className="w-full">
+                  <SelectValue
+                    placeholder={
+                      selectedState ? 'Select LGA' : 'Select state first'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {lgas.map((lga) => (
+                    <SelectItem key={lga} value={lga}>
+                      {lga}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <button
+              onClick={handleFindCenters}
+              disabled={!selectedState}
+              className={`w-full px-8 py-3 rounded-lg font-medium transition-all ${
+                selectedState
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg cursor-pointer'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+              }`}
+            >
+              Find Centers
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {(featuredCentersLoading || featuredCenters.length > 0) && (
+        <div className="relative z-10 wrapper -mt-2 mb-[-4.5rem] md:mb-[-5.5rem]">
+          <div className="rounded-3xl border bg-white/95 p-5 shadow-xl backdrop-blur-sm md:p-6">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <h3 className="font-semibold text-lg">Featured centers</h3>
               {featuredCenters.length > 2 && (
                 <div className="flex gap-2">
                   <button
@@ -121,109 +196,30 @@ export default function Find() {
                 ? Array.from({ length: 3 }).map((_, index) => (
                     <div
                       key={index}
-                      className="h-28 min-w-[240px] animate-pulse rounded-xl bg-gray-100"
+                      className="h-44 min-w-[280px] animate-pulse rounded-2xl bg-gray-100"
                     />
                   ))
                 : featuredCenters.map((center: TCenter) => (
-                    <div
-                      key={center.id}
-                      className="min-w-[240px] rounded-xl border bg-white p-4 shadow-sm"
-                    >
-                      <p className="line-clamp-1 font-semibold">
-                        {center.centerName}
-                      </p>
-                      <div className="mt-2 flex items-start gap-2 text-sm text-muted-foreground">
-                        <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                        <span className="line-clamp-2">
-                          {center.lga}, {center.state}
-                        </span>
-                      </div>
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        {center.services.length || 'No'} service
-                        {center.services.length === 1 ? '' : 's'} available
-                      </p>
-                    </div>
+                    <FeaturedCenterCard key={center.id} center={center} />
                   ))}
             </div>
           </div>
-        )}
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="serviceType" className="text-sm font-medium">
-              Service type
-            </label>
-            <Select
-              value={serviceType}
-              onValueChange={(value) => setServiceType(value as ServiceType)}
-            >
-              <SelectTrigger id="serviceType" className="w-full">
-                <SelectValue placeholder="Select a service" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="vaccination">Vaccination</SelectItem>
-                <SelectItem value="screening">Screening</SelectItem>
-                <SelectItem value="treatment">Treatment</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label htmlFor="state" className="text-sm font-medium">
-              Select state
-            </label>
-            <Select value={selectedState} onValueChange={handleStateChange}>
-              <SelectTrigger id="state" className="w-full">
-                <SelectValue placeholder="Select a state" />
-              </SelectTrigger>
-              <SelectContent>
-                {NIGERIA_STATES_LGAS.map((location) => (
-                  <SelectItem key={location.state} value={location.state}>
-                    {location.state}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label htmlFor="lga" className="text-sm font-medium">
-              Select local government (optional)
-            </label>
-            <Select
-              value={selectedLGA}
-              onValueChange={setSelectedLGA}
-              disabled={!selectedState}
-            >
-              <SelectTrigger id="lga" className="w-full">
-                <SelectValue placeholder={selectedState ? "Select LGA" : "Select state first"} />
-              </SelectTrigger>
-              <SelectContent>
-                {lgas.map((lga) => (
-                  <SelectItem key={lga} value={lga}>
-                    {lga}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
-        <button
-          onClick={handleFindCenters}
-          disabled={!selectedState}
-          className={`px-8 py-3 rounded-lg font-medium transition-all ${
-            selectedState
-              ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg cursor-pointer'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60'
-          }`}
-        >
-          Find Centers
-        </button>
+      )}
+
+      <div className="bg-gray-100 pt-24 pb-12 md:pt-28 md:pb-16">
+        <div className="wrapper flex flex-col items-center justify-center text-center">
+          <img
+            src={screening}
+            alt="Cancer management center"
+            className="w-48 md:w-56"
+          />
+          <p className="mt-4 max-w-md text-muted-foreground">
+            Use the search tool above to explore available cancer management
+            centers in your area.
+          </p>
+        </div>
       </div>
-      <div className="hidden lg:flex flex-col items-center justify-center text-center bg-gray-100 p-8 rounded-lg h-[550px] ">
-        <img src={screening} alt="Cancer management center" className="w-64" />
-        <p className="text-muted-foreground mt-4">
-          Use the search tool on the left to explore available cancer management
-          centers in your area.
-        </p>
-      </div>
-    </div>
+    </section>
   )
 }

@@ -16,12 +16,12 @@ import {
 } from '@/services/providers/auth.provider'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import {
   loginSchema,
   type TLoginParams,
 } from '@zerocancer/shared/schemas/auth.schema'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import Spinner from '../../shared/Spinner'
@@ -33,6 +33,13 @@ export default function LoginForm() {
   const loginMutation = useLogin()
   const resendVerificationMutation = useResendVerification()
   const navigate = useNavigate()
+  const search = useSearch({ from: '/(auth)/login' })
+
+  useEffect(() => {
+    if (search.role) {
+      setRole(search.role)
+    }
+  }, [search.role])
 
   const form = useForm<TLoginParams>({
     resolver: zodResolver(loginSchema),
@@ -57,6 +64,12 @@ export default function LoginForm() {
 
           queryClient.fetchQuery(useAuthUser()).then((data) => {
             const userProfile = data?.data?.user?.profile.toLowerCase()
+
+            if (search.redirect) {
+              window.location.href = search.redirect
+              return
+            }
+
             navigate({ to: `/${userProfile}` })
           })
         },

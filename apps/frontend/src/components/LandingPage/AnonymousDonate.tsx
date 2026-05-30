@@ -19,6 +19,19 @@ import { Checkbox } from '../shared/ui/checkbox'
 import { useQuery } from '@tanstack/react-query'
 import { allWaitlists } from '@/services/providers/waitlist.provider'
 import { useState } from 'react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/ui/select'
+import { NIGERIA_STATES_LGAS, getLGAsForState } from '@/data/nigeria-locations'
+import {
+  getServiceCategoryFromName,
+  getServiceTypeLabel,
+  serviceTypeBadgeStyles,
+} from '@/lib/service-types'
 
 // This local form schema resolves the type conflicts with react-hook-form
 // by using simple booleans for checkboxes and handling validation locally.
@@ -48,9 +61,22 @@ type TFormSchema = z.infer<typeof formSchema>
 
 export default function AnonymousDonate() {
   const [isWaitlistOpen, setIsWaitlistOpen] = useState(false)
-  
+  const [waitlistState, setWaitlistState] = useState('')
+  const [waitlistLga, setWaitlistLga] = useState('')
+  const [waitlistServiceType, setWaitlistServiceType] = useState<
+    'vaccination' | 'screening' | 'treatment' | ''
+  >('')
+  const [waitlistLgas, setWaitlistLgas] = useState<string[]>([])
+
   const { data: waitlistResponse, isLoading: isWaitlistLoading } = useQuery(
-    allWaitlists({ page: 1, pageSize: 50, demandOrder: 'desc' })
+    allWaitlists({
+      page: 1,
+      pageSize: 50,
+      demandOrder: 'desc',
+      state: waitlistState || undefined,
+      lga: waitlistLga || undefined,
+      serviceType: waitlistServiceType || undefined,
+    }),
   )
 
   const donateMutation = useDonateAnonymous()
@@ -282,6 +308,76 @@ export default function AnonymousDonate() {
             
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto flex-1 text-left">
+              <div className="mb-6 grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-400">
+                    Service type
+                  </label>
+                  <Select
+                    value={waitlistServiceType}
+                    onValueChange={(value) =>
+                      setWaitlistServiceType(
+                        value as 'vaccination' | 'screening' | 'treatment',
+                      )
+                    }
+                  >
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                      <SelectValue placeholder="All services" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="vaccination">Vaccination</SelectItem>
+                      <SelectItem value="screening">Screening</SelectItem>
+                      <SelectItem value="treatment">Treatment</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-400">
+                    State
+                  </label>
+                  <Select
+                    value={waitlistState}
+                    onValueChange={(value) => {
+                      setWaitlistState(value)
+                      setWaitlistLga('')
+                      setWaitlistLgas(getLGAsForState(value))
+                    }}
+                  >
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                      <SelectValue placeholder="All states" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {NIGERIA_STATES_LGAS.map((location) => (
+                        <SelectItem key={location.state} value={location.state}>
+                          {location.state}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-400">
+                    LGA
+                  </label>
+                  <Select
+                    value={waitlistLga}
+                    onValueChange={setWaitlistLga}
+                    disabled={!waitlistState}
+                  >
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                      <SelectValue placeholder="All LGAs" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {waitlistLgas.map((lga) => (
+                        <SelectItem key={lga} value={lga}>
+                          {lga}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               {isWaitlistLoading ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-pink-650 mb-2" />
@@ -301,21 +397,33 @@ export default function AnonymousDonate() {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-gray-800 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-800">
-                          <th className="p-4 font-semibold">Service Type</th>
+                          <th className="p-4 font-semibold">Service</th>
+                          <th className="p-4 font-semibold">Category</th>
                           <th className="p-4 font-semibold text-right">Patients Waiting</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-800">
-                        {waitlistResponse.data.waitlists.map((item: any) => (
-                          <tr key={item.screeningTypeId} className="hover:bg-gray-800/30 transition-colors">
-                            <td className="p-4 font-medium text-gray-200">{item.screeningType?.name}</td>
-                            <td className="p-4 text-right">
-                              <span className="bg-pink-900/40 text-pink-400 px-3 py-1 rounded-full text-sm font-semibold border border-pink-500/20">
-                                {item.pendingCount}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
+                        {waitlistResponse.data.waitlists.map((item: any) => {
+                          const serviceName = item.screeningType?.name ?? 'Unknown service'
+                          const category = getServiceCategoryFromName(serviceName)
+                          return (
+                            <tr key={item.screeningTypeId} className="hover:bg-gray-800/30 transition-colors">
+                              <td className="p-4 font-medium text-gray-200">{serviceName}</td>
+                              <td className="p-4">
+                                <span
+                                  className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium ${serviceTypeBadgeStyles[category]}`}
+                                >
+                                  {getServiceTypeLabel(category)}
+                                </span>
+                              </td>
+                              <td className="p-4 text-right">
+                                <span className="bg-pink-900/40 text-pink-400 px-3 py-1 rounded-full text-sm font-semibold border border-pink-500/20">
+                                  {item.pendingCount}
+                                </span>
+                              </td>
+                            </tr>
+                          )
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -324,7 +432,14 @@ export default function AnonymousDonate() {
             </div>
             
             {/* Modal Footer */}
-            <div className="p-6 border-t border-gray-800 flex justify-end">
+            <div className="flex flex-col gap-3 border-t border-gray-800 p-6 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-gray-400">
+                Donors can{' '}
+                <a href="/signup?role=donor" className="font-medium text-pink-400 underline">
+                  sign up
+                </a>{' '}
+                to fund individual patients or create group campaigns.
+              </p>
               <Button 
                 onClick={() => setIsWaitlistOpen(false)}
                 className="bg-gray-800 hover:bg-gray-700 text-white px-6 h-11 text-sm font-medium transition-all"

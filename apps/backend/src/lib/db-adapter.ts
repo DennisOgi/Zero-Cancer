@@ -293,6 +293,25 @@ export const getDB = (c: Context) => {
         
         return data;
       },
+
+      findFirst: async ({ where, select }: any = {}) => {
+        let query = supabase.from("User").select("*");
+
+        if (where?.phone) query = query.eq("phone", where.phone);
+        if (where?.email) query = query.eq("email", where.email);
+        if (where?.id) query = query.eq("id", where.id);
+
+        const { data, error } = await query.limit(1).maybeSingle();
+        if (error && error.code !== "PGRST116") throw error;
+
+        if (!data || !select) return data;
+
+        const selected: Record<string, unknown> = {};
+        for (const key of Object.keys(select)) {
+          if (select[key]) selected[key] = (data as Record<string, unknown>)[key];
+        }
+        return selected;
+      },
       
       count: async () => {
         const { count, error } = await supabase

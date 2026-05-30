@@ -10,6 +10,17 @@ export const getAllWaitlistsSchema = z.object({
   page: z.coerce.number().min(1).default(1).optional(),
   pageSize: z.coerce.number().min(1).max(100).default(20).optional(),
   demandOrder: z.enum(["asc", "desc"]).default("desc").optional(),
+  serviceType: z.enum(["vaccination", "screening", "treatment"]).optional(),
+  state: z.string().optional(),
+  lga: z.string().optional(),
+});
+
+export const getDonorWaitlistPatientsSchema = z.object({
+  page: z.coerce.number().min(1).default(1).optional(),
+  pageSize: z.coerce.number().min(1).max(100).default(20).optional(),
+  serviceType: z.enum(["vaccination", "screening", "treatment"]).optional(),
+  state: z.string().optional(),
+  lga: z.string().optional(),
 });
 
 export const joinWaitlistSchema = z.object({
@@ -38,6 +49,10 @@ export type TGetPatientWaitlistsParams = z.infer<
 >;
 export type TGetAllWaitlistsSchema = typeof getAllWaitlistsSchema;
 export type TGetAllWaitlistsParams = z.infer<typeof getAllWaitlistsSchema>;
+export type TGetDonorWaitlistPatientsSchema = typeof getDonorWaitlistPatientsSchema;
+export type TGetDonorWaitlistPatientsParams = z.infer<
+  typeof getDonorWaitlistPatientsSchema
+>;
 export type TJoinWaitlistSchema = typeof joinWaitlistSchema;
 export type TJoinWaitlistParams = z.infer<typeof joinWaitlistSchema>;
 export type TLeaveWaitlistSchema = typeof leaveWaitlistSchema;

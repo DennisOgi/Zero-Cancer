@@ -1,7 +1,13 @@
 import { centers } from '@/services/providers/center.provider'
+import { useAuthUser } from '@/services/providers/auth.provider'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import type { TCenter } from '@zerocancer/shared/types'
+import {
+  getCenterServiceCategories,
+  getServiceTypeLabel,
+  serviceTypeBadgeStyles,
+} from '@/lib/service-types'
 import {
   Building2,
   MapPin,
@@ -22,6 +28,7 @@ export default function CentersSearchPage() {
   const navigate = useNavigate()
   const search = useSearch({ from: '/(public)/centers' })
   const { state, lga, serviceType } = search
+  const { data: authData } = useQuery(useAuthUser())
 
   const {
     data,
@@ -37,6 +44,33 @@ export default function CentersSearchPage() {
   )
 
   const centersData = data?.data?.centers || []
+
+  const handleBookService = (center: TCenter, serviceId?: string) => {
+    const bookingPath = `/patient/book/pay?centerId=${center.id}${
+      serviceId ? `&screeningTypeId=${serviceId}` : ''
+    }`
+    const isPatient =
+      authData?.data?.user?.profile?.toLowerCase() === 'patient'
+
+    if (isPatient) {
+      navigate({
+        to: '/patient/book/pay',
+        search: {
+          centerId: center.id,
+          screeningTypeId: serviceId,
+        },
+      })
+      return
+    }
+
+    navigate({
+      to: '/login',
+      search: {
+        redirect: bookingPath,
+        role: 'patient',
+      },
+    })
+  }
 
   useEffect(() => {
     if (error) {
@@ -175,30 +209,51 @@ export default function CentersSearchPage() {
                     </span>
                   </div>
 
-                  {/* Services Count */}
+                  {/* Services */}
                   {center.services && center.services.length > 0 && (
                     <div className="bg-gray-50 rounded-lg p-3 mb-4">
                       <p className="text-sm font-medium text-gray-700 mb-2">
-                        Available Services
+                        Service types
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {center.services.length} service
-                        {center.services.length !== 1 ? 's' : ''} offered
-                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {getCenterServiceCategories(center.services).map(
+                          (category) => (
+                            <span
+                              key={category}
+                              className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${serviceTypeBadgeStyles[category]}`}
+                            >
+                              {getServiceTypeLabel(category)}
+                            </span>
+                          ),
+                        )}
+                      </div>
                     </div>
                   )}
 
-                  {/* Action Button */}
-                  <button
-                    onClick={() => {
-                      // Navigate to patient sign-up page
-                      navigate({ to: '/sign-up/patient' })
-                    }}
-                    className="w-full px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90 transition-colors text-sm font-medium"
-                    disabled={center.status !== 'ACTIVE'}
-                  >
-                    {center.status !== 'ACTIVE' ? 'Center Unavailable' : 'Book Service'}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() =>
+                        navigate({
+                          to: '/centers/$centerId',
+                          params: { centerId: center.id },
+                        })
+                      }
+                      className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                    >
+                      View Details
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleBookService(center, center.services?.[0]?.id)
+                      }
+                      className="flex-1 px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90 transition-colors text-sm font-medium"
+                      disabled={center.status !== 'ACTIVE'}
+                    >
+                      {center.status !== 'ACTIVE'
+                        ? 'Unavailable'
+                        : 'Book Now'}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

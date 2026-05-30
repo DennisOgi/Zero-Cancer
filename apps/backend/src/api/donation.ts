@@ -9,6 +9,7 @@ import {
   paystackWebhookSchema,
   updateCampaignSchema,
 } from "@zerocancer/shared";
+import { getDonorWaitlistPatientsSchema } from "@zerocancer/shared/schemas/waitlist.schema";
 import type {
   TAnonymousDonationResponse,
   TCreateCampaignResponse,
@@ -18,12 +19,17 @@ import type {
   TFundCampaignResponse,
   TGetCampaignResponse,
   TGetCampaignsResponse,
+  TGetDonorWaitlistPatientsResponse,
   TUpdateCampaignResponse,
 } from "@zerocancer/shared/types";
 import crypto from "crypto";
 import { Hono } from "hono";
 import { env } from "hono/adapter";
 import { getDB } from "../lib/db";
+import {
+  fetchPendingWaitlistEntries,
+  toDonorWaitlistPatients,
+} from "../lib/waitlist-query";
 import {
   addToGeneralDonorPool,
   initializePaystackPayment,
@@ -312,6 +318,50 @@ donationApp.get("/search-user", authMiddleware(["donor"]), async (c) => {
 
   return c.json({ ok: true, data: user });
 });
+
+// GET /api/donor/waitlist-patients - Browse anonymized waitlist patients for funding
+donationApp.get(
+  "/waitlist-patients",
+  authMiddleware(["donor"]),
+  zValidator("query", getDonorWaitlistPatientsSchema, (result, c) => {
+    if (!result.success) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Invalid query parameters" },
+        400
+      );
+    }
+  }),
+  async (c) => {
+    try {
+      const {
+        page = 1,
+        pageSize = 20,
+        serviceType,
+        state,
+        lga,
+      } = c.req.valid("query");
+
+      const entries = await fetchPendingWaitlistEntries(c, {
+        serviceType,
+        state,
+        lga,
+      });
+
+      const result = toDonorWaitlistPatients(entries, page, pageSize);
+
+      return c.json<TGetDonorWaitlistPatientsResponse>({
+        ok: true,
+        data: result,
+      });
+    } catch (error) {
+      console.error("Get donor waitlist patients error:", error);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to fetch waitlist patients" },
+        500
+      );
+    }
+  }
+);
 
 // POST /api/donor/campaigns - Create new campaign
 donationApp.post(

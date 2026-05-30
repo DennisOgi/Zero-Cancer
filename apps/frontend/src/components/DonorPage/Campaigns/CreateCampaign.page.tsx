@@ -41,10 +41,11 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { Route } from '@/routes/donor/campaigns/create'
 
 type CreateCampaignForm = z.infer<typeof createCampaignSchema>
 
@@ -72,6 +73,7 @@ export function CreateCampaignPage() {
   const navigate = useNavigate()
   const createCampaignMutation = useCreateCampaign()
   const [selectedStates, setSelectedStates] = useState<string[]>([])
+  const search = Route.useSearch()
 
   const { data: screeningTypesData } = useQuery(useScreeningTypes({}))
   const screeningTypes = screeningTypesData?.data || []
@@ -118,8 +120,19 @@ export function CreateCampaignPage() {
       targetLgas: [],
       targetAgeMin: undefined,
       targetAgeMax: undefined,
+      targetIndividualId: search.targetIndividualId,
+      screeningTypeIds: search.screeningTypeId ? [search.screeningTypeId] : [],
     },
   })
+
+  useEffect(() => {
+    if (search.targetIndividualId) {
+      form.setValue('targetIndividualId', search.targetIndividualId)
+    }
+    if (search.screeningTypeId) {
+      form.setValue('screeningTypeIds', [search.screeningTypeId])
+    }
+  }, [form, search.screeningTypeId, search.targetIndividualId])
 
   const onSubmit = async (data: CreateCampaignForm) => {
     try {
@@ -209,6 +222,12 @@ export function CreateCampaignPage() {
         <p className="text-gray-500 mt-1">
           Set up a donation campaign to help patients access screening services.
         </p>
+        {search.targetIndividualId && (
+          <div className="mt-4 rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm text-pink-800">
+            You are creating a campaign for a specific patient on the waiting
+            list. Group targeting filters are optional for this campaign.
+          </div>
+        )}
       </div>
 
       <div className="border-b border-dashed border-gray-200 -mx-8"></div>

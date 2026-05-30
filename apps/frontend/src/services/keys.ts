@@ -12,6 +12,7 @@ export enum QueryKeys {
   donorCampaign = 'donorCampaign',
   donorReceipts = 'donorReceipts',
   donorImpact = 'donorImpact',
+  donorWaitlistPatients = 'donorWaitlistPatients',
   verifyPayment = 'verifyPayment',
 
   centerAppointments = 'centerAppointments',
@@ -70,6 +71,12 @@ export enum QueryKeys {
   patientAllocations = 'patientAllocations',
   matchingConfig = 'matchingConfig',
   systemHealth = 'systemHealth',
+
+  // Pricing System
+  screeningTypesWithPrices = 'screeningTypesWithPrices',
+  priceHistory = 'priceHistory',
+  centerServices = 'centerServices',
+  centerPriceHistory = 'centerPriceHistory',
 }
 
 export enum MutationKeys {
@@ -139,6 +146,10 @@ export enum MutationKeys {
   triggerMatching = 'triggerMatching',
   expireAllocation = 'expireAllocation',
   updateMatchingConfig = 'updateMatchingConfig',
+
+  // Pricing System
+  updateBasePrice = 'updateBasePrice',
+  updateRetailPrice = 'updateRetailPrice',
 }
 
 export const ACCESS_TOKEN_KEY = 'accessToken'

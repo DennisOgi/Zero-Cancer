@@ -23,6 +23,7 @@ import { Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { useEffect } from 'react'
 // Use the new shared components for consistency
 import CenterCombobox from './components/CenterCombobox'
 import SchedulePicker from './components/SchedulePicker'
@@ -40,10 +41,12 @@ type FormData = z.infer<typeof bookingSchema>
 
 interface PatientPayBookingPageProps {
   screeningTypeId?: string
+  centerId?: string
 }
 
 export function PatientPayBookingPage({
   screeningTypeId,
+  centerId,
 }: PatientPayBookingPageProps) {
   const navigate = useNavigate()
 
@@ -51,7 +54,7 @@ export function PatientPayBookingPage({
     resolver: zodResolver(bookingSchema),
     defaultValues: {
       screeningTypeId: screeningTypeId || '',
-      centerId: '',
+      centerId: centerId || '',
       appointmentDate: '',
       appointmentTime: '',
       paymentReference: '',
@@ -74,9 +77,20 @@ export function PatientPayBookingPage({
   // Filter centers that offer the selected screening service
   const availableCenters =
     centersData?.data?.centers?.filter((center) => {
-      if (!screeningTypeId) return true // Show all if no service selected
-      return center.services?.some((service) => service.id === screeningTypeId)
+      if (centerId && center.id !== centerId) return false
+      const selectedServiceId = form.watch('screeningTypeId') || screeningTypeId
+      if (!selectedServiceId) return true
+      return center.services?.some((service) => service.id === selectedServiceId)
     }) || []
+
+  useEffect(() => {
+    if (centerId) {
+      form.setValue('centerId', centerId)
+    }
+    if (screeningTypeId) {
+      form.setValue('screeningTypeId', screeningTypeId)
+    }
+  }, [centerId, form, screeningTypeId])
 
   const bookSelfPayAppointmentMutation = useBookSelfPayAppointment()
 

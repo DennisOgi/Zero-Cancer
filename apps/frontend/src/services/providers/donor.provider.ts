@@ -211,6 +211,15 @@ export const useDonorCampaign = (campaignId: string) =>
  * and stops refetching once payment is complete (success/failed/abandoned).
  */
 
+export const donorWaitlistPatients = (
+  params: Parameters<typeof donorService.getDonorWaitlistPatients>[0],
+) =>
+  queryOptions({
+    queryKey: [QueryKeys.donorWaitlistPatients, params],
+    queryFn: () => donorService.getDonorWaitlistPatients(params),
+    staleTime: 30 * 1000,
+  })
+
 // Verify payment status (used on payment status pages)
 export const useVerifyPayment = (reference: string) =>
   queryOptions({

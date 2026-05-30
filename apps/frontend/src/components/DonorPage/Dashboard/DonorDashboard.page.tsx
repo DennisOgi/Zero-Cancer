@@ -98,8 +98,17 @@ export function DonorDashboardPage() {
               <div className="p-3 bg-white/20 rounded-full">
                 <Plus className="h-6 w-6" />
               </div>
-              <p className="font-semibold text-lg">Create New Campaign</p>
+              <p className="font-semibold text-lg">Create Group Campaign</p>
             </Link>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Button asChild variant="outline">
+              <Link to="/donor/fund">Fund Individual Patients</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/donor/campaigns/create">Fund by Group Targeting</Link>
+            </Button>
           </div>
 
           {/* Stat Cards */}

@@ -59,11 +59,17 @@ export const getAllWaitlists = (params: {
   page?: number
   pageSize?: number
   demandOrder?: 'asc' | 'desc'
+  serviceType?: 'vaccination' | 'screening' | 'treatment'
+  state?: string
+  lga?: string
 }) =>
   `/api/waitlist${buildQuery({
     page: params.page ?? 1,
     pageSize: params.pageSize ?? 20,
     demandOrder: params.demandOrder ?? 'desc',
+    serviceType: params.serviceType,
+    state: params.state,
+    lga: params.lga,
   })}`
 export const joinWaitlist = () => '/api/waitlist/patient/join'
 export const leaveWaitlist = () => '/api/waitlist/patient/leave'
@@ -136,6 +142,22 @@ export const verifyPayment = (reference: string) =>
 export const getDonorReceipts = (page = 1, size = 20) =>
   `/api/donor/receipts${buildQuery({ page, size })}`
 export const getDonationImpact = () => '/api/donor/impact'
+export const getDonorWaitlistPatients = (params: {
+  page?: number
+  pageSize?: number
+  serviceType?: 'vaccination' | 'screening' | 'treatment'
+  state?: string
+  lga?: string
+}) =>
+  `/api/donor/waitlist-patients${buildQuery({
+    page: params.page ?? 1,
+    pageSize: params.pageSize ?? 20,
+    serviceType: params.serviceType,
+    state: params.state,
+    lga: params.lga,
+  })}`
+export const searchDonorUser = (phone: string) =>
+  `/api/donor/search-user?phone=${encodeURIComponent(phone)}`
 
 // CENTER
 export const getCenters = (params: {

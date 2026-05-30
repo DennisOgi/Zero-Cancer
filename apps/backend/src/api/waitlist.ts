@@ -22,6 +22,10 @@ import { CryptoUtils } from "../lib/crypto.utils";
 import { getDB } from "../lib/db";
 import { THonoApp } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
+import {
+  aggregateWaitlistByScreeningType,
+  fetchPendingWaitlistEntries,
+} from "../lib/waitlist-query";
 
 export const waitlistApp = new Hono<THonoApp>();
 
@@ -470,66 +474,33 @@ waitlistApp.get(
         page = 1,
         pageSize = 20,
         demandOrder = "desc",
+        serviceType,
+        state,
+        lga,
       } = c.req.valid("query");
-      const db = getDB(c);
 
-      // Get waitlist aggregation by screening type
-      const waitlistStats = await db.waitlist.groupBy({
-        by: ["screeningTypeId"],
-        where: {
-          status: "PENDING",
-        },
-        _count: {
-          id: true,
-        },
-        orderBy: {
-          _count: {
-            id: demandOrder,
-          },
-        },
+      const entries = await fetchPendingWaitlistEntries(c, {
+        serviceType,
+        state,
+        lga,
       });
 
-      // Get screening type details for the aggregated data
-      const screeningTypeIds = waitlistStats.map(
-        (stat) => stat.screeningTypeId
-      );
-      const screeningTypes = await db.screeningType.findMany({
-        where: {
-          id: {
-            in: screeningTypeIds,
+      const aggregated = aggregateWaitlistByScreeningType(entries, demandOrder);
+      const total = aggregated.length;
+      const totalPages = Math.ceil(total / pageSize) || 1;
+
+      const waitlistData = aggregated
+        .slice((page - 1) * pageSize, page * pageSize)
+        .map((stat) => ({
+          screeningTypeId: stat.screeningTypeId,
+          screeningType: {
+            id: stat.screeningType.id,
+            name: stat.screeningType.name,
           },
-        },
-        select: {
-          id: true,
-          name: true,
-          description: true,
-        },
-      });
-
-      // Combine stats with screening type details
-      const waitlistData = waitlistStats
-        .map((stat) => {
-          const screeningType = screeningTypes.find(
-            (st) => st.id === stat.screeningTypeId
-          );
-          return screeningType
-            ? {
-                screeningTypeId: stat.screeningTypeId,
-                screeningType: {
-                  id: screeningType.id,
-                  name: screeningType.name,
-                },
-                pendingCount: stat._count.id,
-                totalCount: stat._count.id,
-                demand: stat._count.id,
-              }
-            : null;
-        })
-        .filter((item): item is NonNullable<typeof item> => item !== null)
-        .slice((page - 1) * pageSize, page * pageSize);
-
-      const total = waitlistStats.length;
-      const totalPages = Math.ceil(total / pageSize);
+          pendingCount: stat.pendingCount,
+          totalCount: stat.totalCount,
+          demand: stat.demand,
+        }));
 
       return c.json<TGetAllWaitlistsResponse>({
         ok: true,
