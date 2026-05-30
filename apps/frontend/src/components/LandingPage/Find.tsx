@@ -12,7 +12,7 @@ import { NIGERIA_STATES_LGAS, getLGAsForState } from '@/data/nigeria-locations'
 import type { TCenter } from '@zerocancer/shared/types'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 type ServiceType = 'vaccination' | 'screening' | 'treatment'
@@ -23,7 +23,7 @@ export default function Find() {
   const [selectedLGA, setSelectedLGA] = useState<string>('')
   const [serviceType, setServiceType] = useState<ServiceType | ''>('')
   const [lgas, setLgas] = useState<string[]>([])
-  const featuredCentersRef = useRef<HTMLDivElement>(null)
+  const trackRef = useRef<HTMLDivElement>(null)
 
   const {
     data: featuredCentersData,
@@ -44,6 +44,36 @@ export default function Find() {
   }, [featuredCentersError])
 
   const featuredCenters = featuredCentersData?.data?.centers || []
+  const showFeatured = featuredCentersLoading || featuredCenters.length > 0
+
+  // Auto-scrolling marquee for the featured centers slider.
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track || featuredCenters.length === 0) return
+
+    let frame = 0
+    let paused = false
+    const onEnter = () => (paused = true)
+    const onLeave = () => (paused = false)
+    track.addEventListener('mouseenter', onEnter)
+    track.addEventListener('mouseleave', onLeave)
+
+    const step = () => {
+      if (!paused && track.scrollWidth > track.clientWidth) {
+        track.scrollLeft += 0.5
+        const half = track.scrollWidth / 2
+        if (track.scrollLeft >= half) track.scrollLeft -= half
+      }
+      frame = requestAnimationFrame(step)
+    }
+    frame = requestAnimationFrame(step)
+
+    return () => {
+      cancelAnimationFrame(frame)
+      track.removeEventListener('mouseenter', onEnter)
+      track.removeEventListener('mouseleave', onLeave)
+    }
+  }, [featuredCenters.length])
 
   const handleStateChange = (state: string) => {
     setSelectedState(state)
@@ -67,14 +97,10 @@ export default function Find() {
     })
   }
 
-  const scrollFeaturedCenters = (direction: 'left' | 'right') => {
-    featuredCentersRef.current?.scrollBy({
-      left: direction === 'left' ? -300 : 300,
-      behavior: 'smooth',
-    })
-  }
-
-  const hasFeatured = featuredCentersLoading || featuredCenters.length > 0
+  // Duplicate the list so the marquee can loop seamlessly.
+  const marqueeCenters = featuredCenters.length
+    ? [...featuredCenters, ...featuredCenters]
+    : []
 
   return (
     <section
@@ -82,10 +108,14 @@ export default function Find() {
       className="relative overflow-hidden bg-white"
     >
       <div className="wrapper py-16 md:py-24">
-        {/* Top: two-column layout */}
-        <div className="grid items-start gap-8 lg:grid-cols-2 lg:gap-12">
-          {/* LEFT: heading, subtitle, search filters */}
-          <div className="space-y-6">
+        <div className="grid items-start gap-10 lg:grid-cols-2">
+          {/* Left: heading, subtitle, slider, then search filters */}
+          <div className="min-w-0 space-y-6">
+            <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+              <Search className="h-4 w-4" />
+              Find care near you
+            </span>
+
             <div>
               <h2 className="text-4xl font-bold leading-tight lg:text-5xl">
                 Find a Center Near You
@@ -96,7 +126,34 @@ export default function Find() {
               </p>
             </div>
 
-            <div className="space-y-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            {/* Auto-scrolling featured centers — overflows right, passing over the grey panel */}
+            {showFeatured && (
+              <div className="relative z-20 lg:w-[calc(200%_+_2.5rem)]">
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  Featured centers
+                </h3>
+                <div
+                  ref={trackRef}
+                  className="flex gap-5 overflow-x-hidden pb-3 pt-1"
+                >
+                  {featuredCentersLoading
+                    ? Array.from({ length: 4 }).map((_, index) => (
+                        <div
+                          key={index}
+                          className="h-56 w-[280px] shrink-0 animate-pulse rounded-2xl bg-gray-100 sm:w-[300px]"
+                        />
+                      ))
+                    : marqueeCenters.map((center: TCenter, index) => (
+                        <FeaturedCenterCard
+                          key={`${center.id}-${index}`}
+                          center={center}
+                        />
+                      ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4 rounded-2xl border bg-white p-5 shadow-sm md:p-6">
               <div>
                 <label htmlFor="serviceType" className="text-sm font-medium">
                   Service type
@@ -173,65 +230,21 @@ export default function Find() {
             </div>
           </div>
 
-          {/* RIGHT: shorter grey panel with hospital image */}
-          <div className="hidden lg:flex lg:flex-col lg:items-center lg:justify-center lg:rounded-3xl lg:bg-gray-100 lg:p-8 lg:text-center lg:h-[280px] xl:h-[300px]">
-            <img
-              src={screening}
-              alt="Cancer management center"
-              className="w-40 xl:w-48"
-            />
-            <p className="mt-4 max-w-xs text-sm text-muted-foreground">
-              Browse our featured centers, or search to explore cancer
-              management centers in your area.
-            </p>
-          </div>
-        </div>
-
-        {/* Featured centers slider: cards pass over the grey panel on the right */}
-        {hasFeatured && (
-          <div className="relative z-10 mt-8 lg:ml-auto lg:-mt-44 lg:w-[56%] xl:w-[54%]">
-            <div className="rounded-3xl border border-gray-100 bg-white/95 p-5 shadow-2xl backdrop-blur-sm md:p-6">
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <h3 className="text-lg font-semibold">Featured centers</h3>
-                {featuredCenters.length > 2 && (
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => scrollFeaturedCenters('left')}
-                      className="rounded-full border p-2 text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground"
-                      aria-label="Show previous centers"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => scrollFeaturedCenters('right')}
-                      className="rounded-full border p-2 text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground"
-                      aria-label="Show next centers"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div
-                ref={featuredCentersRef}
-                className="flex gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              >
-                {featuredCentersLoading
-                  ? Array.from({ length: 3 }).map((_, index) => (
-                      <div
-                        key={index}
-                        className="h-52 min-w-[260px] animate-pulse rounded-2xl bg-gray-100"
-                      />
-                    ))
-                  : featuredCenters.map((center: TCenter) => (
-                      <FeaturedCenterCard key={center.id} center={center} />
-                    ))}
-              </div>
+          {/* Right: reduced-height grey panel with hospital image */}
+          <div className="hidden lg:block">
+            <div className="flex h-[380px] flex-col items-center justify-center rounded-3xl bg-gray-100 p-8 text-center">
+              <img
+                src={screening}
+                alt="Cancer management center"
+                className="w-56"
+              />
+              <p className="mt-4 max-w-xs text-muted-foreground">
+                Browse our featured centers, or search to explore cancer
+                management centers in your area.
+              </p>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </section>
   )
