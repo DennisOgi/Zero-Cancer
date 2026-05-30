@@ -12,12 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/ui/select'
+import { Input } from '@/components/shared/ui/input'
 import { NIGERIA_STATES_LGAS, getLGAsForState } from '@/data/nigeria-locations'
-import { donorWaitlistPatients } from '@/services/providers/donor.provider'
+import {
+  communityGroups,
+  donorWaitlistPatients,
+} from '@/services/providers/donor.provider'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Heart, Loader2, Users } from 'lucide-react'
-import { useState } from 'react'
+import { Heart, Loader2, Search, Users } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export function FundPatientsPage() {
   const navigate = useNavigate()
@@ -27,6 +31,16 @@ export function FundPatientsPage() {
     'vaccination' | 'screening' | 'treatment' | ''
   >('')
   const [lgas, setLgas] = useState<string[]>([])
+  const [groupSearch, setGroupSearch] = useState('')
+  const [debouncedGroupSearch, setDebouncedGroupSearch] = useState('')
+
+  useEffect(() => {
+    const timeout = setTimeout(
+      () => setDebouncedGroupSearch(groupSearch.trim()),
+      300,
+    )
+    return () => clearTimeout(timeout)
+  }, [groupSearch])
 
   const { data, isLoading } = useQuery(
     donorWaitlistPatients({
@@ -38,7 +52,16 @@ export function FundPatientsPage() {
     }),
   )
 
+  const { data: groupsData, isLoading: groupsLoading } = useQuery(
+    communityGroups({
+      page: 1,
+      pageSize: 50,
+      search: debouncedGroupSearch || undefined,
+    }),
+  )
+
   const patients = data?.data?.patients || []
+  const groups = groupsData?.data?.groups || []
 
   const handleFundPatient = (patientId: string, screeningTypeId: string) => {
     navigate({
@@ -46,6 +69,16 @@ export function FundPatientsPage() {
       search: {
         targetIndividualId: patientId,
         screeningTypeId,
+      },
+    })
+  }
+
+  const handleFundGroup = (groupId: string, groupName: string) => {
+    navigate({
+      to: '/donor/campaigns/create',
+      search: {
+        targetGroupId: groupId,
+        groupName,
       },
     })
   }
@@ -85,14 +118,77 @@ export function FundPatientsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-gray-600">
-              Target patients by state, LGA, age, gender, or screening type.
+              Choose an existing community group below, or target patients by
+              state, LGA, age, gender, or screening type.
             </p>
-            <Button asChild className="w-full">
-              <Link to="/donor/campaigns/create">Create group campaign</Link>
+            <Button asChild variant="outline" className="w-full">
+              <Link to="/donor/campaigns/create">
+                Create custom group campaign
+              </Link>
             </Button>
           </CardContent>
         </Card>
       </div>
+
+      {/* Existing community groups */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-600" />
+              Community groups
+            </CardTitle>
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={groupSearch}
+                onChange={(event) => setGroupSearch(event.target.value)}
+                placeholder="Search groups..."
+                className="pl-9"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {groupsLoading ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Loading groups...
+            </div>
+          ) : groups.length === 0 ? (
+            <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
+              {debouncedGroupSearch
+                ? `No groups match "${debouncedGroupSearch}".`
+                : 'No community groups are available yet.'}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {groups.map((group) => (
+                <div
+                  key={group.id}
+                  className="flex flex-col rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <p className="mt-4 font-semibold text-gray-900">
+                    {group.name}
+                  </p>
+                  <p className="mt-1 line-clamp-3 flex-1 text-sm text-muted-foreground">
+                    {group.description || 'A community group on the platform.'}
+                  </p>
+                  <Button
+                    className="mt-4 bg-secondary text-white hover:bg-secondary/90"
+                    onClick={() => handleFundGroup(group.id, group.name)}
+                  >
+                    Fund this group
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

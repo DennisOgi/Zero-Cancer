@@ -533,6 +533,21 @@ export type TGetEligibleCentersResponse = TDataResponse<{
   total: number;
   totalPages: number;
 }>;
+
+export type TGroup = {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+};
+
+export type TGetGroupsResponse = TDataResponse<{
+  groups: TGroup[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}>;
 export type TSelectCenterResponse = TDataResponse<{
   appointment: TPatientAppointment;
 }>;

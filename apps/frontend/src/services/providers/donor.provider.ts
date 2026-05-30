@@ -220,6 +220,15 @@ export const donorWaitlistPatients = (
     staleTime: 30 * 1000,
   })
 
+export const communityGroups = (
+  params: Parameters<typeof donorService.getCommunityGroups>[0] = {},
+) =>
+  queryOptions({
+    queryKey: [QueryKeys.communityGroups, params],
+    queryFn: () => donorService.getCommunityGroups(params),
+    staleTime: 60 * 1000,
+  })
+
 // Verify payment status (used on payment status pages)
 export const useVerifyPayment = (reference: string) =>
   queryOptions({

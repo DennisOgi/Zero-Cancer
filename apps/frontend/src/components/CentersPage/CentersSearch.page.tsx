@@ -26,7 +26,7 @@ const serviceTypeLabel = {
 
 export default function CentersSearchPage() {
   const navigate = useNavigate()
-  const search = useSearch({ from: '/(public)/centers' })
+  const search = useSearch({ from: '/(public)/centers/' })
   const { state, lga, serviceType } = search
   const { data: authData } = useQuery(useAuthUser())
 

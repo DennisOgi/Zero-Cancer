@@ -121,6 +121,7 @@ export function CreateCampaignPage() {
       targetAgeMin: undefined,
       targetAgeMax: undefined,
       targetIndividualId: search.targetIndividualId,
+      targetGroupId: search.targetGroupId,
       screeningTypeIds: search.screeningTypeId ? [search.screeningTypeId] : [],
     },
   })
@@ -129,10 +130,18 @@ export function CreateCampaignPage() {
     if (search.targetIndividualId) {
       form.setValue('targetIndividualId', search.targetIndividualId)
     }
+    if (search.targetGroupId) {
+      form.setValue('targetGroupId', search.targetGroupId)
+    }
     if (search.screeningTypeId) {
       form.setValue('screeningTypeIds', [search.screeningTypeId])
     }
-  }, [form, search.screeningTypeId, search.targetIndividualId])
+  }, [
+    form,
+    search.screeningTypeId,
+    search.targetIndividualId,
+    search.targetGroupId,
+  ])
 
   const onSubmit = async (data: CreateCampaignForm) => {
     try {
@@ -226,6 +235,17 @@ export function CreateCampaignPage() {
           <div className="mt-4 rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm text-pink-800">
             You are creating a campaign for a specific patient on the waiting
             list. Group targeting filters are optional for this campaign.
+          </div>
+        )}
+        {search.targetGroupId && (
+          <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            You are funding the group
+            {search.groupName ? (
+              <span className="font-semibold"> {search.groupName}</span>
+            ) : (
+              ' you selected'
+            )}
+            . Patients in this group will be matched to your campaign.
           </div>
         )}
       </div>

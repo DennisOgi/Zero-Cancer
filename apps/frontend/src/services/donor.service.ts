@@ -16,6 +16,7 @@ import type {
   TGetCampaignResponse,
   TGetCampaignsResponse,
   TGetDonorWaitlistPatientsResponse,
+  TGetGroupsResponse,
   // TGetDonorReceiptsResponse,
   TPaymentVerificationResponse,
   TUpdateCampaignResponse,
@@ -155,4 +156,13 @@ export const getDonorWaitlistPatients = async (
   }
   const res = await request.get(endpoints.getDonorWaitlistPatients(parsed.data))
   return res as TGetDonorWaitlistPatientsResponse
+}
+
+export const getCommunityGroups = async (params: {
+  page?: number
+  pageSize?: number
+  search?: string
+}): Promise<TGetGroupsResponse> => {
+  const res = await request.get(endpoints.getCommunityGroups(params))
+  return res as TGetGroupsResponse
 }

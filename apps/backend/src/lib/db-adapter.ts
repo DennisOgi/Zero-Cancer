@@ -571,7 +571,79 @@ export const getDB = (c: Context) => {
         return data;
       },
     },
-    
+
+    // Group operations
+    group: {
+      findMany: async ({ where, skip, take, orderBy }: any = {}) => {
+        let query = supabase.from('Group').select('*');
+
+        if (where?.OR && Array.isArray(where.OR)) {
+          const filters = where.OR.map((clause: any) => {
+            if (clause.name?.contains)
+              return `name.ilike.%${clause.name.contains}%`;
+            if (clause.description?.contains)
+              return `description.ilike.%${clause.description.contains}%`;
+            return null;
+          }).filter(Boolean);
+          if (filters.length) query = query.or(filters.join(','));
+        }
+
+        if (orderBy?.name === 'asc') query = query.order('name', { ascending: true });
+        else if (orderBy?.name === 'desc') query = query.order('name', { ascending: false });
+
+        if (skip) query = query.range(skip, skip + (take || 20) - 1);
+        else if (take) query = query.limit(take);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+      },
+
+      findUnique: async ({ where }: { where: { id?: string } }) => {
+        const { data, error } = await supabase
+          .from('Group')
+          .select('*')
+          .eq('id', where.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        return data;
+      },
+
+      count: async ({ where }: any = {}) => {
+        let query = supabase.from('Group').select('*', { count: 'exact', head: true });
+
+        if (where?.OR && Array.isArray(where.OR)) {
+          const filters = where.OR.map((clause: any) => {
+            if (clause.name?.contains)
+              return `name.ilike.%${clause.name.contains}%`;
+            if (clause.description?.contains)
+              return `description.ilike.%${clause.description.contains}%`;
+            return null;
+          }).filter(Boolean);
+          if (filters.length) query = query.or(filters.join(','));
+        }
+
+        const { count, error } = await query;
+        if (error) throw error;
+        return count || 0;
+      },
+
+      create: async ({ data }: any) => {
+        const { data: group, error } = await supabase
+          .from('Group')
+          .insert({
+            name: data.name,
+            description: data.description || null,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        return group;
+      },
+    },
+
     // Center staff operations
     centerStaff: {
       create: async ({ data }: any) => {

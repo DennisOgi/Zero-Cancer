@@ -5,6 +5,8 @@ import { z } from 'zod'
 
 const createCampaignSearchSchema = z.object({
   targetIndividualId: z.string().optional(),
+  targetGroupId: z.string().optional(),
+  groupName: z.string().optional(),
   screeningTypeId: z.string().optional(),
 })
 

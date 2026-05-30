@@ -48,7 +48,6 @@ import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
 import { Route as AdminBlogRouteImport } from './routes/admin/blog'
 import { Route as AdminAppointmentsRouteImport } from './routes/admin/appointments'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
-import { Route as publicCentersRouteImport } from './routes/(public)/centers'
 import { Route as publicAboutRouteImport } from './routes/(public)/about'
 import { Route as authVerifyEmailRouteImport } from './routes/(auth)/verify-email'
 import { Route as authResetPasswordCenterRouteImport } from './routes/(auth)/reset-password-center'
@@ -58,6 +57,7 @@ import { Route as authForgotPasswordCenterRouteImport } from './routes/(auth)/fo
 import { Route as authForgotPasswordRouteImport } from './routes/(auth)/forgot-password'
 import { Route as PatientBookIndexRouteImport } from './routes/patient/book/index'
 import { Route as DonorCampaignsIndexRouteImport } from './routes/donor/campaigns/index'
+import { Route as publicCentersIndexRouteImport } from './routes/(public)/centers/index'
 import { Route as publicBlogIndexRouteImport } from './routes/(public)/blog/index'
 import { Route as authSignUpIndexRouteImport } from './routes/(auth)/sign-up/index'
 import { Route as PatientBookPaymentStatusRouteImport } from './routes/patient/book/payment-status'
@@ -273,11 +273,6 @@ const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AdminRouteRoute,
 } as any)
-const publicCentersRoute = publicCentersRouteImport.update({
-  id: '/centers',
-  path: '/centers',
-  getParentRoute: () => publicRouteRoute,
-} as any)
 const publicAboutRoute = publicAboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -323,6 +318,11 @@ const DonorCampaignsIndexRoute = DonorCampaignsIndexRouteImport.update({
   id: '/campaigns/',
   path: '/campaigns/',
   getParentRoute: () => DonorRouteRoute,
+} as any)
+const publicCentersIndexRoute = publicCentersIndexRouteImport.update({
+  id: '/centers/',
+  path: '/centers/',
+  getParentRoute: () => publicRouteRoute,
 } as any)
 const publicBlogIndexRoute = publicBlogIndexRouteImport.update({
   id: '/blog/',
@@ -384,9 +384,9 @@ const publicDonationPaymentStatusRoute =
     getParentRoute: () => publicRouteRoute,
   } as any)
 const publicCentersCenterIdRoute = publicCentersCenterIdRouteImport.update({
-  id: '/$centerId',
-  path: '/$centerId',
-  getParentRoute: () => publicCentersRoute,
+  id: '/centers/$centerId',
+  path: '/centers/$centerId',
+  getParentRoute: () => publicRouteRoute,
 } as any)
 const publicBlogSlugRoute = publicBlogSlugRouteImport.update({
   id: '/blog/$slug',
@@ -449,7 +449,6 @@ export interface FileRoutesByFullPath {
   '/reset-password-center': typeof authResetPasswordCenterRoute
   '/verify-email': typeof authVerifyEmailRoute
   '/about': typeof publicAboutRoute
-  '/centers': typeof publicCentersRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
   '/admin/blog': typeof AdminBlogRouteWithChildren
@@ -501,6 +500,7 @@ export interface FileRoutesByFullPath {
   '/patient/book/payment-status': typeof PatientBookPaymentStatusRoute
   '/sign-up': typeof authSignUpIndexRoute
   '/blog': typeof publicBlogIndexRoute
+  '/centers': typeof publicCentersIndexRoute
   '/donor/campaigns': typeof DonorCampaignsIndexRoute
   '/patient/book': typeof PatientBookIndexRoute
   '/admin/blog/$id/edit': typeof AdminBlogIdEditRoute
@@ -515,7 +515,6 @@ export interface FileRoutesByTo {
   '/reset-password-center': typeof authResetPasswordCenterRoute
   '/verify-email': typeof authVerifyEmailRoute
   '/about': typeof publicAboutRoute
-  '/centers': typeof publicCentersRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
   '/admin/blog': typeof AdminBlogRouteWithChildren
@@ -567,6 +566,7 @@ export interface FileRoutesByTo {
   '/patient/book/payment-status': typeof PatientBookPaymentStatusRoute
   '/sign-up': typeof authSignUpIndexRoute
   '/blog': typeof publicBlogIndexRoute
+  '/centers': typeof publicCentersIndexRoute
   '/donor/campaigns': typeof DonorCampaignsIndexRoute
   '/patient/book': typeof PatientBookIndexRoute
   '/admin/blog/$id/edit': typeof AdminBlogIdEditRoute
@@ -588,7 +588,6 @@ export interface FileRoutesById {
   '/(auth)/reset-password-center': typeof authResetPasswordCenterRoute
   '/(auth)/verify-email': typeof authVerifyEmailRoute
   '/(public)/about': typeof publicAboutRoute
-  '/(public)/centers': typeof publicCentersRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
   '/admin/blog': typeof AdminBlogRouteWithChildren
@@ -640,6 +639,7 @@ export interface FileRoutesById {
   '/patient/book/payment-status': typeof PatientBookPaymentStatusRoute
   '/(auth)/sign-up/': typeof authSignUpIndexRoute
   '/(public)/blog/': typeof publicBlogIndexRoute
+  '/(public)/centers/': typeof publicCentersIndexRoute
   '/donor/campaigns/': typeof DonorCampaignsIndexRoute
   '/patient/book/': typeof PatientBookIndexRoute
   '/admin/blog/$id/edit': typeof AdminBlogIdEditRoute
@@ -660,7 +660,6 @@ export interface FileRouteTypes {
     | '/reset-password-center'
     | '/verify-email'
     | '/about'
-    | '/centers'
     | '/admin/analytics'
     | '/admin/appointments'
     | '/admin/blog'
@@ -712,6 +711,7 @@ export interface FileRouteTypes {
     | '/patient/book/payment-status'
     | '/sign-up'
     | '/blog'
+    | '/centers'
     | '/donor/campaigns'
     | '/patient/book'
     | '/admin/blog/$id/edit'
@@ -726,7 +726,6 @@ export interface FileRouteTypes {
     | '/reset-password-center'
     | '/verify-email'
     | '/about'
-    | '/centers'
     | '/admin/analytics'
     | '/admin/appointments'
     | '/admin/blog'
@@ -778,6 +777,7 @@ export interface FileRouteTypes {
     | '/patient/book/payment-status'
     | '/sign-up'
     | '/blog'
+    | '/centers'
     | '/donor/campaigns'
     | '/patient/book'
     | '/admin/blog/$id/edit'
@@ -798,7 +798,6 @@ export interface FileRouteTypes {
     | '/(auth)/reset-password-center'
     | '/(auth)/verify-email'
     | '/(public)/about'
-    | '/(public)/centers'
     | '/admin/analytics'
     | '/admin/appointments'
     | '/admin/blog'
@@ -850,6 +849,7 @@ export interface FileRouteTypes {
     | '/patient/book/payment-status'
     | '/(auth)/sign-up/'
     | '/(public)/blog/'
+    | '/(public)/centers/'
     | '/donor/campaigns/'
     | '/patient/book/'
     | '/admin/blog/$id/edit'
@@ -1141,13 +1141,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAnalyticsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
-    '/(public)/centers': {
-      id: '/(public)/centers'
-      path: '/centers'
-      fullPath: '/centers'
-      preLoaderRoute: typeof publicCentersRouteImport
-      parentRoute: typeof publicRouteRoute
-    }
     '/(public)/about': {
       id: '/(public)/about'
       path: '/about'
@@ -1210,6 +1203,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/donor/campaigns'
       preLoaderRoute: typeof DonorCampaignsIndexRouteImport
       parentRoute: typeof DonorRouteRoute
+    }
+    '/(public)/centers/': {
+      id: '/(public)/centers/'
+      path: '/centers'
+      fullPath: '/centers'
+      preLoaderRoute: typeof publicCentersIndexRouteImport
+      parentRoute: typeof publicRouteRoute
     }
     '/(public)/blog/': {
       id: '/(public)/blog/'
@@ -1290,10 +1290,10 @@ declare module '@tanstack/react-router' {
     }
     '/(public)/centers/$centerId': {
       id: '/(public)/centers/$centerId'
-      path: '/$centerId'
+      path: '/centers/$centerId'
       fullPath: '/centers/$centerId'
       preLoaderRoute: typeof publicCentersCenterIdRouteImport
-      parentRoute: typeof publicCentersRoute
+      parentRoute: typeof publicRouteRoute
     }
     '/(public)/blog/$slug': {
       id: '/(public)/blog/$slug'
@@ -1397,32 +1397,22 @@ const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
   authRouteRouteChildren,
 )
 
-interface publicCentersRouteChildren {
-  publicCentersCenterIdRoute: typeof publicCentersCenterIdRoute
-}
-
-const publicCentersRouteChildren: publicCentersRouteChildren = {
-  publicCentersCenterIdRoute: publicCentersCenterIdRoute,
-}
-
-const publicCentersRouteWithChildren = publicCentersRoute._addFileChildren(
-  publicCentersRouteChildren,
-)
-
 interface publicRouteRouteChildren {
   publicAboutRoute: typeof publicAboutRoute
-  publicCentersRoute: typeof publicCentersRouteWithChildren
   publicBlogSlugRoute: typeof publicBlogSlugRoute
+  publicCentersCenterIdRoute: typeof publicCentersCenterIdRoute
   publicDonationPaymentStatusRoute: typeof publicDonationPaymentStatusRoute
   publicBlogIndexRoute: typeof publicBlogIndexRoute
+  publicCentersIndexRoute: typeof publicCentersIndexRoute
 }
 
 const publicRouteRouteChildren: publicRouteRouteChildren = {
   publicAboutRoute: publicAboutRoute,
-  publicCentersRoute: publicCentersRouteWithChildren,
   publicBlogSlugRoute: publicBlogSlugRoute,
+  publicCentersCenterIdRoute: publicCentersCenterIdRoute,
   publicDonationPaymentStatusRoute: publicDonationPaymentStatusRoute,
   publicBlogIndexRoute: publicBlogIndexRoute,
+  publicCentersIndexRoute: publicCentersIndexRoute,
 }
 
 const publicRouteRouteWithChildren = publicRouteRoute._addFileChildren(

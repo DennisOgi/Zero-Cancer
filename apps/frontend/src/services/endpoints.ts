@@ -159,6 +159,18 @@ export const getDonorWaitlistPatients = (params: {
 export const searchDonorUser = (phone: string) =>
   `/api/donor/search-user?phone=${encodeURIComponent(phone)}`
 
+// COMMUNITY / GROUPS
+export const getCommunityGroups = (params: {
+  page?: number
+  pageSize?: number
+  search?: string
+}) =>
+  `/api/community/groups${buildQuery({
+    page: params.page ?? 1,
+    pageSize: params.pageSize ?? 20,
+    search: params.search || undefined,
+  })}`
+
 // CENTER
 export const getCenters = (params: {
   page?: number
