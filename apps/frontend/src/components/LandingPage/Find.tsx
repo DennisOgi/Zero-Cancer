@@ -108,138 +108,134 @@ export default function Find() {
       className="relative overflow-hidden bg-white"
     >
       <div className="wrapper py-16 md:py-24">
-        <div className="grid items-start gap-10 lg:grid-cols-2">
-          {/* Left: heading, subtitle, slider, then search filters */}
-          <div className="min-w-0 space-y-6">
-            <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-              <Search className="h-4 w-4" />
-              Find care near you
-            </span>
+        {/* Centered intro */}
+        <div className="mx-auto max-w-3xl text-center">
+          <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+            <Search className="h-4 w-4" />
+            Find care near you
+          </span>
+          <h2 className="mt-4 text-4xl font-bold leading-tight lg:text-5xl">
+            Find a Center Near You
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
+            Search for vaccination, screening, and treatment centers easily,
+            wherever you are.
+          </p>
+        </div>
 
-            <div>
-              <h2 className="text-4xl font-bold leading-tight lg:text-5xl">
-                Find a Center Near You
-              </h2>
-              <p className="mt-4 text-lg text-muted-foreground">
-                Search for vaccination, screening, and treatment centers easily,
-                wherever you are.
-              </p>
-            </div>
-
-            {/* Auto-scrolling featured centers — overflows right, passing over the grey panel */}
-            {showFeatured && (
-              <div className="relative z-20 lg:w-[calc(200%_+_2.5rem)]">
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                  Featured centers
-                </h3>
-                <div
-                  ref={trackRef}
-                  className="flex gap-5 overflow-x-hidden pb-3 pt-1"
-                >
-                  {featuredCentersLoading
-                    ? Array.from({ length: 4 }).map((_, index) => (
-                        <div
-                          key={index}
-                          className="h-56 w-[280px] shrink-0 animate-pulse rounded-2xl bg-gray-100 sm:w-[300px]"
-                        />
-                      ))
-                    : marqueeCenters.map((center: TCenter, index) => (
-                        <FeaturedCenterCard
-                          key={`${center.id}-${index}`}
-                          center={center}
-                        />
-                      ))}
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-4 rounded-2xl border bg-white p-5 shadow-sm md:p-6">
-              <div>
-                <label htmlFor="serviceType" className="text-sm font-medium">
-                  Service type
-                </label>
-                <Select
-                  value={serviceType}
-                  onValueChange={(value) =>
-                    setServiceType(value as ServiceType)
-                  }
-                >
-                  <SelectTrigger id="serviceType" className="mt-1 w-full">
-                    <SelectValue placeholder="Select a service" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="vaccination">Vaccination</SelectItem>
-                    <SelectItem value="screening">Screening</SelectItem>
-                    <SelectItem value="treatment">Treatment</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label htmlFor="state" className="text-sm font-medium">
-                  Select state
-                </label>
-                <Select value={selectedState} onValueChange={handleStateChange}>
-                  <SelectTrigger id="state" className="mt-1 w-full">
-                    <SelectValue placeholder="Select a state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {NIGERIA_STATES_LGAS.map((location) => (
-                      <SelectItem key={location.state} value={location.state}>
-                        {location.state}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label htmlFor="lga" className="text-sm font-medium">
-                  Select local government (optional)
-                </label>
-                <Select
-                  value={selectedLGA}
-                  onValueChange={setSelectedLGA}
-                  disabled={!selectedState}
-                >
-                  <SelectTrigger id="lga" className="mt-1 w-full">
-                    <SelectValue
-                      placeholder={
-                        selectedState ? 'Select LGA' : 'Select state first'
-                      }
+        {/* Auto-scrolling featured centers — full width, no container */}
+        {showFeatured && (
+          <div className="mt-12">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Featured centers
+            </h3>
+            <div
+              ref={trackRef}
+              className="flex gap-5 overflow-x-hidden pb-3 pt-1"
+            >
+              {featuredCentersLoading
+                ? Array.from({ length: 4 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="h-56 w-[280px] shrink-0 animate-pulse rounded-2xl bg-gray-100 sm:w-[300px]"
                     />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {lgas.map((lga) => (
-                      <SelectItem key={lga} value={lga}>
-                        {lga}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <button
-                onClick={handleFindCenters}
-                disabled={!selectedState}
-                className={`w-full rounded-lg px-8 py-3 font-medium transition-all ${
-                  selectedState
-                    ? 'cursor-pointer bg-primary text-white shadow-md hover:bg-primary/90 hover:shadow-lg'
-                    : 'cursor-not-allowed bg-gray-200 text-gray-400 opacity-60'
-                }`}
-              >
-                Find Centers
-              </button>
+                  ))
+                : marqueeCenters.map((center: TCenter, index) => (
+                    <FeaturedCenterCard
+                      key={`${center.id}-${index}`}
+                      center={center}
+                    />
+                  ))}
             </div>
           </div>
+        )}
 
-          {/* Right: reduced-height grey panel with hospital image */}
-          <div className="hidden lg:block">
-            <div className="flex h-[380px] flex-col items-center justify-center rounded-3xl bg-gray-100 p-8 text-center">
+        {/* Search filters and grey hospital panel share a row */}
+        <div className="mt-12 grid items-stretch gap-10 lg:grid-cols-2">
+          <div className="space-y-4 rounded-2xl border bg-white p-5 shadow-sm md:p-6">
+            <div>
+              <label htmlFor="serviceType" className="text-sm font-medium">
+                Service type
+              </label>
+              <Select
+                value={serviceType}
+                onValueChange={(value) => setServiceType(value as ServiceType)}
+              >
+                <SelectTrigger id="serviceType" className="mt-1 w-full">
+                  <SelectValue placeholder="Select a service" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="vaccination">Vaccination</SelectItem>
+                  <SelectItem value="screening">Screening</SelectItem>
+                  <SelectItem value="treatment">Treatment</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label htmlFor="state" className="text-sm font-medium">
+                Select state
+              </label>
+              <Select value={selectedState} onValueChange={handleStateChange}>
+                <SelectTrigger id="state" className="mt-1 w-full">
+                  <SelectValue placeholder="Select a state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {NIGERIA_STATES_LGAS.map((location) => (
+                    <SelectItem key={location.state} value={location.state}>
+                      {location.state}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label htmlFor="lga" className="text-sm font-medium">
+                Select local government (optional)
+              </label>
+              <Select
+                value={selectedLGA}
+                onValueChange={setSelectedLGA}
+                disabled={!selectedState}
+              >
+                <SelectTrigger id="lga" className="mt-1 w-full">
+                  <SelectValue
+                    placeholder={
+                      selectedState ? 'Select LGA' : 'Select state first'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {lgas.map((lga) => (
+                    <SelectItem key={lga} value={lga}>
+                      {lga}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <button
+              onClick={handleFindCenters}
+              disabled={!selectedState}
+              className={`w-full rounded-lg px-8 py-3 font-medium transition-all ${
+                selectedState
+                  ? 'cursor-pointer bg-primary text-white shadow-md hover:bg-primary/90 hover:shadow-lg'
+                  : 'cursor-not-allowed bg-gray-200 text-gray-400 opacity-60'
+              }`}
+            >
+              Find Centers
+            </button>
+          </div>
+
+          {/* Grey hospital panel */}
+          <div className="hidden lg:flex">
+            <div className="flex h-full min-h-[320px] w-full flex-col items-center justify-center rounded-3xl bg-gray-100 p-8 text-center">
               <img
                 src={screening}
                 alt="Cancer management center"
                 className="w-56"
               />
               <p className="mt-4 max-w-xs text-muted-foreground">
-                Browse our featured centers, or search to explore cancer
+                Browse our featured centers above, or search to explore cancer
                 management centers in your area.
               </p>
             </div>
