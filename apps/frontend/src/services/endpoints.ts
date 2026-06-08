@@ -225,6 +225,45 @@ export const restoreResultFile = (fileId: string) =>
 export const completeAppointment = (appointmentId: string) =>
   `/api/appointment/center/${appointmentId}/complete`
 
+// STRUCTURED SCREENING REPORTS
+export const screeningReportTaxonomy = () => `/api/screening-reports/taxonomy`
+export const screeningReportTemplate = (params: {
+  category: string
+  testType: string
+  subTest?: string
+  outcome: string
+}) =>
+  `/api/screening-reports/template${buildQuery({
+    category: params.category,
+    testType: params.testType,
+    subTest: params.subTest,
+    outcome: params.outcome,
+  })}`
+export const screeningReportEligibleAppointments = (search?: string) =>
+  `/api/screening-reports/eligible-appointments${buildQuery({ search })}`
+export const screeningReportStaff = () => `/api/screening-reports/staff`
+export const screeningReports = () => `/api/screening-reports`
+export const screeningReportById = (id: string) => `/api/screening-reports/${id}`
+export const sendScreeningReportWhatsapp = (id: string) =>
+  `/api/screening-reports/${id}/send-whatsapp`
+export const saveScreeningReportPdf = (id: string) =>
+  `/api/screening-reports/${id}/pdf`
+
+// CENTER PATIENT ENROLLMENT
+export const centerRegisterAndEnroll = () => `/api/center/patients/register-and-enroll`
+export const centerEnrollWaitlist = () => `/api/center/patients/enroll-waitlist`
+export const centerSearchPatients = (q: string) =>
+  `/api/center/patients/search${buildQuery({ q })}`
+
+// PATIENT SCREENING REPORTS
+export const patientScreeningReports = () => `/api/patient/screening-reports`
+export const patientScreeningReportById = (id: string) =>
+  `/api/patient/screening-reports/${id}`
+
+// PUBLIC SCREENING REPORTS (tokenized WhatsApp links)
+export const publicScreeningReportByToken = (token: string) =>
+  `/api/public/screening-reports/${token}`
+
 // ADMIN AUTH
 export const loginAdmin = () => '/api/admin/login'
 export const forgotPasswordAdmin = () => '/api/admin/forgot-password'

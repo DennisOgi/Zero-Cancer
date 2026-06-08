@@ -39,6 +39,7 @@ model User {
   donationCampaigns DonationCampaign[] @relation("UserDonationCampaigns")
   donationAllocations DonationAllocation[] @relation("UserDonationAllocations")
   appointments   Appointment[]     @relation("UserAppointments")
+  screeningReports ScreeningReport[] @relation("PatientScreeningReports")
   notifications    NotificationRecipient[]
   targetedCampaigns DonationCampaign[] @relation("TargetedIndividual")
 }
@@ -98,6 +99,7 @@ model ServiceCenter {
   passwordHash  String
   createdAt     DateTime @default(now())
   phone         String?
+  whatsappNumber String?
   centerName    String
   address       String
   state         String
@@ -110,6 +112,8 @@ model ServiceCenter {
 
   staff         CenterStaff[]
   appointments  Appointment[]
+  enrolledWaitlists Waitlist[] @relation("CenterEnrolledWaitlists")
+  screeningReports  ScreeningReport[] @relation("CenterScreeningReports")
 
   services      ScreeningType[]
   
@@ -118,6 +122,13 @@ model ServiceCenter {
   payouts       Payout[]
   screeningTypes ServiceCenterScreeningType[] @relation("ServiceCenterToScreeningTypes")
   kits          Kit[]
+  wallet        CenterWallet?
+  priceHistory  PriceHistory[]
+  shipments     KitShipment[] @relation("CenterShipments")
+  inventoryAlerts InventoryAlert[] @relation("CenterAlerts")
+  restockRequests RestockRequest[] @relation("CenterRestockRequests")
+  targets       CenterTarget[] @relation("CenterTargets")
+  performanceSnapshots CenterPerformanceSnapshot[] @relation("CenterSnapshots")
 }
 
 model ServiceCenterScreeningType {
@@ -149,6 +160,11 @@ model ScreeningType {
   serviceCenters         ServiceCenterScreeningType[] @relation("ScreeningTypeToServiceCenters")
   matchingResults        MatchingScreeningTypeResult[]
   kits                   Kit[]
+  priceHistory           PriceHistory[]
+  shipments              KitShipment[] @relation("ShipmentScreeningType")
+  inventoryAlerts        InventoryAlert[] @relation("AlertScreeningType")
+  restockRequests        RestockRequest[] @relation("RestockScreeningType")
+  targets                CenterTarget[] @relation("TargetScreeningType")
 }
 
 model ScreeningTypeCategory {
@@ -160,20 +176,23 @@ model ScreeningTypeCategory {
 }
 
 model Waitlist {
-  id              String           @id @default(uuid())
-  screeningTypeId String
-  patientId       String
-  status          String
-  joinedAt        DateTime         @default(now())
-  claimedAt       DateTime?
-  expiredAt       DateTime?
+  id                  String           @id @default(uuid())
+  screeningTypeId     String
+  patientId           String
+  status              String
+  joinedAt            DateTime         @default(now())
+  claimedAt           DateTime?
+  expiredAt           DateTime?
+  enrolledByCenterId  String?
 
-  screening       ScreeningType    @relation(fields: [screeningTypeId], references: [id], onDelete: Restrict)
-  patient         User             @relation("UserWaitlists", fields: [patientId], references: [id], onDelete: Cascade)
-  allocation      DonationAllocation?
+  screening           ScreeningType    @relation(fields: [screeningTypeId], references: [id], onDelete: Restrict)
+  patient             User             @relation("UserWaitlists", fields: [patientId], references: [id], onDelete: Cascade)
+  enrolledByCenter    ServiceCenter?   @relation("CenterEnrolledWaitlists", fields: [enrolledByCenterId], references: [id], onDelete: SetNull)
+  allocation          DonationAllocation?
   
   @@index([status, screeningTypeId, joinedAt])
   @@index([patientId, status])
+  @@index([enrolledByCenterId])
 }
 
 model DonationCampaign {
@@ -245,6 +264,8 @@ model Appointment {
   checkInCode             String?   @unique
   checkInCodeExpiresAt    DateTime?
   kitId                   String?   @unique
+  basePriceSnapshot       Float?
+  retailPriceSnapshot     Float?
 
   patient                 User     @relation("UserAppointments", fields: [patientId], references: [id], onDelete: Cascade)
   center                  ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Restrict)
@@ -252,8 +273,11 @@ model Appointment {
   transaction             Transaction?  @relation("TransactionAppointments", fields: [transactionId], references: [id], onDelete: SetNull)
   verification            AppointmentVerification? @relation("AppointmentVerificationAppointment")
   result                  ScreeningResult? @relation("ScreeningResultAppointment")
+  screeningReport         ScreeningReport? @relation("AppointmentScreeningReport")
   allocation              DonationAllocation[]
   kit                     Kit?           @relation(fields: [kitId], references: [id])
+  platformWalletTransactions PlatformWalletTransaction[] @relation("PlatformWalletAppointments")
+  centerWalletTransactions   CenterWalletTransaction[] @relation("CenterWalletAppointments")
 }
 
 model AppointmentVerification {
@@ -276,6 +300,43 @@ model ScreeningResult {
   appointment Appointment @relation("ScreeningResultAppointment", fields: [appointmentId], references: [id], onDelete: Cascade)
   uploader    CenterStaff? @relation("StaffUploadedResults", fields: [uploadedBy], references: [id], onDelete: SetNull)
   files       ScreeningResultFile[]
+}
+
+model ScreeningReport {
+  id              String   @id @default(uuid())
+  appointmentId   String   @unique
+  centerId        String
+  patientId       String
+  signedByStaffId String?
+  signedByName    String?
+  reportCategory  String
+  reportTestType  String
+  reportSubTest   String?
+  resultOutcome   String
+  title           String
+  sampleType      String
+  resultText      String
+  interpretation  String
+  advise          String
+  conclusion      String?
+  remarks         String
+  disclaimer      String
+  pdfUrl          String?
+  pdfCloudinaryId String?
+  accessToken     String?  @unique
+  accessTokenExpiresAt DateTime?
+  whatsappSentAt  DateTime?
+  whatsappStatus  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  appointment     Appointment  @relation("AppointmentScreeningReport", fields: [appointmentId], references: [id], onDelete: Cascade)
+  center          ServiceCenter @relation("CenterScreeningReports", fields: [centerId], references: [id], onDelete: Restrict)
+  patient         User         @relation("PatientScreeningReports", fields: [patientId], references: [id], onDelete: Cascade)
+  signedByStaff   CenterStaff? @relation("StaffSignedReports", fields: [signedByStaffId], references: [id], onDelete: SetNull)
+
+  @@index([centerId, createdAt])
+  @@index([patientId])
 }
 
 model ScreeningResultFile {
@@ -340,6 +401,8 @@ model Transaction {
   appointments Appointment[] @relation("TransactionAppointments")
   receipt             Receipt?
   payoutItem          PayoutItem?
+  platformWalletTransactions PlatformWalletTransaction[] @relation("PlatformWalletTransactions")
+  centerWalletTransactions   CenterWalletTransaction[] @relation("CenterWalletTransactions")
 }
 
 model PaystackRecipient {
@@ -473,6 +536,7 @@ model CenterStaff {
   center    ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
   verifications AppointmentVerification[] @relation("StaffVerifications")
   uploadedResults ScreeningResult[] @relation("StaffUploadedResults")
+  signedReports ScreeningReport[] @relation("StaffSignedReports")
   deletedResultFiles ScreeningResultFile[] @relation("StaffDeletedFiles")
   resetTokens CenterStaffResetToken[]
 
@@ -619,6 +683,191 @@ model Kit {
 }
 
 // ============================================
+// WALLET SYSTEM MODELS (Phase 1)
+// ============================================
+
+model PlatformWallet {
+  id              String   @id @default(uuid())
+  balance         Float    @default(0)
+  currency        String   @default("NGN")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  transactions    PlatformWalletTransaction[]
+}
+
+model PlatformWalletTransaction {
+  id              String   @id @default(uuid())
+  walletId        String
+  type            String   // CREDIT, DEBIT, CASHOUT
+  amount          Float
+  balanceBefore   Float
+  balanceAfter    Float
+  description     String
+  appointmentId   String?
+  transactionId   String?
+  initiatedBy     String?
+  createdAt       DateTime @default(now())
+  
+  wallet          PlatformWallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  appointment     Appointment?   @relation("PlatformWalletAppointments", fields: [appointmentId], references: [id], onDelete: SetNull)
+  transaction     Transaction?   @relation("PlatformWalletTransactions", fields: [transactionId], references: [id], onDelete: SetNull)
+  
+  @@index([walletId, createdAt])
+  @@index([appointmentId])
+}
+
+model CenterWallet {
+  id              String   @id @default(uuid())
+  centerId        String   @unique
+  balance         Float    @default(0)
+  currency        String   @default("NGN")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  center          ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  transactions    CenterWalletTransaction[]
+  cashouts        CenterCashout[]
+}
+
+model CenterWalletTransaction {
+  id              String   @id @default(uuid())
+  walletId        String
+  type            String   // CREDIT, DEBIT, CASHOUT
+  amount          Float
+  balanceBefore   Float
+  balanceAfter    Float
+  description     String
+  appointmentId   String?
+  cashoutId       String?
+  transactionId   String?
+  createdAt       DateTime @default(now())
+  
+  wallet          CenterWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  appointment     Appointment? @relation("CenterWalletAppointments", fields: [appointmentId], references: [id], onDelete: SetNull)
+  cashout         CenterCashout? @relation(fields: [cashoutId], references: [id], onDelete: SetNull)
+  transaction     Transaction? @relation("CenterWalletTransactions", fields: [transactionId], references: [id], onDelete: SetNull)
+  
+  @@index([walletId, createdAt])
+  @@index([appointmentId])
+  @@index([cashoutId])
+}
+
+model CenterCashout {
+  id                String   @id @default(uuid())
+  walletId          String
+  amount            Float
+  fee               Float    @default(10.00)
+  netAmount         Float
+  status            String   @default("PENDING") // PENDING, PROCESSING, SUCCESS, FAILED
+  paystackReference String?  @unique
+  failureReason     String?
+  initiatedBy       String
+  processedAt       DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime @default(now())
+  
+  wallet            CenterWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  transactions      CenterWalletTransaction[]
+  
+  @@index([status, createdAt])
+}
+
+model PriceHistory {
+  id              String   @id @default(uuid())
+  screeningTypeId String?
+  centerId        String?
+  priceType       String   // BASE_PRICE, RETAIL_PRICE
+  oldPrice        Float
+  newPrice        Float
+  changedBy       String
+  reason          String?
+  createdAt       DateTime @default(now())
+  
+  screeningType   ScreeningType? @relation(fields: [screeningTypeId], references: [id], onDelete: Cascade)
+  center          ServiceCenter? @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  
+  @@index([screeningTypeId, createdAt])
+  @@index([centerId, createdAt])
+}
+
+// ============================================
+// KIT SHIPMENT & INVENTORY TRACKING MODELS
+// ============================================
+
+model KitShipment {
+  id                  String    @id @default(uuid())
+  centerId            String
+  screeningTypeId     String
+  quantity            Int
+  batchNumber         String?
+  shippedAt           DateTime  @default(now())
+  deliveredAt         DateTime?
+  estimatedDelivery   DateTime?
+  status              String    @default("SHIPPED") // SHIPPED, IN_TRANSIT, DELIVERED, CANCELLED
+  trackingNumber      String?
+  notes               String?
+  createdBy           String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  center              ServiceCenter @relation("CenterShipments", fields: [centerId], references: [id], onDelete: Restrict)
+  screeningType       ScreeningType @relation("ShipmentScreeningType", fields: [screeningTypeId], references: [id], onDelete: Restrict)
+  restockRequests     RestockRequest[]
+  
+  @@index([centerId])
+  @@index([status])
+  @@index([shippedAt])
+  @@map("kit_shipments")
+}
+
+model InventoryAlert {
+  id                String    @id @default(uuid())
+  centerId          String
+  screeningTypeId   String
+  alertType         String    // LOW_STOCK, OUT_OF_STOCK, DAMAGED_KITS
+  threshold         Int?
+  currentStock      Int
+  resolved          Boolean   @default(false)
+  resolvedAt        DateTime?
+  resolvedBy        String?
+  createdAt         DateTime  @default(now())
+  
+  center            ServiceCenter @relation("CenterAlerts", fields: [centerId], references: [id], onDelete: Cascade)
+  screeningType     ScreeningType @relation("AlertScreeningType", fields: [screeningTypeId], references: [id], onDelete: Cascade)
+  
+  @@index([centerId])
+  @@index([resolved])
+  @@index([createdAt])
+  @@map("inventory_alerts")
+}
+
+model RestockRequest {
+  id                  String    @id @default(uuid())
+  centerId            String
+  screeningTypeId     String
+  requestedQuantity   Int
+  urgency             String    @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  reason              String?
+  status              String    @default("PENDING") // PENDING, APPROVED, REJECTED, FULFILLED
+  requestedBy         String
+  requestedAt         DateTime  @default(now())
+  reviewedBy          String?
+  reviewedAt          DateTime?
+  reviewNotes         String?
+  shipmentId          String?
+  
+  center              ServiceCenter @relation("CenterRestockRequests", fields: [centerId], references: [id], onDelete: Cascade)
+  screeningType       ScreeningType @relation("RestockScreeningType", fields: [screeningTypeId], references: [id], onDelete: Cascade)
+  shipment            KitShipment?  @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+  
+  @@index([centerId])
+  @@index([status])
+  @@index([requestedAt])
+  @@map("restock_requests")
+}
+
+// ============================================
 // BLOG MODELS
 // ============================================
 // Note: These models are designed to work with both SQLite (current)
@@ -668,4 +917,52 @@ model BlogPostCategory {
   
   @@unique([postId, categoryId])
   @@map("blog_post_categories")
+}
+
+// ============================================
+// PERFORMANCE MONITORING MODELS (Phase 3)
+// ============================================
+
+model CenterTarget {
+  id              String    @id @default(uuid())
+  centerId        String
+  screeningTypeId String?
+  dailyTarget     Int?
+  weeklyTarget    Int?
+  monthlyTarget   Int?
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  createdBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  center          ServiceCenter @relation("CenterTargets", fields: [centerId], references: [id], onDelete: Cascade)
+  screeningType   ScreeningType? @relation("TargetScreeningType", fields: [screeningTypeId], references: [id], onDelete: Cascade)
+  
+  @@index([centerId])
+  @@index([effectiveFrom])
+  @@index([screeningTypeId])
+  @@map("center_targets")
+}
+
+model CenterPerformanceSnapshot {
+  id             String    @id @default(uuid())
+  centerId       String
+  snapshotDate   DateTime
+  dailyTests     Int       @default(0)
+  weeklyTests    Int       @default(0)
+  monthlyTests   Int       @default(0)
+  dailyTarget    Int?
+  weeklyTarget   Int?
+  monthlyTarget  Int?
+  category       String?   // EXCELLENT, GOOD, FAIR, POOR
+  createdAt      DateTime  @default(now())
+  
+  center         ServiceCenter @relation("CenterSnapshots", fields: [centerId], references: [id], onDelete: Cascade)
+  
+  @@unique([centerId, snapshotDate])
+  @@index([centerId])
+  @@index([snapshotDate])
+  @@index([category])
+  @@map("center_performance_snapshots")
 }

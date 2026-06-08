@@ -38,6 +38,7 @@ import type {
 } from "@zerocancer/shared/types";
 import { Hono } from "hono";
 import { getDB } from "../lib/db";
+import { getSupabaseClient } from "../lib/supabase";
 import { THonoApp } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
 // import { centerAppointmentApp } from "./center.appointment";
@@ -672,123 +673,134 @@ appointmentApp.post(
     }
   }),
   async (c) => {
-    const db = getDB(c);
+    const supabase = getSupabaseClient(c);
     const { id } = c.req.param();
     const { completionNotes, kitSerialNumber } = c.req.valid("json");
     const payload = c.get("jwtPayload");
+    const centerId = payload?.id as string;
 
-    // Verify appointment belongs to center and is in correct status
-    const appointment = await db.appointment.findFirst({
-      where: {
-        id,
-        centerId: payload?.id,
-        status: "IN_PROGRESS", // Can only complete in-progress appointments
-      },
-      include: {
-        result: {
-          include: {
-            files: {
-              where: { isDeleted: false },
-            },
-          },
-        },
-        patient: { select: { id: true, fullName: true } },
-        // allocation: {
-        //   select: {
-        //     campaign: {
-        //       select: { donorId: true },
-        //     }
-        //   }
-        // },
-        center: { select: { centerName: true } },
-        screeningType: { select: { name: true } },
-      },
-    });
+    const { data: appointment, error: appointmentError } = await supabase
+      .from("Appointment")
+      .select("*")
+      .eq("id", id)
+      .eq("centerId", centerId)
+      .eq("status", "IN_PROGRESS")
+      .single();
 
-    console.log(appointment, 98);
-
-    if (!appointment) {
+    if (appointmentError || !appointment) {
       return c.json<TErrorResponse>(
         { ok: false, error: "Appointment not found or cannot be completed" },
         404
       );
     }
 
-    // Check if results have been uploaded
-    if (!appointment.result || appointment.result.files.length === 0) {
+    if (!kitSerialNumber?.trim()) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Kit serial number is required to complete screening" },
+        400
+      );
+    }
+
+    const { data: kit, error: kitError } = await supabase
+      .from("Kit")
+      .select("id, serialNumber")
+      .eq("serialNumber", kitSerialNumber.trim())
+      .eq("centerId", centerId)
+      .eq("status", "AVAILABLE")
+      .maybeSingle();
+
+    if (kitError || !kit) {
       return c.json<TErrorResponse>(
         {
           ok: false,
-          error: "Cannot complete appointment without uploading results",
+          error: `Kit with serial number ${kitSerialNumber} not found in your inventory or is already used.`,
         },
         400
       );
     }
 
+    const now = new Date().toISOString();
 
-    // Handle Kit tracking
-    let kitId = null;
-    if (kitSerialNumber) {
-      const kit = await db.kit.findFirst({
-        where: {
-          serialNumber: kitSerialNumber,
-          centerId: payload?.id,
-          status: "AVAILABLE",
-        },
-      });
+    const { error: completeError } = await supabase
+      .from("Appointment")
+      .update({ status: "COMPLETED", kitId: kit.id })
+      .eq("id", id);
 
-      if (!kit) {
-        return c.json<TErrorResponse>(
-          {
-            ok: false,
-            error: `Kit with serial number ${kitSerialNumber} not found in your inventory or is already used.`,
-          },
-          400
-        );
-      }
-      kitId = kit.id;
+    if (completeError) {
+      console.error("Failed to complete appointment:", completeError);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to complete appointment" },
+        500
+      );
     }
 
-    // Mark appointment as completed
-    const completedAppointment = await db.$transaction(async (tx) => {
-      const updated = await tx.appointment.update({
-        where: { id },
-        data: {
-          status: "COMPLETED",
-          kitId: kitId || undefined,
-        },
-      });
+    const { error: kitUpdateError } = await supabase
+      .from("Kit")
+      .update({ status: "USED", usedAt: now })
+      .eq("id", kit.id);
 
-      if (kitId) {
-        await tx.kit.update({
-          where: { id: kitId },
-          data: {
-            status: "USED",
-            usedAt: new Date(),
-          },
+    if (kitUpdateError) {
+      console.error("Failed to mark kit as used:", kitUpdateError);
+      await supabase
+        .from("Appointment")
+        .update({ status: "IN_PROGRESS", kitId: null })
+        .eq("id", id);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to record kit usage. Appointment was not completed." },
+        500
+      );
+    }
+
+    if (completionNotes?.trim()) {
+      const { data: existingResult } = await supabase
+        .from("ScreeningResult")
+        .select("id")
+        .eq("appointmentId", id)
+        .maybeSingle();
+
+      if (existingResult) {
+        await supabase
+          .from("ScreeningResult")
+          .update({ notes: completionNotes.trim(), uploadedAt: now })
+          .eq("id", existingResult.id);
+      } else {
+        await supabase.from("ScreeningResult").insert({
+          id: crypto.randomUUID(),
+          appointmentId: id,
+          notes: completionNotes.trim(),
+          uploadedAt: now,
         });
       }
+    }
 
-      return updated;
-    });
+    const [{ data: center }, { data: screeningType }] = await Promise.all([
+        supabase
+          .from("ServiceCenter")
+          .select("centerName")
+          .eq("id", centerId)
+          .single(),
+        supabase
+          .from("ScreeningType")
+          .select("name")
+          .eq("id", appointment.screeningTypeId)
+          .single(),
+      ]);
 
-    // NOW send notification to patient about results availability
     try {
       await createNotificationForUsers(c, {
         type: "RESULTS_AVAILABLE",
-        title: "Screening Results Available",
-        message: `Your screening results for ${appointment.screeningType.name} at ${appointment.center.centerName} are now available. You can view and download them from your appointments.`,
-        userIds: [appointment.patient.id!],
-        data: { appointmentId: id, resultId: appointment.result.id },
+        title: "Screening Completed",
+        message: `Your ${screeningType?.name || "screening"} at ${center?.centerName || "your center"} has been completed. Your center will send your report shortly.`,
+        userIds: [appointment.patientId],
+        data: { appointmentId: id },
       });
     } catch (error) {
       console.error("Failed to send completion notification:", error);
     }
 
-    // Send notification to donors if this is a donated appointment
     if (appointment.isDonation) {
       try {
-        // Find all donors who funded this appointment
+        const db = getDB(c);
         const allocations = await db.donationAllocation.findMany({
           where: { appointmentId: id },
           include: {
@@ -800,7 +812,7 @@ appointmentApp.post(
 
         const donorIds = [
           ...new Set(
-            allocations.map((allocation) => allocation.campaign.donorId)
+            allocations.map((allocation: any) => allocation.campaign?.donorId).filter(Boolean)
           ),
         ];
 
@@ -808,19 +820,17 @@ appointmentApp.post(
           await createNotificationForUsers(c, {
             type: "APPOINTMENT_COMPLETED",
             title: "Screening Completed",
-            message: `A patient you funded has completed their ${appointment.screeningType.name} screening at ${appointment.center.centerName}. The screening results have been uploaded.`,
+            message: `A patient you funded has completed their ${screeningType?.name || "screening"} at ${center?.centerName || "the center"}.`,
             userIds: donorIds,
             data: {
               appointmentId: id,
-              screeningType: appointment.screeningType.name,
-              centerName: appointment.center.centerName,
-              patientId: appointment.patient.id,
-              resultId: appointment.result.id,
+              screeningType: screeningType?.name,
+              centerName: center?.centerName,
+              patientId: appointment.patientId,
             },
           });
         }
       } catch (error) {
-        // Log the error but don't fail the request
         console.error("Failed to send donor completion notification:", error);
       }
     }
@@ -828,8 +838,8 @@ appointmentApp.post(
     return c.json<TCompleteAppointmentResponse>({
       ok: true,
       data: {
-        appointmentId: completedAppointment.id!,
-        completedAt: new Date().toISOString(),
+        appointmentId: id,
+        completedAt: now,
         status: "COMPLETED",
       },
     });
@@ -1046,6 +1056,9 @@ appointmentApp.post(
           screeningTypeId: screeningTypeId!,
         },
       },
+      include: {
+        screeningType: true, // Include screening type to get base price
+      },
     });
 
     if (!result) {
@@ -1054,6 +1067,10 @@ appointmentApp.post(
         400
       );
     }
+
+    // Get base price and retail price for price snapshots
+    const basePrice = result.screeningType.basePrice;
+    const retailPrice = result.amount; // The amount is the retail price set by the center
 
     // TODO: Validate input, authenticate user, verify payment with Paystack
     const paymentReference = `book-appointment-${
@@ -1080,6 +1097,9 @@ appointmentApp.post(
         isDonation: false,
         status: "PENDING", // Set initial status to PENDING
         transactionId: transaction.id!, // Link appointment to transaction
+        // Store price snapshots at booking time (NEW - wallet integration)
+        basePriceSnapshot: basePrice,
+        retailPriceSnapshot: retailPrice,
         // create helper function to generate check-in code
         // UPDATE: write checkincode logic in paystack hook when things are recieved
         // checkInCode: generateHexId(6).toUpperCase(),

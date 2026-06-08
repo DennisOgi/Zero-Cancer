@@ -20,6 +20,7 @@ import { Route as PatientIndexRouteImport } from './routes/patient/index'
 import { Route as DonorIndexRouteImport } from './routes/donor/index'
 import { Route as CenterIndexRouteImport } from './routes/center/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as PatientReportsRouteImport } from './routes/patient/reports'
 import { Route as PatientProfileRouteImport } from './routes/patient/profile'
 import { Route as PatientNotificationsRouteImport } from './routes/patient/notifications'
 import { Route as PatientAppointmentsRouteImport } from './routes/patient/appointments'
@@ -28,6 +29,7 @@ import { Route as CenterWalletRouteImport } from './routes/center/wallet'
 import { Route as CenterVerifyCodeRouteImport } from './routes/center/verify-code'
 import { Route as CenterUploadResultsRouteImport } from './routes/center/upload-results'
 import { Route as CenterStaffRouteImport } from './routes/center/staff'
+import { Route as CenterReportsRouteImport } from './routes/center/reports'
 import { Route as CenterRegisterPatientRouteImport } from './routes/center/register-patient'
 import { Route as CenterReferPatientRouteImport } from './routes/center/refer-patient'
 import { Route as CenterReceiptHistoryRouteImport } from './routes/center/receipt-history'
@@ -60,6 +62,7 @@ import { Route as DonorCampaignsIndexRouteImport } from './routes/donor/campaign
 import { Route as publicCentersIndexRouteImport } from './routes/(public)/centers/index'
 import { Route as publicBlogIndexRouteImport } from './routes/(public)/blog/index'
 import { Route as authSignUpIndexRouteImport } from './routes/(auth)/sign-up/index'
+import { Route as PatientReportsReportIdRouteImport } from './routes/patient/reports_.$reportId'
 import { Route as PatientBookPaymentStatusRouteImport } from './routes/patient/book/payment-status'
 import { Route as PatientBookPayRouteImport } from './routes/patient/book/pay'
 import { Route as PatientBookCentersRouteImport } from './routes/patient/book/centers'
@@ -78,7 +81,9 @@ import { Route as authSignUpPatientRouteImport } from './routes/(auth)/sign-up/p
 import { Route as authSignUpDonorRouteImport } from './routes/(auth)/sign-up/donor'
 import { Route as authSignUpCenterRouteImport } from './routes/(auth)/sign-up/center'
 import { Route as DonorCampaignsCampaignIdPaymentStatusRouteImport } from './routes/donor/campaigns/$campaignId.payment-status'
+import { Route as CenterReportsReportIdPreviewRouteImport } from './routes/center/reports_.$reportId.preview'
 import { Route as AdminBlogIdEditRouteImport } from './routes/admin/blog/$id.edit'
+import { Route as publicReportsViewTokenRouteImport } from './routes/(public)/reports/view.$token'
 
 const PatientRouteRoute = PatientRouteRouteImport.update({
   id: '/patient',
@@ -133,6 +138,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const PatientReportsRoute = PatientReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
 const PatientProfileRoute = PatientProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -171,6 +181,11 @@ const CenterUploadResultsRoute = CenterUploadResultsRouteImport.update({
 const CenterStaffRoute = CenterStaffRouteImport.update({
   id: '/staff',
   path: '/staff',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterReportsRoute = CenterReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => CenterRouteRoute,
 } as any)
 const CenterRegisterPatientRoute = CenterRegisterPatientRouteImport.update({
@@ -334,6 +349,11 @@ const authSignUpIndexRoute = authSignUpIndexRouteImport.update({
   path: '/sign-up/',
   getParentRoute: () => authRouteRoute,
 } as any)
+const PatientReportsReportIdRoute = PatientReportsReportIdRouteImport.update({
+  id: '/reports_/$reportId',
+  path: '/reports/$reportId',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
 const PatientBookPaymentStatusRoute =
   PatientBookPaymentStatusRouteImport.update({
     id: '/book/payment-status',
@@ -430,10 +450,21 @@ const DonorCampaignsCampaignIdPaymentStatusRoute =
     path: '/payment-status',
     getParentRoute: () => DonorCampaignsCampaignIdRoute,
   } as any)
+const CenterReportsReportIdPreviewRoute =
+  CenterReportsReportIdPreviewRouteImport.update({
+    id: '/reports_/$reportId/preview',
+    path: '/reports/$reportId/preview',
+    getParentRoute: () => CenterRouteRoute,
+  } as any)
 const AdminBlogIdEditRoute = AdminBlogIdEditRouteImport.update({
   id: '/$id/edit',
   path: '/$id/edit',
   getParentRoute: () => AdminBlogRoute,
+} as any)
+const publicReportsViewTokenRoute = publicReportsViewTokenRouteImport.update({
+  id: '/reports/view/$token',
+  path: '/reports/view/$token',
+  getParentRoute: () => publicRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -469,6 +500,7 @@ export interface FileRoutesByFullPath {
   '/center/receipt-history': typeof CenterReceiptHistoryRoute
   '/center/refer-patient': typeof CenterReferPatientRoute
   '/center/register-patient': typeof CenterRegisterPatientRoute
+  '/center/reports': typeof CenterReportsRoute
   '/center/staff': typeof CenterStaffRoute
   '/center/upload-results': typeof CenterUploadResultsRoute
   '/center/verify-code': typeof CenterVerifyCodeRoute
@@ -477,6 +509,7 @@ export interface FileRoutesByFullPath {
   '/patient/appointments': typeof PatientAppointmentsRoute
   '/patient/notifications': typeof PatientNotificationsRoute
   '/patient/profile': typeof PatientProfileRoute
+  '/patient/reports': typeof PatientReportsRoute
   '/admin/': typeof AdminIndexRoute
   '/center/': typeof CenterIndexRoute
   '/donor/': typeof DonorIndexRoute
@@ -498,12 +531,15 @@ export interface FileRoutesByFullPath {
   '/patient/book/centers': typeof PatientBookCentersRoute
   '/patient/book/pay': typeof PatientBookPayRoute
   '/patient/book/payment-status': typeof PatientBookPaymentStatusRoute
+  '/patient/reports/$reportId': typeof PatientReportsReportIdRoute
   '/sign-up': typeof authSignUpIndexRoute
   '/blog': typeof publicBlogIndexRoute
   '/centers': typeof publicCentersIndexRoute
   '/donor/campaigns': typeof DonorCampaignsIndexRoute
   '/patient/book': typeof PatientBookIndexRoute
+  '/reports/view/$token': typeof publicReportsViewTokenRoute
   '/admin/blog/$id/edit': typeof AdminBlogIdEditRoute
+  '/center/reports/$reportId/preview': typeof CenterReportsReportIdPreviewRoute
   '/donor/campaigns/$campaignId/payment-status': typeof DonorCampaignsCampaignIdPaymentStatusRoute
 }
 export interface FileRoutesByTo {
@@ -535,6 +571,7 @@ export interface FileRoutesByTo {
   '/center/receipt-history': typeof CenterReceiptHistoryRoute
   '/center/refer-patient': typeof CenterReferPatientRoute
   '/center/register-patient': typeof CenterRegisterPatientRoute
+  '/center/reports': typeof CenterReportsRoute
   '/center/staff': typeof CenterStaffRoute
   '/center/upload-results': typeof CenterUploadResultsRoute
   '/center/verify-code': typeof CenterVerifyCodeRoute
@@ -543,6 +580,7 @@ export interface FileRoutesByTo {
   '/patient/appointments': typeof PatientAppointmentsRoute
   '/patient/notifications': typeof PatientNotificationsRoute
   '/patient/profile': typeof PatientProfileRoute
+  '/patient/reports': typeof PatientReportsRoute
   '/admin': typeof AdminIndexRoute
   '/center': typeof CenterIndexRoute
   '/donor': typeof DonorIndexRoute
@@ -564,12 +602,15 @@ export interface FileRoutesByTo {
   '/patient/book/centers': typeof PatientBookCentersRoute
   '/patient/book/pay': typeof PatientBookPayRoute
   '/patient/book/payment-status': typeof PatientBookPaymentStatusRoute
+  '/patient/reports/$reportId': typeof PatientReportsReportIdRoute
   '/sign-up': typeof authSignUpIndexRoute
   '/blog': typeof publicBlogIndexRoute
   '/centers': typeof publicCentersIndexRoute
   '/donor/campaigns': typeof DonorCampaignsIndexRoute
   '/patient/book': typeof PatientBookIndexRoute
+  '/reports/view/$token': typeof publicReportsViewTokenRoute
   '/admin/blog/$id/edit': typeof AdminBlogIdEditRoute
+  '/center/reports/$reportId/preview': typeof CenterReportsReportIdPreviewRoute
   '/donor/campaigns/$campaignId/payment-status': typeof DonorCampaignsCampaignIdPaymentStatusRoute
 }
 export interface FileRoutesById {
@@ -608,6 +649,7 @@ export interface FileRoutesById {
   '/center/receipt-history': typeof CenterReceiptHistoryRoute
   '/center/refer-patient': typeof CenterReferPatientRoute
   '/center/register-patient': typeof CenterRegisterPatientRoute
+  '/center/reports': typeof CenterReportsRoute
   '/center/staff': typeof CenterStaffRoute
   '/center/upload-results': typeof CenterUploadResultsRoute
   '/center/verify-code': typeof CenterVerifyCodeRoute
@@ -616,6 +658,7 @@ export interface FileRoutesById {
   '/patient/appointments': typeof PatientAppointmentsRoute
   '/patient/notifications': typeof PatientNotificationsRoute
   '/patient/profile': typeof PatientProfileRoute
+  '/patient/reports': typeof PatientReportsRoute
   '/admin/': typeof AdminIndexRoute
   '/center/': typeof CenterIndexRoute
   '/donor/': typeof DonorIndexRoute
@@ -637,12 +680,15 @@ export interface FileRoutesById {
   '/patient/book/centers': typeof PatientBookCentersRoute
   '/patient/book/pay': typeof PatientBookPayRoute
   '/patient/book/payment-status': typeof PatientBookPaymentStatusRoute
+  '/patient/reports_/$reportId': typeof PatientReportsReportIdRoute
   '/(auth)/sign-up/': typeof authSignUpIndexRoute
   '/(public)/blog/': typeof publicBlogIndexRoute
   '/(public)/centers/': typeof publicCentersIndexRoute
   '/donor/campaigns/': typeof DonorCampaignsIndexRoute
   '/patient/book/': typeof PatientBookIndexRoute
+  '/(public)/reports/view/$token': typeof publicReportsViewTokenRoute
   '/admin/blog/$id/edit': typeof AdminBlogIdEditRoute
+  '/center/reports_/$reportId/preview': typeof CenterReportsReportIdPreviewRoute
   '/donor/campaigns/$campaignId/payment-status': typeof DonorCampaignsCampaignIdPaymentStatusRoute
 }
 export interface FileRouteTypes {
@@ -680,6 +726,7 @@ export interface FileRouteTypes {
     | '/center/receipt-history'
     | '/center/refer-patient'
     | '/center/register-patient'
+    | '/center/reports'
     | '/center/staff'
     | '/center/upload-results'
     | '/center/verify-code'
@@ -688,6 +735,7 @@ export interface FileRouteTypes {
     | '/patient/appointments'
     | '/patient/notifications'
     | '/patient/profile'
+    | '/patient/reports'
     | '/admin/'
     | '/center/'
     | '/donor/'
@@ -709,12 +757,15 @@ export interface FileRouteTypes {
     | '/patient/book/centers'
     | '/patient/book/pay'
     | '/patient/book/payment-status'
+    | '/patient/reports/$reportId'
     | '/sign-up'
     | '/blog'
     | '/centers'
     | '/donor/campaigns'
     | '/patient/book'
+    | '/reports/view/$token'
     | '/admin/blog/$id/edit'
+    | '/center/reports/$reportId/preview'
     | '/donor/campaigns/$campaignId/payment-status'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -746,6 +797,7 @@ export interface FileRouteTypes {
     | '/center/receipt-history'
     | '/center/refer-patient'
     | '/center/register-patient'
+    | '/center/reports'
     | '/center/staff'
     | '/center/upload-results'
     | '/center/verify-code'
@@ -754,6 +806,7 @@ export interface FileRouteTypes {
     | '/patient/appointments'
     | '/patient/notifications'
     | '/patient/profile'
+    | '/patient/reports'
     | '/admin'
     | '/center'
     | '/donor'
@@ -775,12 +828,15 @@ export interface FileRouteTypes {
     | '/patient/book/centers'
     | '/patient/book/pay'
     | '/patient/book/payment-status'
+    | '/patient/reports/$reportId'
     | '/sign-up'
     | '/blog'
     | '/centers'
     | '/donor/campaigns'
     | '/patient/book'
+    | '/reports/view/$token'
     | '/admin/blog/$id/edit'
+    | '/center/reports/$reportId/preview'
     | '/donor/campaigns/$campaignId/payment-status'
   id:
     | '__root__'
@@ -818,6 +874,7 @@ export interface FileRouteTypes {
     | '/center/receipt-history'
     | '/center/refer-patient'
     | '/center/register-patient'
+    | '/center/reports'
     | '/center/staff'
     | '/center/upload-results'
     | '/center/verify-code'
@@ -826,6 +883,7 @@ export interface FileRouteTypes {
     | '/patient/appointments'
     | '/patient/notifications'
     | '/patient/profile'
+    | '/patient/reports'
     | '/admin/'
     | '/center/'
     | '/donor/'
@@ -847,12 +905,15 @@ export interface FileRouteTypes {
     | '/patient/book/centers'
     | '/patient/book/pay'
     | '/patient/book/payment-status'
+    | '/patient/reports_/$reportId'
     | '/(auth)/sign-up/'
     | '/(public)/blog/'
     | '/(public)/centers/'
     | '/donor/campaigns/'
     | '/patient/book/'
+    | '/(public)/reports/view/$token'
     | '/admin/blog/$id/edit'
+    | '/center/reports_/$reportId/preview'
     | '/donor/campaigns/$campaignId/payment-status'
   fileRoutesById: FileRoutesById
 }
@@ -945,6 +1006,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/patient/reports': {
+      id: '/patient/reports'
+      path: '/reports'
+      fullPath: '/patient/reports'
+      preLoaderRoute: typeof PatientReportsRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
     '/patient/profile': {
       id: '/patient/profile'
       path: '/profile'
@@ -999,6 +1067,13 @@ declare module '@tanstack/react-router' {
       path: '/staff'
       fullPath: '/center/staff'
       preLoaderRoute: typeof CenterStaffRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/reports': {
+      id: '/center/reports'
+      path: '/reports'
+      fullPath: '/center/reports'
+      preLoaderRoute: typeof CenterReportsRouteImport
       parentRoute: typeof CenterRouteRoute
     }
     '/center/register-patient': {
@@ -1225,6 +1300,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authSignUpIndexRouteImport
       parentRoute: typeof authRouteRoute
     }
+    '/patient/reports_/$reportId': {
+      id: '/patient/reports_/$reportId'
+      path: '/reports/$reportId'
+      fullPath: '/patient/reports/$reportId'
+      preLoaderRoute: typeof PatientReportsReportIdRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
     '/patient/book/payment-status': {
       id: '/patient/book/payment-status'
       path: '/book/payment-status'
@@ -1351,12 +1433,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DonorCampaignsCampaignIdPaymentStatusRouteImport
       parentRoute: typeof DonorCampaignsCampaignIdRoute
     }
+    '/center/reports_/$reportId/preview': {
+      id: '/center/reports_/$reportId/preview'
+      path: '/reports/$reportId/preview'
+      fullPath: '/center/reports/$reportId/preview'
+      preLoaderRoute: typeof CenterReportsReportIdPreviewRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
     '/admin/blog/$id/edit': {
       id: '/admin/blog/$id/edit'
       path: '/$id/edit'
       fullPath: '/admin/blog/$id/edit'
       preLoaderRoute: typeof AdminBlogIdEditRouteImport
       parentRoute: typeof AdminBlogRoute
+    }
+    '/(public)/reports/view/$token': {
+      id: '/(public)/reports/view/$token'
+      path: '/reports/view/$token'
+      fullPath: '/reports/view/$token'
+      preLoaderRoute: typeof publicReportsViewTokenRouteImport
+      parentRoute: typeof publicRouteRoute
     }
   }
 }
@@ -1404,6 +1500,7 @@ interface publicRouteRouteChildren {
   publicDonationPaymentStatusRoute: typeof publicDonationPaymentStatusRoute
   publicBlogIndexRoute: typeof publicBlogIndexRoute
   publicCentersIndexRoute: typeof publicCentersIndexRoute
+  publicReportsViewTokenRoute: typeof publicReportsViewTokenRoute
 }
 
 const publicRouteRouteChildren: publicRouteRouteChildren = {
@@ -1413,6 +1510,7 @@ const publicRouteRouteChildren: publicRouteRouteChildren = {
   publicDonationPaymentStatusRoute: publicDonationPaymentStatusRoute,
   publicBlogIndexRoute: publicBlogIndexRoute,
   publicCentersIndexRoute: publicCentersIndexRoute,
+  publicReportsViewTokenRoute: publicReportsViewTokenRoute,
 }
 
 const publicRouteRouteWithChildren = publicRouteRoute._addFileChildren(
@@ -1481,11 +1579,13 @@ interface CenterRouteRouteChildren {
   CenterReceiptHistoryRoute: typeof CenterReceiptHistoryRoute
   CenterReferPatientRoute: typeof CenterReferPatientRoute
   CenterRegisterPatientRoute: typeof CenterRegisterPatientRoute
+  CenterReportsRoute: typeof CenterReportsRoute
   CenterStaffRoute: typeof CenterStaffRoute
   CenterUploadResultsRoute: typeof CenterUploadResultsRoute
   CenterVerifyCodeRoute: typeof CenterVerifyCodeRoute
   CenterWalletRoute: typeof CenterWalletRoute
   CenterIndexRoute: typeof CenterIndexRoute
+  CenterReportsReportIdPreviewRoute: typeof CenterReportsReportIdPreviewRoute
 }
 
 const CenterRouteRouteChildren: CenterRouteRouteChildren = {
@@ -1494,11 +1594,13 @@ const CenterRouteRouteChildren: CenterRouteRouteChildren = {
   CenterReceiptHistoryRoute: CenterReceiptHistoryRoute,
   CenterReferPatientRoute: CenterReferPatientRoute,
   CenterRegisterPatientRoute: CenterRegisterPatientRoute,
+  CenterReportsRoute: CenterReportsRoute,
   CenterStaffRoute: CenterStaffRoute,
   CenterUploadResultsRoute: CenterUploadResultsRoute,
   CenterVerifyCodeRoute: CenterVerifyCodeRoute,
   CenterWalletRoute: CenterWalletRoute,
   CenterIndexRoute: CenterIndexRoute,
+  CenterReportsReportIdPreviewRoute: CenterReportsReportIdPreviewRoute,
 }
 
 const CenterRouteRouteWithChildren = CenterRouteRoute._addFileChildren(
@@ -1546,11 +1648,13 @@ interface PatientRouteRouteChildren {
   PatientAppointmentsRoute: typeof PatientAppointmentsRoute
   PatientNotificationsRoute: typeof PatientNotificationsRoute
   PatientProfileRoute: typeof PatientProfileRoute
+  PatientReportsRoute: typeof PatientReportsRoute
   PatientIndexRoute: typeof PatientIndexRoute
   PatientAppointmentsIdRoute: typeof PatientAppointmentsIdRoute
   PatientBookCentersRoute: typeof PatientBookCentersRoute
   PatientBookPayRoute: typeof PatientBookPayRoute
   PatientBookPaymentStatusRoute: typeof PatientBookPaymentStatusRoute
+  PatientReportsReportIdRoute: typeof PatientReportsReportIdRoute
   PatientBookIndexRoute: typeof PatientBookIndexRoute
 }
 
@@ -1558,11 +1662,13 @@ const PatientRouteRouteChildren: PatientRouteRouteChildren = {
   PatientAppointmentsRoute: PatientAppointmentsRoute,
   PatientNotificationsRoute: PatientNotificationsRoute,
   PatientProfileRoute: PatientProfileRoute,
+  PatientReportsRoute: PatientReportsRoute,
   PatientIndexRoute: PatientIndexRoute,
   PatientAppointmentsIdRoute: PatientAppointmentsIdRoute,
   PatientBookCentersRoute: PatientBookCentersRoute,
   PatientBookPayRoute: PatientBookPayRoute,
   PatientBookPaymentStatusRoute: PatientBookPaymentStatusRoute,
+  PatientReportsReportIdRoute: PatientReportsReportIdRoute,
   PatientBookIndexRoute: PatientBookIndexRoute,
 }
 

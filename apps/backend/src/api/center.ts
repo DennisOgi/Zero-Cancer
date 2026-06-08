@@ -28,6 +28,7 @@ import { sign } from "hono/jwt";
 import { getDB } from "../lib/db";
 import { sendEmail } from "../lib/email";
 import { serviceTypeFilters } from "../lib/service-type-utils";
+import { getSupabaseClient } from "../lib/supabase";
 import { TEnvs, THonoApp } from "../lib/types";
 import { comparePassword, hashPassword } from "../lib/utils";
 import { authMiddleware } from "../middleware/auth.middleware";
@@ -180,18 +181,6 @@ centerApp.get(
 
     const center = await db.serviceCenter.findUnique({
       where: { id: id! },
-      include: {
-        services: {
-          select: {
-            id: true,
-            name: true,
-            serviceCenters: { select: { amount: true } },
-          },
-        },
-        staff: {
-          select: { id: true, email: true },
-        },
-      },
     });
 
     if (!center) {
@@ -200,6 +189,31 @@ centerApp.get(
         404
       );
     }
+
+    const [staffRows] = await Promise.all([
+      db.centerStaff.findMany({ where: { centerId: id! } }),
+    ]);
+
+    const supabase = getSupabaseClient(c);
+    const { data: links } = await supabase
+      .from("ServiceCenterScreeningType")
+      .select("screeningTypeId, amount")
+      .eq("centerId", id!);
+
+    const screeningTypeIds = [...new Set((links || []).map((l: any) => l.screeningTypeId))];
+    const { data: screeningTypes } = screeningTypeIds.length
+      ? await supabase.from("ScreeningType").select("id, name").in("id", screeningTypeIds)
+      : { data: [] };
+
+    const typeMap = new Map((screeningTypes || []).map((t: any) => [t.id, t]));
+    const services = (links || []).map((link: any) => {
+      const service = typeMap.get(link.screeningTypeId);
+      return {
+        id: service?.id || link.screeningTypeId,
+        name: service?.name || "Screening",
+        price: link.amount || 0,
+      };
+    });
 
     const formattedCenter = {
       id: center.id,
@@ -211,14 +225,16 @@ centerApp.get(
       phone: center.phone,
       bankAccount: center.bankAccount,
       bankName: center.bankName,
-      status: center.status.toString(),
-      createdAt: center.createdAt instanceof Date ? center.createdAt.toISOString() : center.createdAt,
-      services: center.services.map((service) => ({
-        id: service.id,
-        name: service.name,
-        price: service.serviceCenters?.[0]?.amount || 0, // Assuming amount is the price
+      status: center.status?.toString?.() || String(center.status),
+      createdAt:
+        center.createdAt instanceof Date
+          ? center.createdAt.toISOString()
+          : center.createdAt,
+      services,
+      staff: (staffRows || []).map((member: any) => ({
+        id: member.id,
+        email: member.email,
       })),
-      staff: center.staff,
     };
 
     return c.json<TGetCenterByIdResponse>({
@@ -250,7 +266,9 @@ centerApp.get("/staff/invite", authMiddleware(["center"]), async (c) => {
   const transformedInvites = invites.map((invite) => ({
     email: invite.email,
     token: invite.token,
-    expiresAt: invite.expiresAt?.toISOString() || null,
+    expiresAt: invite.expiresAt
+      ? new Date(invite.expiresAt).toISOString()
+      : null,
   }));
 
   return c.json<TInviteStaffResponse>({
@@ -342,6 +360,7 @@ centerApp.post(
         centerId: invite.centerId!,
         email: invite.email!,
         passwordHash,
+        status: "ACTIVE",
         createdAt: new Date(),
       },
     });
@@ -526,14 +545,6 @@ centerApp.get(
       // Find the invitation by token and include center details
       const invitation = await db.centerStaffInvite.findUnique({
         where: { token },
-        include: {
-          center: {
-            select: {
-              centerName: true,
-              address: true,
-            },
-          },
-        },
       });
 
       if (!invitation) {
@@ -550,16 +561,25 @@ centerApp.get(
         });
       }
 
+      const center = await db.serviceCenter.findUnique({
+        where: { id: invitation.centerId },
+      });
+      const centerName = center?.centerName || "";
+      const centerAddress = center?.address || "";
+      const expiresAtIso = invitation.expiresAt
+        ? new Date(invitation.expiresAt).toISOString()
+        : null;
+
       // Check if invitation has already been accepted
       if (invitation.acceptedAt) {
         return c.json<TValidateStaffInviteResponse>({
           ok: true,
           data: {
             isValid: false,
-            centerName: invitation.center.centerName,
-            centerAddress: invitation.center.address,
+            centerName,
+            centerAddress,
             email: invitation.email,
-            expiresAt: invitation.expiresAt?.toISOString() || null,
+            expiresAt: expiresAtIso,
             isExpired: false,
           },
         });
@@ -567,17 +587,17 @@ centerApp.get(
 
       // Check if invitation has expired
       const isExpired = invitation.expiresAt
-        ? new Date() > invitation.expiresAt
+        ? new Date() > new Date(invitation.expiresAt)
         : false;
 
       return c.json<TValidateStaffInviteResponse>({
         ok: true,
         data: {
           isValid: !isExpired,
-          centerName: invitation.center.centerName,
-          centerAddress: invitation.center.address,
+          centerName,
+          centerAddress,
           email: invitation.email,
-          expiresAt: invitation.expiresAt?.toISOString() || null,
+          expiresAt: expiresAtIso,
           isExpired,
         },
       });

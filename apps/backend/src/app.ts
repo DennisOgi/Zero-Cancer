@@ -18,6 +18,10 @@ import { screeningTypesApp } from "./api/screening-types";
 import { waitlistApp } from "./api/waitlist";
 import { communityApp } from "./api/community";
 import { kitApp } from "./api/kit";
+import { screeningReportsApp } from "./api/screening-reports";
+import { centerPatientsApp } from "./api/center-patients";
+import { patientScreeningReportsApp } from "./api/patient-screening-reports";
+import { publicScreeningReportsApp } from "./api/public-screening-reports";
 import { getDB } from "./lib/db";
 import { TEnvs } from "./lib/types";
 import { displayEnvVars } from "./lib/utils";
@@ -151,6 +155,10 @@ apiApp.route("/notifications", notificationApp);
 apiApp.route("/payouts", payoutsApp);
 apiApp.route("/community", communityApp);
 apiApp.route("/kit", kitApp);
+apiApp.route("/screening-reports", screeningReportsApp);
+apiApp.route("/center/patients", centerPatientsApp);
+apiApp.route("/patient/screening-reports", patientScreeningReportsApp);
+apiApp.route("/public/screening-reports", publicScreeningReportsApp);
 apiApp.route("/blog", blogApp);
 
 // Mount API app BEFORE static file serving

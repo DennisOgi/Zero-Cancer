@@ -25,7 +25,9 @@ import {
 } from '@/components/shared/ui/select'
 import { NIGERIA_STATES_LGAS as nigeriaStates } from '@/data/nigeria-locations'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { usePatientRegistration } from '@/services/providers/register.provider'
+import { useScreeningTypes } from '@/services/providers/screeningType.provider'
+import { centerRegisterAndEnrollPatient } from '@/services/screening-report.service'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { patientSchema } from '@zerocancer/shared/schemas/register.schema'
 import { Loader2, UserPlus, CheckCircle2 } from 'lucide-react'
@@ -33,16 +35,26 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import * as RPNInput from 'react-phone-number-input'
+import PhoneInputComponent from '@/components/shared/ui/phone-input'
+import { CenterEnrollExistingPatient } from '@/components/CenterPages/CenterEnrollExistingPatient'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/shared/ui/tabs'
 
 // Schema for walk-in patient (password is auto-generated)
-const walkInPatientSchema = patientSchema.omit({ password: true })
+const walkInPatientSchema = patientSchema.omit({ password: true }).extend({
+  screeningTypeId: z.string().uuid('Select a screening service'),
+})
 
 type WalkInPatientFormData = z.infer<typeof walkInPatientSchema>
 
 export function CenterRegisterPatientPage() {
   const navigate = useNavigate()
-  const registerMutation = usePatientRegistration()
+  const { data: screeningTypesData } = useQuery(
+    useScreeningTypes({ page: 1, pageSize: 100 }),
+  )
+  const screeningTypes = screeningTypesData?.data?.screeningTypes || []
   const [selectedState, setSelectedState] = useState<string>('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [registeredPatient, setRegisteredPatient] = useState<{
     fullName: string
     email: string
@@ -59,19 +71,27 @@ export function CenterRegisterPatientPage() {
       gender: undefined,
       state: '',
       localGovernment: '',
+      screeningTypeId: '',
     },
   })
 
   const selectedStateData = nigeriaStates.find((s) => s.state === selectedState)
 
   const onSubmit = async (data: WalkInPatientFormData) => {
-    // Generate a temporary password
     const tempPassword = `ZC${Math.random().toString(36).slice(2, 10).toUpperCase()}`
 
+    setIsSubmitting(true)
     try {
-      const response = await registerMutation.mutateAsync({
-        ...data,
+      const response = await centerRegisterAndEnrollPatient({
+        fullName: data.fullName,
+        email: data.email,
+        whatsappNumber: data.phone,
         password: tempPassword,
+        dateOfBirth: data.dateOfBirth,
+        gender: data.gender,
+        state: data.state,
+        localGovernment: data.localGovernment,
+        screeningTypeId: data.screeningTypeId,
       })
 
       if (response.ok) {
@@ -80,11 +100,16 @@ export function CenterRegisterPatientPage() {
           email: data.email,
           tempPassword,
         })
-        toast.success('Patient registered successfully!')
+        const waitlistMsg = response.data?.waitlistCreated
+          ? 'Patient registered and added to the platform waitlist'
+          : 'Patient registered — already on the waitlist for this screening'
+        toast.success(waitlistMsg)
         form.reset()
       }
     } catch (error: any) {
       toast.error(error?.response?.data?.error || 'Failed to register patient')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -106,11 +131,11 @@ export function CenterRegisterPatientPage() {
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-6 w-6 text-green-600" />
               <CardTitle className="text-green-900">
-                Patient Registered Successfully!
+                Patient Registered & Enrolled on Waitlist
               </CardTitle>
             </div>
             <CardDescription className="text-green-700">
-              Share these credentials with the patient
+              Share these credentials with the patient. They are now on the platform-wide donor matching waitlist.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -182,15 +207,22 @@ export function CenterRegisterPatientPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
+    <div className="space-y-6 max-w-3xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold">Register Walk-in Patient</h1>
+        <h1 className="text-3xl font-bold">Patient Waitlist</h1>
         <p className="text-muted-foreground mt-2">
-          Register a new patient who has visited your center. A temporary password
-          will be generated for them.
+          Register new walk-in patients or enroll existing patients on the platform
+          waitlist under your center.
         </p>
       </div>
 
+      <Tabs defaultValue="register">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="register">Register New Patient</TabsTrigger>
+          <TabsTrigger value="enroll">Enroll Existing Patient</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="register" className="mt-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -249,10 +281,16 @@ export function CenterRegisterPatientPage() {
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone Number *</FormLabel>
+                        <FormLabel>WhatsApp Number *</FormLabel>
                         <FormControl>
-                          <Input placeholder="+234 800 000 0000" {...field} />
+                          <PhoneInputComponent
+                            value={field.value as RPNInput.Value}
+                            onChange={field.onChange}
+                          />
                         </FormControl>
+                        <FormDescription>
+                          Used to send screening reports to the patient (e.g. +234...)
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -299,6 +337,37 @@ export function CenterRegisterPatientPage() {
                     )}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Waitlist enrollment</h3>
+                <FormField
+                  control={form.control}
+                  name="screeningTypeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Screening service *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select screening service" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {screeningTypes.map((type: any) => (
+                            <SelectItem key={type.id} value={type.id}>
+                              {type.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Patient will enter the platform-wide donor matching waitlist
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
               {/* Location Information */}
@@ -403,10 +472,10 @@ export function CenterRegisterPatientPage() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={registerMutation.isPending}
+                  disabled={isSubmitting}
                   className="flex-1"
                 >
-                  {registerMutation.isPending ? (
+                  {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Registering...
@@ -423,6 +492,12 @@ export function CenterRegisterPatientPage() {
           </Form>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="enroll" className="mt-6">
+          <CenterEnrollExistingPatient />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

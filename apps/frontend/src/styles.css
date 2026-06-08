@@ -137,6 +137,24 @@ body {
   @apply px-4 sm:px-6 lg:px-12 xl:px-20;
 }
 
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 40s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
 #root {
   max-width: 1280px;
   margin: 0 auto;

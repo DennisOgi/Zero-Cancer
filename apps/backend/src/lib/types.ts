@@ -35,4 +35,7 @@ export type TEnvs = {
   WAITLIST_DEMOGRAPHICS: string;
   WAITLIST_GEOGRAPHIC_TARGETING: string;
   WAITLIST_EXPIRY_DAYS: string;
+  TWILIO_ACCOUNT_SID?: string;
+  TWILIO_AUTH_TOKEN?: string;
+  TWILIO_WHATSAPP_FROM?: string;
 };

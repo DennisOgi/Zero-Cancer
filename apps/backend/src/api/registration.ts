@@ -339,6 +339,7 @@ registerApp.post(
         passwordHash: hashedPassword!,
         centerName: data.centerName!,
         phone: data.phoneNumber!,
+        whatsappNumber: data.phoneNumber!,
         address: data.address!,
         state: data.state!,
         lga: data.localGovernment!,

@@ -5,6 +5,7 @@ import logo from '@/assets/images/logo.svg'
 import logoutIcon from '@/assets/images/logout.png'
 import notification from '@/assets/images/notification.png'
 import stethoscope from '@/assets/images/stethoscope.png'
+import reportIcon from '@/assets/images/stethoscope.png'
 import { cn } from '@/lib/utils'
 import { useLogout } from '@/services/providers/auth.provider'
 import { useNotifications } from '@/services/providers/notification.provider'
@@ -17,6 +18,7 @@ export function PatientLayout() {
     { to: '/patient', label: 'Dashboard', icon: cross },
     { to: '/patient/book', label: 'Book Screening', icon: stethoscope },
     { to: '/patient/appointments', label: 'Appointments', icon: calendar },
+    { to: '/patient/reports', label: 'Reports', icon: reportIcon },
     { to: '/patient/notifications', label: 'Notifications', icon: notification },
   ]
 

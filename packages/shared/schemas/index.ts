@@ -10,6 +10,7 @@ export * from "./receipt.schema";
 export * from "./register.schema";
 export * from "./result.schema";
 export * from "./screeningType.schema";
+export * from "./screening-report.schema";
 export * from "./waitlist.schema";
 export * from "./community.schema";
 export * from "./kit.schema";

@@ -238,6 +238,7 @@ export const getDB = (c: Context) => {
             state: data.state,
             lga: data.lga,
             phone: data.phone,
+            whatsappNumber: data.whatsappNumber || data.phone,
             status: 'PENDING',
           })
           .select()
@@ -350,6 +351,11 @@ export const getDB = (c: Context) => {
               state: data.patientProfile.create.state,
               associationId: data.patientProfile.create.associationId || null,
               groupId: data.patientProfile.create.groupId || null,
+              emailVerified: data.patientProfile.create.emailVerified
+                ? data.patientProfile.create.emailVerified instanceof Date
+                  ? data.patientProfile.create.emailVerified.toISOString()
+                  : data.patientProfile.create.emailVerified
+                : null,
             })
             .select()
             .single();
@@ -407,6 +413,11 @@ export const getDB = (c: Context) => {
               state: data.patientProfile.create.state,
               associationId: data.patientProfile.create.associationId || null,
               groupId: data.patientProfile.create.groupId || null,
+              emailVerified: data.patientProfile.create.emailVerified
+                ? data.patientProfile.create.emailVerified instanceof Date
+                  ? data.patientProfile.create.emailVerified.toISOString()
+                  : data.patientProfile.create.emailVerified
+                : null,
             })
             .select()
             .single();
@@ -470,6 +481,21 @@ export const getDB = (c: Context) => {
           
         if (error && error.code !== 'PGRST116') throw error;
         return data;
+      },
+
+      update: async ({ where, data }: any) => {
+        const updates = { ...data };
+        if (updates.emailVerified instanceof Date) {
+          updates.emailVerified = updates.emailVerified.toISOString();
+        }
+        const { data: updated, error } = await supabase
+          .from('PatientProfile')
+          .update(updates)
+          .eq('userId', where.userId)
+          .select('*')
+          .single();
+        if (error) throw error;
+        return updated;
       },
     },
     
@@ -646,31 +672,161 @@ export const getDB = (c: Context) => {
 
     // Center staff operations
     centerStaff: {
+      findMany: async ({ where }: any = {}) => {
+        let query = supabase.from("CenterStaff").select("*");
+        if (where?.centerId) query = query.eq("centerId", where.centerId);
+        if (where?.status) query = query.eq("status", where.status);
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+      },
+
       create: async ({ data }: any) => {
         const { data: staff, error } = await supabase
-          .from('CenterStaff')
+          .from("CenterStaff")
           .insert({
             centerId: data.centerId,
             email: data.email,
             passwordHash: data.passwordHash,
             role: data.role,
+            status: data.status || "ACTIVE",
           })
           .select()
           .single();
-          
+
         if (error) throw error;
         return staff;
       },
-      
+
       findUnique: async ({ where }: { where: { email?: string; id?: string } }) => {
-        let query = supabase.from('CenterStaff').select('*');
-        
-        if (where.email) query = query.eq('email', where.email);
-        if (where.id) query = query.eq('id', where.id);
-        
+        let query = supabase.from("CenterStaff").select("*");
+
+        if (where.email) query = query.eq("email", where.email);
+        if (where.id) query = query.eq("id", where.id);
+
         const { data, error } = await query.single();
-        if (error && error.code !== 'PGRST116') throw error;
+        if (error && error.code !== "PGRST116") throw error;
         return data;
+      },
+
+      findFirst: async ({ where }: { where: { centerId?: string; email?: string } }) => {
+        let query = supabase.from("CenterStaff").select("*");
+        if (where?.centerId) query = query.eq("centerId", where.centerId);
+        if (where?.email) query = query.eq("email", where.email);
+        const { data, error } = await query.limit(1).maybeSingle();
+        if (error && error.code !== "PGRST116") throw error;
+        return data;
+      },
+    },
+
+    centerStaffInvite: {
+      findMany: async ({ where, select }: any = {}) => {
+        let query = supabase.from("CenterStaffInvite").select(select ? Object.keys(select).join(",") : "*");
+        if (where?.centerId) query = query.eq("centerId", where.centerId);
+        if (where?.acceptedAt === null) query = query.is("acceptedAt", null);
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+      },
+
+      findUnique: async ({ where }: { where: { token: string } }) => {
+        const { data, error } = await supabase
+          .from("CenterStaffInvite")
+          .select("*")
+          .eq("token", where.token)
+          .maybeSingle();
+        if (error && error.code !== "PGRST116") throw error;
+        return data;
+      },
+
+      create: async ({ data }: any) => {
+        const row = {
+          id: data.id || crypto.randomUUID(),
+          centerId: data.centerId,
+          email: data.email,
+          token: data.token,
+          expiresAt: data.expiresAt instanceof Date ? data.expiresAt.toISOString() : data.expiresAt,
+          acceptedAt: data.acceptedAt || null,
+        };
+        const { data: created, error } = await supabase
+          .from("CenterStaffInvite")
+          .insert(row)
+          .select("*")
+          .single();
+        if (error) throw error;
+        return created;
+      },
+
+      update: async ({ where, data }: any) => {
+        const updates: Record<string, unknown> = { ...data };
+        if (updates.acceptedAt instanceof Date) {
+          updates.acceptedAt = updates.acceptedAt.toISOString();
+        }
+        if (updates.expiresAt instanceof Date) {
+          updates.expiresAt = updates.expiresAt.toISOString();
+        }
+        const { data: updated, error } = await supabase
+          .from("CenterStaffInvite")
+          .update(updates)
+          .eq("token", where.token)
+          .select("*")
+          .single();
+        if (error) throw error;
+        return updated;
+      },
+    },
+
+    screeningReport: {
+      findUnique: async ({ where }: any) => {
+        let query = supabase.from("ScreeningReport").select("*");
+        if (where.appointmentId) query = query.eq("appointmentId", where.appointmentId);
+        if (where.accessToken) query = query.eq("accessToken", where.accessToken);
+        if (where.id) query = query.eq("id", where.id);
+        const { data, error } = await query.maybeSingle();
+        if (error && error.code !== "PGRST116") throw error;
+        return data;
+      },
+
+      findMany: async ({ where, orderBy, take, skip }: any = {}) => {
+        let query = supabase.from("ScreeningReport").select("*");
+        if (where?.centerId) query = query.eq("centerId", where.centerId);
+        if (where?.patientId) query = query.eq("patientId", where.patientId);
+        if (orderBy?.createdAt === "desc")
+          query = query.order("createdAt", { ascending: false });
+        if (skip) query = query.range(skip, skip + (take || 20) - 1);
+        else if (take) query = query.limit(take);
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+      },
+
+      create: async ({ data }: any) => {
+        const now = new Date().toISOString();
+        const row = {
+          id: data.id || crypto.randomUUID(),
+          ...data,
+          createdAt: now,
+          updatedAt: now,
+        };
+        const { data: created, error } = await supabase
+          .from("ScreeningReport")
+          .insert(row)
+          .select("*")
+          .single();
+        if (error) throw error;
+        return created;
+      },
+
+      update: async ({ where, data }: any) => {
+        const updates = { ...data, updatedAt: new Date().toISOString() };
+        const { data: updated, error } = await supabase
+          .from("ScreeningReport")
+          .update(updates)
+          .eq("id", where.id)
+          .select("*")
+          .single();
+        if (error) throw error;
+        return updated;
       },
     },
     
@@ -691,6 +847,53 @@ export const getDB = (c: Context) => {
     
     // Waitlist operations
     waitlist: {
+      findFirst: async ({ where }: any = {}) => {
+        let query = supabase.from("Waitlist").select("*");
+
+        if (where?.patientId) query = query.eq("patientId", where.patientId);
+        if (where?.screeningTypeId)
+          query = query.eq("screeningTypeId", where.screeningTypeId);
+        if (where?.status) {
+          if (where.status.in) query = query.in("status", where.status.in);
+          else query = query.eq("status", where.status);
+        }
+        if (where?.id) query = query.eq("id", where.id);
+
+        const { data, error } = await query.limit(1).maybeSingle();
+        if (error && error.code !== "PGRST116") throw error;
+        return data;
+      },
+
+      create: async ({ data, include }: any = {}) => {
+        const row = {
+          id: data.id || crypto.randomUUID(),
+          patientId: data.patientId,
+          screeningTypeId: data.screeningTypeId,
+          status: data.status || "PENDING",
+          joinedAt: new Date().toISOString(),
+          enrolledByCenterId: data.enrolledByCenterId || null,
+        };
+
+        const { data: created, error } = await supabase
+          .from("Waitlist")
+          .insert(row)
+          .select("*")
+          .single();
+
+        if (error) throw error;
+
+        if (include?.screening && created) {
+          const { data: screening } = await supabase
+            .from("ScreeningType")
+            .select("id, name, description")
+            .eq("id", created.screeningTypeId)
+            .single();
+          return { ...created, screening };
+        }
+
+        return created;
+      },
+
       groupBy: async ({ where, orderBy }: any = {}) => {
         let query = supabase.from('Waitlist').select('id, screeningTypeId');
 

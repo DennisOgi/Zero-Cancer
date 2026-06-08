@@ -196,10 +196,16 @@ export const useCompleteAppointment = () =>
     mutationFn: ({
       appointmentId,
       completionNotes,
+      kitSerialNumber,
     }: {
       appointmentId: string
       completionNotes?: string
-    }) => centerService.completeAppointment(appointmentId, { completionNotes }),
+      kitSerialNumber: string
+    }) =>
+      centerService.completeAppointment(appointmentId, {
+        completionNotes,
+        kitSerialNumber,
+      }),
   })
 
 export const useUploadResults = () =>

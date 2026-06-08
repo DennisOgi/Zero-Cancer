@@ -26,11 +26,12 @@ export function CenterLayout() {
   // Navigation links - Updated: 2026-04-22 14:10
   const baseNavLinks = [
     { to: '/center', label: 'Dashboard', icon: cross },
-    { to: '/center/register-patient', label: 'Register Patient', icon: people }, // v1.0 - Walk-in patient registration
+    { to: '/center/register-patient', label: 'Patient Waitlist', icon: people },
     { to: '/center/refer-patient', label: 'Refer Patient', icon: treatment }, // v1.0 - Patient referral system
     { to: '/center/appointments', label: 'Appointments', icon: calendar },
     { to: '/center/verify-code', label: 'Verify Code', icon: screening },
     { to: '/center/upload-results', label: 'Upload Results', icon: treatment },
+    { to: '/center/reports', label: 'Reports', icon: screening },
     { to: '/center/notifications', label: 'Notifications', icon: health }, // v1.0 - Center notifications
   ]
 

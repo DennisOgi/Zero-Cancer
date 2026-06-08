@@ -226,18 +226,19 @@ export const restoreResultFile = async (
 // Mark an appointment as completed
 export const completeAppointment = async (
   appointmentId: string,
-  data: { completionNotes?: string },
+  data: { completionNotes?: string; kitSerialNumber: string },
 ): Promise<TCompleteAppointmentResponse> => {
   const validatedData = completeAppointmentSchema.safeParse({
     appointmentId,
     ...data,
   })
   if (!validatedData.success) {
-    throw new Error('Invalid complete appointment data')
+    throw new Error(validatedData.error.errors[0]?.message || 'Invalid complete appointment data')
   }
   const res = await request.post(endpoints.completeAppointment(appointmentId), {
     appointmentId: validatedData.data.appointmentId,
     completionNotes: data.completionNotes,
+    kitSerialNumber: data.kitSerialNumber,
   })
   return res as TCompleteAppointmentResponse
 }
