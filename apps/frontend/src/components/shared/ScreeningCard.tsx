@@ -154,9 +154,6 @@ export default function ScreeningCard({
     !!waitlistStatus?.data?.waitlist?.allocation?.id &&
     !!!waitlistStatus?.data?.waitlist?.allocation.claimedAt
 
-  if (screeningType.name == 'Colorectal Cancer Screening')
-    console.log('waitlistStatus of screening', waitlistStatus)
-
   const handleJoinWaitlist = (screeningId: string) => {
     joinWaitlistMutation.mutate(
       { screeningTypeId: screeningId },

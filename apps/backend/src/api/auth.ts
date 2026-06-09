@@ -278,6 +278,19 @@ authApp.get(
       );
     }
 
+    let gender: "MALE" | "FEMALE" | undefined;
+    if (jwtPayload.profile === "PATIENT") {
+      const patientProfile = await db.patientProfile.findUnique({
+        where: { userId: jwtPayload.id! },
+      });
+      if (
+        patientProfile?.gender === "MALE" ||
+        patientProfile?.gender === "FEMALE"
+      ) {
+        gender = patientProfile.gender;
+      }
+    }
+
     return c.json<TAuthMeResponse>({
       ok: true,
       data: {
@@ -286,6 +299,7 @@ authApp.get(
           fullName: user.fullName!,
           email: user.email!,
           profile: jwtPayload.profile,
+          ...(gender ? { gender } : {}),
         },
       },
     });

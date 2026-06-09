@@ -71,6 +71,7 @@ export type TAuthMeResponse = TDataResponse<{
     fullName: string;
     email: string;
     profile: "PATIENT" | "DONOR" | "CENTER" | "CENTER_STAFF" | "ADMIN";
+    gender?: "MALE" | "FEMALE";
   };
 }>;
 

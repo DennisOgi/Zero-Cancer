@@ -1,19 +1,15 @@
 import ScreeningCard from '@/components/shared/ScreeningCard'
-import { useAllScreeningTypes } from '@/services/providers/screeningType.provider'
-import { useQuery } from '@tanstack/react-query'
+import { usePatientEligibleScreeningTypes } from '@/services/providers/patient-screening.provider'
 import { useNavigate } from '@tanstack/react-router'
-import { RotateCwIcon } from 'lucide-react'
 import BookHeader from './BookHeader'
 
 export function PatientBookScreeningPage() {
   const navigate = useNavigate()
   const {
-    data: screeningTypesData,
+    screenings: eligibleScreenings,
     isLoading: screeningTypesLoading,
-    error: screeningTypesError,
-    refetch,
-    isFetching,
-  } = useQuery(useAllScreeningTypes())
+    isError: screeningTypesError,
+  } = usePatientEligibleScreeningTypes()
 
   const handlePayAndBook = (screeningId: string) => {
     navigate({
@@ -27,19 +23,6 @@ export function PatientBookScreeningPage() {
       <BookHeader
         title="Book Screening"
         description="Choose a screening type to book an appointment or join the waitlist."
-        action={
-          <button
-            type="button"
-            className={`flex items-center gap-2 px-3 py-2 rounded-md border bg-muted hover:bg-muted/80 transition`}
-            onClick={() => refetch()}
-          >
-            <RotateCwIcon
-              size={18}
-              className={`${isFetching ? 'animate-spin' : ''}`}
-            />
-            Reload (to be removed later)
-          </button>
-        }
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -47,8 +30,13 @@ export function PatientBookScreeningPage() {
           <p>Loading screenings...</p>
         ) : screeningTypesError ? (
           <p>Error loading screenings.</p>
+        ) : eligibleScreenings.length === 0 ? (
+          <p className="text-muted-foreground">
+            No screenings are available for your profile yet. Contact support if
+            this looks wrong.
+          </p>
         ) : (
-          (screeningTypesData?.data || []).map((screeningType) => (
+          eligibleScreenings.map((screeningType) => (
             <ScreeningCard
               key={screeningType.id}
               screeningType={screeningType}

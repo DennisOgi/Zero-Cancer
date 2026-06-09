@@ -6,7 +6,7 @@ import { Button } from '@/components/shared/ui/button'
 import { useAuthUser } from '@/services/providers/auth.provider'
 import { useNotifications } from '@/services/providers/notification.provider'
 import { usePatientAppointments } from '@/services/providers/patient.provider'
-import { useAllScreeningTypes } from '@/services/providers/screeningType.provider'
+import { usePatientEligibleScreeningTypes } from '@/services/providers/patient-screening.provider'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import type { TScreeningType } from '@zerocancer/shared/types'
@@ -18,10 +18,10 @@ export function PatientDashboardPage() {
 
   const { data: authData } = useQuery(useAuthUser())
   const {
-    data: screeningTypesData,
+    screenings: eligibleScreenings,
     isLoading: screeningTypesLoading,
-    error: screeningTypesError,
-  } = useQuery(useAllScreeningTypes())
+    isError: screeningTypesError,
+  } = usePatientEligibleScreeningTypes()
   const {
     data: appointmentsData,
     isLoading: appointmentsLoading,
@@ -112,16 +112,19 @@ export function PatientDashboardPage() {
                 <p>Loading screenings...</p>
               ) : screeningTypesError ? (
                 <p>Error loading screenings.</p>
+              ) : eligibleScreenings.length === 0 ? (
+                <p className="text-muted-foreground">
+                  No screenings are available for your profile yet. Contact support
+                  if this looks wrong.
+                </p>
               ) : (
-                (screeningTypesData?.data || [])
-                  .slice(0, 5)
-                  .map((screeningType: TScreeningType) => (
-                    <ScreeningCard
-                      key={screeningType.id}
-                      screeningType={screeningType}
-                      handlePayAndBook={handlePayAndBook}
-                    />
-                  ))
+                eligibleScreenings.map((screeningType: TScreeningType) => (
+                  <ScreeningCard
+                    key={screeningType.id}
+                    screeningType={screeningType}
+                    handlePayAndBook={handlePayAndBook}
+                  />
+                ))
               )}
             </div>
           </div>
