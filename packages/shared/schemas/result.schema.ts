@@ -54,7 +54,9 @@ export const restoreResultFileSchema = z.object({
 export const completeAppointmentSchema = z.object({
   appointmentId: z.string(),
   completionNotes: z.string().optional(),
-  kitSerialNumber: z.string().optional(), // Added for kit tracking
+  kitSerialNumber: z
+    .string()
+    .min(1, { message: "Kit serial number is required to complete screening." }),
 });
 
 // For admin use (post-MVP)

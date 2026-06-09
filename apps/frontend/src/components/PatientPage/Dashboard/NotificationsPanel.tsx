@@ -25,6 +25,10 @@ const notificationTypes: {
     icon: donorIcon,
     defaultTitle: 'Donation Applied',
   },
+  MATCHED: {
+    icon: donorIcon,
+    defaultTitle: 'Donation Matched',
+  },
   APPOINTMENT_REMINDER: {
     icon: notificationIcon,
     defaultTitle: 'Appointment Reminder',
@@ -47,21 +51,42 @@ const NotificationItem = ({
     notificationTypes.DEFAULT
 
   const handleAction = () => {
-    // Navigate based on the data in the notification
-    // This is a placeholder and needs to be adapted to your routing structure
-    if (notification.notification.data?.appointmentId) {
-      navigate({ to: '/patient/appointments' })
-    } else if (notification.notification.data?.waitlistId) {
-      navigate({ to: '/patient/book' })
+    const data = notification.notification.data as {
+      appointmentId?: string
+      screeningTypeId?: string
     }
+
+    if (notification.notification.type === 'RESULTS_AVAILABLE') {
+      navigate({ to: '/patient/reports' })
+      return
+    }
+
+    if (
+      notification.notification.type === 'MATCHED' ||
+      notification.notification.type === 'DONATION_ALLOCATED'
+    ) {
+      navigate({ to: '/patient/book' })
+      return
+    }
+
+    if (data?.appointmentId) {
+      navigate({
+        to: '/patient/appointments/$id',
+        params: { id: data.appointmentId },
+      })
+      return
+    }
+
+    navigate({ to: '/patient/appointments' })
   }
 
   const getButtonText = () => {
     switch (notification.notification.type) {
       case 'RESULTS_AVAILABLE':
-        return 'View Result'
+        return 'View Reports'
+      case 'MATCHED':
       case 'DONATION_ALLOCATED':
-        return 'Book Now'
+        return 'Book Screening'
       case 'APPOINTMENT_REMINDER':
         return 'View Appointment'
       default:

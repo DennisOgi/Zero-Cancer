@@ -24,7 +24,7 @@ import crypto from "crypto";
 import { Hono } from "hono";
 import { env } from "hono/adapter";
 import { setCookie } from "hono/cookie";
-import { sign } from "hono/jwt";
+import { sign, verify } from "hono/jwt";
 import { getDB } from "../lib/db";
 import { sendEmail } from "../lib/email";
 import { serviceTypeFilters } from "../lib/service-type-utils";
@@ -178,6 +178,28 @@ centerApp.get(
   async (c) => {
     const db = getDB(c);
     const { id } = c.req.valid("param");
+    const { JWT_TOKEN_SECRET } = env<TEnvs>(c);
+
+    let includeStaff = false;
+    const authHeader = c.req.header("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const payload = await verify(
+          authHeader.slice(7),
+          JWT_TOKEN_SECRET,
+          "HS256",
+        );
+        const profile = String(payload?.profile || "").toUpperCase();
+        if (
+          (profile === "CENTER" || profile === "CENTER_STAFF") &&
+          payload?.id === id
+        ) {
+          includeStaff = true;
+        }
+      } catch {
+        includeStaff = false;
+      }
+    }
 
     const center = await db.serviceCenter.findUnique({
       where: { id: id! },
@@ -190,9 +212,9 @@ centerApp.get(
       );
     }
 
-    const [staffRows] = await Promise.all([
-      db.centerStaff.findMany({ where: { centerId: id! } }),
-    ]);
+    const [staffRows] = includeStaff
+      ? await Promise.all([db.centerStaff.findMany({ where: { centerId: id! } })])
+      : [[]];
 
     const supabase = getSupabaseClient(c);
     const { data: links } = await supabase
@@ -231,10 +253,12 @@ centerApp.get(
           ? center.createdAt.toISOString()
           : center.createdAt,
       services,
-      staff: (staffRows || []).map((member: any) => ({
-        id: member.id,
-        email: member.email,
-      })),
+      staff: includeStaff
+        ? (staffRows || []).map((member: any) => ({
+            id: member.id,
+            email: member.email,
+          }))
+        : [],
     };
 
     return c.json<TGetCenterByIdResponse>({

@@ -4,6 +4,127 @@
 import type { Context } from 'hono';
 import { getSupabaseClient } from './supabase';
 
+type SupabaseClient = ReturnType<typeof getSupabaseClient>;
+
+const parseJsonArray = (val: unknown): string[] => {
+  if (Array.isArray(val)) return val as string[];
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
+async function enrichDonationCampaign(
+  supabase: SupabaseClient,
+  campaign: Record<string, unknown>,
+  include?: Record<string, unknown>,
+) {
+  const result: Record<string, unknown> = {
+    ...campaign,
+    targetStates: parseJsonArray(campaign.targetStates),
+    targetLgas: parseJsonArray(campaign.targetLgas),
+    createdAt: new Date(String(campaign.createdAt)),
+    updatedAt: new Date(String(campaign.updatedAt || campaign.createdAt)),
+  };
+
+  if (include?.donor) {
+    const { data: donor } = await supabase
+      .from('User')
+      .select('id, fullName, email')
+      .eq('id', campaign.donorId as string)
+      .single();
+    if (donor) {
+      const donorInclude = include.donor as { select?: { donorProfile?: unknown } };
+      if (donorInclude.select?.donorProfile) {
+        const { data: donorProfile } = await supabase
+          .from('DonorProfile')
+          .select('*')
+          .eq('userId', donor.id)
+          .maybeSingle();
+        (donor as Record<string, unknown>).donorProfile = donorProfile;
+      }
+      result.donor = donor;
+    }
+  }
+
+  if (include?.screeningTypes) {
+    const { data: links } = await supabase
+      .from('_DonationCampaignScreeningTypes')
+      .select('B')
+      .eq('A', campaign.id as string);
+    const ids = (links || []).map((l: { B: string }) => l.B);
+    if (ids.length) {
+      const screeningInclude = include.screeningTypes as { select?: Record<string, boolean> };
+      const columns = screeningInclude.select
+        ? Object.keys(screeningInclude.select).join(',')
+        : '*';
+      const { data: types } = await supabase
+        .from('ScreeningType')
+        .select(columns)
+        .in('id', ids);
+      result.screeningTypes = types || [];
+    } else {
+      result.screeningTypes = [];
+    }
+  }
+
+  if (include?.allocations) {
+    const { data: allocations } = await supabase
+      .from('DonationAllocation')
+      .select('*')
+      .eq('campaignId', campaign.id as string);
+    const allocInclude = include.allocations as {
+      include?: {
+        patient?: { select?: Record<string, boolean> };
+        appointment?: { where?: { status?: { notIn?: string[] } } };
+      };
+    };
+
+    result.allocations = await Promise.all(
+      (allocations || []).map(async (alloc: Record<string, unknown>) => {
+        const enriched: Record<string, unknown> = { ...alloc };
+        if (allocInclude.include?.patient) {
+          const { data: patient } = await supabase
+            .from('User')
+            .select('id, fullName')
+            .eq('id', alloc.patientId as string)
+            .maybeSingle();
+          enriched.patient = patient;
+        }
+        if (allocInclude.include?.appointment) {
+          if (alloc.appointmentId) {
+            const { data: appointment } = await supabase
+              .from('Appointment')
+              .select('*')
+              .eq('id', alloc.appointmentId as string)
+              .maybeSingle();
+            const notIn = allocInclude.include.appointment.where?.status?.notIn;
+            if (
+              appointment &&
+              notIn?.length &&
+              notIn.includes(appointment.status as string)
+            ) {
+              enriched.appointment = null;
+            } else {
+              enriched.appointment = appointment;
+            }
+          } else {
+            enriched.appointment = null;
+          }
+        }
+        return enriched;
+      }),
+    );
+  }
+
+  return result;
+}
+
 export const getDB = (c: Context) => {
   const supabase = getSupabaseClient(c);
   
@@ -717,6 +838,58 @@ export const getDB = (c: Context) => {
         if (error && error.code !== "PGRST116") throw error;
         return data;
       },
+
+      update: async ({ where, data }: any) => {
+        const updates: Record<string, unknown> = { ...data };
+        const { data: updated, error } = await supabase
+          .from("CenterStaff")
+          .update(updates)
+          .eq("id", where.id)
+          .select("*")
+          .single();
+        if (error) throw error;
+        return updated;
+      },
+    },
+
+    centerStaffResetToken: {
+      create: async ({ data }: any) => {
+        const row = {
+          id: data.id || crypto.randomUUID(),
+          staffId: data.staffId,
+          token: data.token,
+          expiresAt:
+            data.expiresAt instanceof Date
+              ? data.expiresAt.toISOString()
+              : data.expiresAt,
+        };
+        const { data: created, error } = await supabase
+          .from("CenterStaffResetToken")
+          .insert(row)
+          .select("*")
+          .single();
+        if (error) throw error;
+        return created;
+      },
+
+      findUnique: async ({ where }: { where: { token: string } }) => {
+        const { data, error } = await supabase
+          .from("CenterStaffResetToken")
+          .select("*")
+          .eq("token", where.token)
+          .maybeSingle();
+        if (error && error.code !== "PGRST116") throw error;
+        return data;
+      },
+
+      delete: async ({ where }: { where: { token: string } }) => {
+        const { error } = await supabase
+          .from("CenterStaffResetToken")
+          .delete()
+          .eq("token", where.token);
+        if (error) throw error;
+        return { token: where.token };
+      },
     },
 
     centerStaffInvite: {
@@ -1231,6 +1404,247 @@ export const getDB = (c: Context) => {
       },
     },
     
+    donationCampaign: {
+      findMany: async ({ where, skip, take, orderBy, include }: any = {}) => {
+        let query = supabase.from("DonationCampaign").select("*");
+
+        if (where?.donorId) query = query.eq("donorId", where.donorId);
+        if (where?.status) query = query.eq("status", where.status);
+        if (where?.id) query = query.eq("id", where.id);
+        if (where?.availableAmount?.gt !== undefined) {
+          query = query.gt("availableAmount", where.availableAmount.gt);
+        }
+        if (where?.OR?.length) {
+          const searchTerm = where.OR.find(
+            (c: any) => c.purpose?.contains || c.title?.contains,
+          );
+          const term =
+            searchTerm?.purpose?.contains || searchTerm?.title?.contains;
+          if (term) {
+            query = query.or(
+              `purpose.ilike.%${term}%,title.ilike.%${term}%`,
+            );
+          }
+        }
+
+        if (orderBy?.createdAt === "desc") {
+          query = query.order("createdAt", { ascending: false });
+        } else if (orderBy?.createdAt === "asc") {
+          query = query.order("createdAt", { ascending: true });
+        }
+
+        if (skip != null) query = query.range(skip, skip + (take || 20) - 1);
+        else if (take) query = query.limit(take);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        return Promise.all(
+          (data || []).map((row) => enrichDonationCampaign(supabase, row, include)),
+        );
+      },
+
+      findFirst: async ({ where, include, orderBy, select }: any = {}) => {
+        let query = supabase.from("DonationCampaign").select("*");
+
+        if (where?.donorId) query = query.eq("donorId", where.donorId);
+        if (where?.status) query = query.eq("status", where.status);
+        if (where?.id) query = query.eq("id", where.id);
+        if (where?.availableAmount?.gt !== undefined) {
+          query = query.gt("availableAmount", where.availableAmount.gt);
+        }
+
+        if (orderBy?.createdAt === "desc") {
+          query = query.order("createdAt", { ascending: false });
+        }
+
+        const { data, error } = await query.limit(1).maybeSingle();
+        if (error && error.code !== "PGRST116") throw error;
+        if (!data) return null;
+
+        if (select) {
+          const picked: Record<string, unknown> = {};
+          for (const key of Object.keys(select)) {
+            if (select[key]) picked[key] = data[key];
+          }
+          return picked;
+        }
+
+        return enrichDonationCampaign(supabase, data, include);
+      },
+
+      findUnique: async ({ where, include, select }: any) => {
+        const { data, error } = await supabase
+          .from("DonationCampaign")
+          .select("*")
+          .eq("id", where.id)
+          .maybeSingle();
+        if (error && error.code !== "PGRST116") throw error;
+        if (!data) return null;
+
+        if (select) {
+          const picked: Record<string, unknown> = {};
+          for (const key of Object.keys(select)) {
+            if (select[key]) picked[key] = data[key];
+          }
+          return picked;
+        }
+
+        return enrichDonationCampaign(supabase, data, include);
+      },
+
+      count: async ({ where }: any = {}) => {
+        let query = supabase
+          .from("DonationCampaign")
+          .select("*", { count: "exact", head: true });
+
+        if (where?.donorId) query = query.eq("donorId", where.donorId);
+        if (where?.status) query = query.eq("status", where.status);
+        if (where?.OR?.length) {
+          const searchTerm = where.OR.find(
+            (c: any) => c.purpose?.contains || c.title?.contains,
+          );
+          const term =
+            searchTerm?.purpose?.contains || searchTerm?.title?.contains;
+          if (term) {
+            query = query.or(
+              `purpose.ilike.%${term}%,title.ilike.%${term}%`,
+            );
+          }
+        }
+
+        const { count, error } = await query;
+        if (error) throw error;
+        return count || 0;
+      },
+
+      create: async ({ data, include }: any) => {
+        const id = data.id || crypto.randomUUID();
+        const now = new Date().toISOString();
+        const row = {
+          id,
+          donorId: data.donorId,
+          totalAmount: data.totalAmount ?? 0,
+          availableAmount: data.availableAmount ?? 0,
+          title: data.title,
+          purpose: data.purpose ?? null,
+          targetGender: data.targetGender ?? null,
+          targetAgeRange: data.targetAgeRange ?? null,
+          targetStates:
+            typeof data.targetStates === "string"
+              ? data.targetStates
+              : JSON.stringify(data.targetStates ?? []),
+          targetLgas:
+            typeof data.targetLgas === "string"
+              ? data.targetLgas
+              : JSON.stringify(data.targetLgas ?? []),
+          status: data.status,
+          expiryDate: data.expiryDate
+            ? data.expiryDate instanceof Date
+              ? data.expiryDate.toISOString()
+              : data.expiryDate
+            : null,
+          targetAssociationId: data.targetAssociationId ?? null,
+          targetGroupId: data.targetGroupId ?? null,
+          targetIndividualId: data.targetIndividualId ?? null,
+          targetPhone: data.targetPhone ?? null,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        const { data: created, error } = await supabase
+          .from("DonationCampaign")
+          .insert(row)
+          .select("*")
+          .single();
+        if (error) throw error;
+
+        if (data.screeningTypes?.connect?.length) {
+          const links = data.screeningTypes.connect.map((c: { id: string }) => ({
+            A: id,
+            B: c.id,
+          }));
+          const { error: linkError } = await supabase
+            .from("_DonationCampaignScreeningTypes")
+            .insert(links);
+          if (linkError) throw linkError;
+        }
+
+        return enrichDonationCampaign(supabase, created, include);
+      },
+
+      update: async ({ where, data, include }: any) => {
+        const { data: current, error: fetchError } = await supabase
+          .from("DonationCampaign")
+          .select("*")
+          .eq("id", where.id)
+          .single();
+        if (fetchError) throw fetchError;
+
+        const updates: Record<string, unknown> = {};
+        for (const [key, val] of Object.entries(data)) {
+          if (key === "screeningTypes") continue;
+          if (val && typeof val === "object" && "increment" in (val as object)) {
+            updates[key] =
+              (Number(current[key]) || 0) + Number((val as { increment: number }).increment);
+          } else if (
+            val &&
+            typeof val === "object" &&
+            "decrement" in (val as object)
+          ) {
+            updates[key] =
+              (Number(current[key]) || 0) - Number((val as { decrement: number }).decrement);
+          } else if (key === "targetStates" || key === "targetLgas") {
+            updates[key] =
+              typeof val === "string" ? val : JSON.stringify(val ?? []);
+          } else if (key === "expiryDate" && val instanceof Date) {
+            updates[key] = val.toISOString();
+          } else {
+            updates[key] = val;
+          }
+        }
+        updates.updatedAt = new Date().toISOString();
+
+        const { data: updated, error } = await supabase
+          .from("DonationCampaign")
+          .update(updates)
+          .eq("id", where.id)
+          .select("*")
+          .single();
+        if (error) throw error;
+
+        if (data.screeningTypes?.connect) {
+          await supabase
+            .from("_DonationCampaignScreeningTypes")
+            .delete()
+            .eq("A", where.id);
+          const links = data.screeningTypes.connect.map((c: { id: string }) => ({
+            A: where.id,
+            B: c.id,
+          }));
+          if (links.length) {
+            const { error: linkError } = await supabase
+              .from("_DonationCampaignScreeningTypes")
+              .insert(links);
+            if (linkError) throw linkError;
+          }
+        }
+
+        return enrichDonationCampaign(supabase, updated, include);
+      },
+    },
+
+    donationAllocation: {
+      updateMany: async ({ where, data }: any) => {
+        let query = supabase.from("DonationAllocation").update(data);
+        if (where?.id?.in?.length) query = query.in("id", where.id.in);
+        if (where?.campaignId) query = query.eq("campaignId", where.campaignId);
+        const { error } = await query;
+        if (error) throw error;
+        return { count: where?.id?.in?.length ?? 0 };
+      },
+    },
+
     // Center Cashout operations
     centerCashout: {
       create: async ({ data }: any) => {
@@ -1326,6 +1740,10 @@ export const getDB = (c: Context) => {
         if (error) throw error;
         return count || 0;
       },
+    },
+
+    $transaction: async (fn: (tx: ReturnType<typeof getDB>) => Promise<unknown>) => {
+      return fn(getDB(c));
     },
   };
 };

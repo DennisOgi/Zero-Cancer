@@ -15,6 +15,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/shared/ui/form'
+import { Input } from '@/components/shared/ui/input'
 import { Progress } from '@/components/shared/ui/progress'
 import { Textarea } from '@/components/shared/ui/textarea'
 import { useResultManagement } from '@/hooks/useResultManagement'
@@ -43,9 +44,11 @@ import { z } from 'zod'
 
 // Schema for upload result form
 const resultUploadSchema = z.object({
-  // appointmentId: z.string(),
   notes: z.string().optional(),
   completionNotes: z.string().optional(),
+  kitSerialNumber: z
+    .string()
+    .min(1, 'Enter the kit serial number used for this screening'),
 })
 
 type ResultUploadFormData = z.infer<typeof resultUploadSchema>
@@ -80,13 +83,12 @@ export function ResultUploadComponent({
   )
   const appointmentResults = resultsData?.data
 
-  console.log(appointmentResults)
-
   const form = useForm<ResultUploadFormData>({
     resolver: zodResolver(resultUploadSchema),
     defaultValues: {
       notes: '',
       completionNotes: '',
+      kitSerialNumber: '',
     },
   })
 
@@ -196,6 +198,7 @@ export function ResultUploadComponent({
   const handleCompleteAppointment = (values: ResultUploadFormData) => {
     completeAppointment.mutate({
       completionNotes: values.completionNotes || undefined,
+      kitSerialNumber: values.kitSerialNumber,
     })
   }
 
@@ -281,7 +284,8 @@ export function ResultUploadComponent({
           (files) => files.length > 0,
         ))
     : false
-  const canCompleteAppointment = hasExistingFiles && !isUploading
+  const canCompleteAppointment =
+    appointmentData?.status === 'IN_PROGRESS' && !isUploading
 
   return (
     <div className="space-y-6">
@@ -530,9 +534,9 @@ export function ResultUploadComponent({
               <div className="space-y-4">
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                   <p className="text-sm text-green-800">
-                    Files have been uploaded successfully. You can now complete
-                    this appointment to notify the patient that results are
-                    ready.
+                    Mark this appointment complete after screening. Enter the kit
+                    serial number used — this unlocks structured report creation in
+                    the Reports section.
                   </p>
                 </div>
                 <Button
@@ -550,6 +554,26 @@ export function ResultUploadComponent({
                   onSubmit={form.handleSubmit(handleCompleteAppointment)}
                   className="space-y-4"
                 >
+                  <FormField
+                    control={form.control}
+                    name="kitSerialNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Kit serial number *</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter the Mobilab kit serial used"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Required to record kit usage before creating a structured report.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="completionNotes"

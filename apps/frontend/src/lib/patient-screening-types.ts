@@ -17,6 +17,15 @@ const MALE_SCREENING_ORDER = [
   'Colorectal Cancer Screening',
 ] as const
 
+function normalizeGender(
+  gender?: string | null,
+): 'MALE' | 'FEMALE' | null {
+  if (!gender) return null
+  const upper = gender.trim().toUpperCase()
+  if (upper === 'MALE' || upper === 'FEMALE') return upper
+  return null
+}
+
 function sortByNameOrder(
   items: TScreeningType[],
   order: readonly string[],
@@ -29,7 +38,7 @@ function sortByNameOrder(
 
 export function filterPatientScreeningTypes(
   screeningTypes: TScreeningType[],
-  gender?: 'MALE' | 'FEMALE' | null,
+  gender?: string | null,
 ): TScreeningType[] {
   const active = screeningTypes.filter(
     (item) =>
@@ -39,7 +48,9 @@ export function filterPatientScreeningTypes(
       ),
   )
 
-  if (gender === 'FEMALE') {
+  const normalizedGender = normalizeGender(gender)
+
+  if (normalizedGender === 'FEMALE') {
     const allowed = new Set<string>(FEMALE_SCREENING_ORDER)
     return sortByNameOrder(
       active.filter((item) => allowed.has(item.name)),
@@ -47,7 +58,7 @@ export function filterPatientScreeningTypes(
     )
   }
 
-  if (gender === 'MALE') {
+  if (normalizedGender === 'MALE') {
     const allowed = new Set<string>(MALE_SCREENING_ORDER)
     return sortByNameOrder(
       active.filter((item) => allowed.has(item.name)),
@@ -56,4 +67,10 @@ export function filterPatientScreeningTypes(
   }
 
   return []
+}
+
+export function hasPatientGenderForScreenings(
+  gender?: string | null,
+): boolean {
+  return normalizeGender(gender) !== null
 }

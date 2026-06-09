@@ -47,7 +47,14 @@ export default function DonationLogTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((log, index) => (
+            {items.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                  No donation entries yet.
+                </TableCell>
+              </TableRow>
+            ) : (
+              items.map((log, index) => (
               <TableRow key={index}>
                 <TableCell className="font-medium">{log.amount}</TableCell>
                 <TableCell>{log.sponsored}</TableCell>
@@ -66,7 +73,8 @@ export default function DonationLogTable({
                   </Button>
                 </TableCell>
               </TableRow>
-            ))}
+            ))
+            )}
           </TableBody>
         </Table>
       </CardContent>

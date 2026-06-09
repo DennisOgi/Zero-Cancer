@@ -224,39 +224,33 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
       ? (campaign.usedAmount / campaign.fundingAmount) * 100
       : 0
 
-  // Placeholder data for Donation Log and Campaign Impact
-  const donationLog = [
-    {
-      amount: '₦1,240,000',
-      sponsored: 200,
-      date: '10 Jul 2025',
-      status: 'Active',
-    },
-    {
-      amount: '₦20,000,000',
-      sponsored: 2000,
-      date: '10 Jul 2025',
-      status: 'Active',
-    },
-  ]
+  // Donation log reflects the campaign's recorded funding (additional top-ups can be added later)
+  const donationLog =
+    campaign.fundingAmount > 0
+      ? [
+          {
+            amount: formatCurrency(campaign.fundingAmount, 'NGN'),
+            sponsored: targetSponsored,
+            date: new Date(campaign.createdAt).toLocaleDateString('en-GB', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            }),
+            status: campaign.status === 'ACTIVE' ? 'Active' : campaign.status,
+          },
+        ]
+      : []
 
   const campaignImpact = [
     {
-      time: '10:30 AM',
-      message:
-        'A woman you sponsored in Lagos just completed her cervical cancer screening. Thank you for your support.',
+      time: 'Summary',
+      message: `${campaign.patientAllocations.patientsHelped} patients screened so far with this campaign.`,
     },
     {
-      time: '10:30 AM',
-      message:
-        'One of your beneficiaries has booked her screening appointment and will visit the clinic soon. Thank you for your support.',
+      time: 'Summary',
+      message: `${campaign.patientAllocations.patientPendingAcceptance} patients are awaiting screening.`,
     },
-    {
-      time: '10:30 AM',
-      message:
-        'A woman you helped tested positive and needs follow-up care to stay healthy. Thank you for your support.',
-    },
-  ]
+  ].filter((item) => !item.message.startsWith('0 patients'))
 
   return (
     <div className="p-4 md:p-6 space-y-6 bg-gray-50/50 min-h-screen">
@@ -269,7 +263,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
           <p className="text-gray-500 mt-1">Campaign Details & Impact</p>
         </div>
         <Badge className="bg-green-100 text-green-700 border border-green-200 text-sm px-3 py-1">
-          Active
+          {campaign.status}
         </Badge>
       </div>
 

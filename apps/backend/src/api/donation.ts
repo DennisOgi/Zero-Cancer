@@ -557,7 +557,10 @@ donationApp.get(
     const where: any = { donorId };
     if (status) where.status = status;
     if (search) {
-      where.purpose = { contains: search, mode: "insensitive" };
+      where.OR = [
+        { purpose: { contains: search, mode: "insensitive" } },
+        { title: { contains: search, mode: "insensitive" } },
+      ];
     }
 
     try {

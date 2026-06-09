@@ -113,7 +113,6 @@ export function CreateCampaignPage() {
     defaultValues: {
       title: '',
       description: '',
-      screeningTypeIds: [],
       fundingAmount: 10000,
       targetGender: 'ALL',
       targetStates: [],

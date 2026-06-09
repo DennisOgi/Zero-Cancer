@@ -1,4 +1,7 @@
-import { filterPatientScreeningTypes } from '@/lib/patient-screening-types'
+import {
+  filterPatientScreeningTypes,
+  hasPatientGenderForScreenings,
+} from '@/lib/patient-screening-types'
 import { useAuthUser } from '@/services/providers/auth.provider'
 import { useAllScreeningTypes } from '@/services/providers/screeningType.provider'
 import { useQuery } from '@tanstack/react-query'
@@ -19,6 +22,7 @@ export function usePatientEligibleScreeningTypes() {
   return {
     screenings: eligibleScreenings,
     gender,
+    hasGender: hasPatientGenderForScreenings(gender),
     isLoading: authQuery.isLoading || screeningQuery.isLoading,
     isError: authQuery.isError || screeningQuery.isError,
     error: authQuery.error || screeningQuery.error,

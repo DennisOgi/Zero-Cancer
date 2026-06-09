@@ -19,10 +19,21 @@ export default function StatusCard({ appointment }: StatusCardProps) {
   const handleViewDetails = () => {
     if (appointment) {
       navigate({
-        to: '/patient/appointments',
+        to: '/patient/appointments/$id',
+        params: { id: appointment.id },
       })
     }
   }
+
+  const formattedSchedule = appointment
+    ? new Date(appointment.appointmentDateTime).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '-'
 
   const isScheduled = !!appointment
 
@@ -44,19 +55,7 @@ export default function StatusCard({ appointment }: StatusCardProps) {
         <p className="text-gray-500">
           <span className="font-semibold">Location:</span>{' '}
           {isScheduled
-            ? `${appointment.center?.centerName}, ${new Date(
-                appointment.appointmentDate,
-              ).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })} |  ${new Date(appointment.appointmentTime).toLocaleTimeString(
-                [],
-                {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                },
-              )}`
+            ? `${appointment.center?.centerName || 'Screening center'}, ${formattedSchedule}`
             : '-'}
         </p>
         <div className="pt-2">

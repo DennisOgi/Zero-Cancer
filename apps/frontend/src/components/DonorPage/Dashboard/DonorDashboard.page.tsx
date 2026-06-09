@@ -54,7 +54,7 @@ export function DonorDashboardPage() {
           Welcome, {donorName} 👋
         </h1>
         <p className="text-gray-500 mt-1">
-          Here's a summary of your health journey.
+          Here's a summary of your giving impact.
         </p>
       </div>
 
@@ -68,7 +68,7 @@ export function DonorDashboardPage() {
                 <img src={center} alt="Hospital" className="w-48 h-48" />
               </div>
               <div className="relative">
-                <h2 className="text-2xl font-bold mb-6">Acme Foundation!</h2>
+                <h2 className="text-2xl font-bold mb-6">{donorName}</h2>
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
                     <p className="text-3xl font-bold">

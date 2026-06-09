@@ -27,7 +27,6 @@ export function CenterLayout() {
   const baseNavLinks = [
     { to: '/center', label: 'Dashboard', icon: cross },
     { to: '/center/register-patient', label: 'Patient Waitlist', icon: people },
-    { to: '/center/refer-patient', label: 'Refer Patient', icon: treatment }, // v1.0 - Patient referral system
     { to: '/center/appointments', label: 'Appointments', icon: calendar },
     { to: '/center/verify-code', label: 'Verify Code', icon: screening },
     { to: '/center/upload-results', label: 'Upload Results', icon: treatment },

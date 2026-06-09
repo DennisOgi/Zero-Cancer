@@ -53,7 +53,7 @@ payoutsApp.get("/center-balances", authMiddleware(["admin"]), async (c) => {
 // GET /api/payouts/center/:centerId/balance - Get specific center balance
 payoutsApp.get(
   "/center/:centerId/balance",
-  authMiddleware(["admin", "center_staff"]),
+  authMiddleware(["admin", "center", "center_staff"]),
   async (c) => {
     try {
       const centerId = c.req.param("centerId");
@@ -233,7 +233,7 @@ const listCenterPayoutsSchema = z.object({
 
 payoutsApp.get(
   "/center/:centerId",
-  authMiddleware(["admin", "center_staff"]),
+  authMiddleware(["admin", "center", "center_staff"]),
   zValidator("query", listCenterPayoutsSchema),
   async (c) => {
     try {
@@ -287,7 +287,7 @@ const listCenterTransactionsSchema = z.object({
 
 payoutsApp.get(
   "/center/:centerId/transactions",
-  authMiddleware(["admin", "center_staff"]),
+  authMiddleware(["admin", "center", "center_staff"]),
   zValidator("query", listCenterTransactionsSchema),
   async (c) => {
     try {
@@ -438,7 +438,7 @@ payoutsApp.post("/webhook/paystack", async (c) => {
 // GET /api/payouts/banks - Get Nigerian banks for recipient creation
 payoutsApp.get(
   "/banks",
-  authMiddleware(["admin", "center_staff"]),
+  authMiddleware(["admin", "center", "center_staff"]),
   async (c) => {
     try {
       const { PAYSTACK_SECRET_KEY } = env<{ PAYSTACK_SECRET_KEY: string }>(
@@ -473,7 +473,7 @@ const verifyAccountSchema = z.object({
 
 payoutsApp.post(
   "/verify-account",
-  authMiddleware(["admin", "center_staff"]),
+  authMiddleware(["admin", "center", "center_staff"]),
   zValidator("json", verifyAccountSchema),
   async (c) => {
     try {

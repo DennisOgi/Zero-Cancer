@@ -32,7 +32,12 @@ export default function CampaignImpactList({
         </Link>
       </CardHeader>
       <CardContent className="space-y-4">
-        {items.map((item, index) => (
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-6 text-center">
+            Impact updates will appear here as patients are matched and screened.
+          </p>
+        ) : (
+          items.map((item, index) => (
           <div
             key={index}
             className="flex items-start gap-4 p-3 rounded-lg bg-slate-50"
@@ -45,7 +50,8 @@ export default function CampaignImpactList({
               <p className="text-xs text-slate-500 mt-1">{item.time}</p>
             </div>
           </div>
-        ))}
+        ))
+        )}
       </CardContent>
     </Card>
   )

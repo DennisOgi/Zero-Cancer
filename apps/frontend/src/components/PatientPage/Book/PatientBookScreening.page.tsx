@@ -7,6 +7,7 @@ export function PatientBookScreeningPage() {
   const navigate = useNavigate()
   const {
     screenings: eligibleScreenings,
+    hasGender,
     isLoading: screeningTypesLoading,
     isError: screeningTypesError,
   } = usePatientEligibleScreeningTypes()
@@ -30,6 +31,11 @@ export function PatientBookScreeningPage() {
           <p>Loading screenings...</p>
         ) : screeningTypesError ? (
           <p>Error loading screenings.</p>
+        ) : !hasGender ? (
+          <p className="text-muted-foreground">
+            Your profile is missing gender information. Contact support to update
+            your profile before booking screenings.
+          </p>
         ) : eligibleScreenings.length === 0 ? (
           <p className="text-muted-foreground">
             No screenings are available for your profile yet. Contact support if

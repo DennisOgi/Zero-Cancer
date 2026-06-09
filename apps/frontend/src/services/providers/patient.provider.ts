@@ -19,10 +19,19 @@ export const useJoinWaitlist = () => {
   return useMutation({
     mutationKey: [MutationKeys.joinWaitlist],
     mutationFn: patientService.joinWaitlist,
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({
         queryKey: [QueryKeys.patientWaitlists],
       })
+      if (variables?.screeningTypeId) {
+        queryClient.invalidateQueries({
+          queryKey: [
+            QueryKeys.patientWaitlists,
+            'status',
+            variables.screeningTypeId,
+          ],
+        })
+      }
     },
   })
 }

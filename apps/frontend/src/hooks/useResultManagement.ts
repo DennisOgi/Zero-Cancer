@@ -104,10 +104,17 @@ export function useResultManagement({
 
   // Enhanced complete appointment function
   const completeAppointment = useMutation({
-    mutationFn: ({ completionNotes }: { completionNotes?: string }) =>
+    mutationFn: ({
+      completionNotes,
+      kitSerialNumber,
+    }: {
+      completionNotes?: string
+      kitSerialNumber: string
+    }) =>
       completeAppointmentMutation.mutateAsync({
         appointmentId,
         completionNotes,
+        kitSerialNumber,
       }),
     onSuccess: invalidateQueries,
     onError: (error: Error) => {

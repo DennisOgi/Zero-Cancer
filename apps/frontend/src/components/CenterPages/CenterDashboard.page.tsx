@@ -131,12 +131,6 @@ export function CenterDashboard() {
       isPrimary: true,
     },
     {
-      label: 'Refer Patient',
-      link: '/center/refer-patient',
-      icon: treatmentIcon,
-      isPrimary: true,
-    },
-    {
       label: 'Verify Check-in',
       link: '/center/verify-code',
       icon: screeningIcon,

@@ -17,8 +17,8 @@ function getStatusColor(status: string) {
 }
 
 function getCampaignProgress(campaign: any) {
-  if (!campaign?.targetAmount || campaign.targetAmount === 0) return 0
-  return Math.min((campaign.usedAmount / campaign.targetAmount) * 100, 100)
+  if (!campaign?.fundingAmount || campaign.fundingAmount === 0) return 0
+  return Math.min((campaign.usedAmount / campaign.fundingAmount) * 100, 100)
 }
 
 export default function RecentCampaignsTable({

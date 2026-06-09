@@ -61,7 +61,7 @@ export default function PatientForm({ onSubmitSuccess }: PatientFormProps) {
       password: '',
       phone: '',
       dateOfBirth: '',
-      gender: 'male',
+      gender: undefined,
       state: '',
       localGovernment: '',
     },
@@ -170,7 +170,7 @@ export default function PatientForm({ onSubmitSuccess }: PatientFormProps) {
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Phone Number</FormLabel>
+                  <FormLabel>WhatsApp Number</FormLabel>
                   <FormControl>
                     <PhoneInputComponent
                       value={field.value as RPNInput.Value}
@@ -303,8 +303,8 @@ export default function PatientForm({ onSubmitSuccess }: PatientFormProps) {
                         <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="MALE">Male</SelectItem>
+                        <SelectItem value="FEMALE">Female</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormControl>

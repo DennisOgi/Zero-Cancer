@@ -101,20 +101,20 @@ export function PatientNotificationsPage() {
 
     // Specific navigation logic
     if (notification.type === 'RESULTS_AVAILABLE') {
-      // Assuming results are linked to appointments for now
-      if (data?.appointmentId) {
-        navigate({ to: '/patient/appointments' })
-      }
+      navigate({ to: '/patient/reports' })
       return
     }
 
-    if (notification.type === 'DONATION_ALLOCATED') {
+    if (notification.type === 'MATCHED' || notification.type === 'DONATION_ALLOCATED') {
       navigate({ to: '/patient/book' })
       return
     }
 
     if (data?.appointmentId) {
-      navigate({ to: '/patient/appointments' })
+      navigate({
+        to: '/patient/appointments/$id',
+        params: { id: data.appointmentId },
+      })
       return
     }
   }

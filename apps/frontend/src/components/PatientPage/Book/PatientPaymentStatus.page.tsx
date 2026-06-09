@@ -38,8 +38,6 @@ export function PatientPaymentStatusPage({
   } = useQuery(useVerifyPayment(paymentRef))
 
   const payment = paymentData?.data
-  console.log(payment, 1112)
-
   // Auto-redirect timer for successful payments
   useEffect(() => {
     if (payment?.status === 'success' && redirectTimer > 0) {
