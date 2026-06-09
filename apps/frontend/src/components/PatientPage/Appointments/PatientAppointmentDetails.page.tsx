@@ -10,13 +10,21 @@ import {
 } from '@/components/shared/ui/card'
 import {
   Dialog,
+  DialogClose,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   DialogTrigger,
 } from '@/components/shared/ui/dialog'
 import { Separator } from '@/components/shared/ui/separator'
-import { usePatientAppointmentById } from '@/services/providers/patient.provider'
+import {
+  useCancelPatientAppointment,
+  usePatientAppointmentById,
+} from '@/services/providers/patient.provider'
 import { useSuspenseQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { format } from 'date-fns'
 import {
   AlertCircleIcon,
@@ -29,6 +37,8 @@ import {
   QrCodeIcon,
   UserCheckIcon,
 } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 
 interface PatientAppointmentDetailsPageProps {
   appointmentId: string
@@ -310,6 +320,39 @@ export function PatientAppointmentDetailsPage({
             </CardHeader>
             <CardContent className="space-y-4">
               {appointment.status === 'SCHEDULED' && <QRCodeDialog />}
+
+              {appointment.status === 'SCHEDULED' && (
+                <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="destructive" className="w-full">
+                      Cancel Appointment
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Cancel this appointment?</DialogTitle>
+                      <DialogDescription>
+                        This cannot be undone. You will need to book again if you
+                        still want a screening.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Keep appointment</Button>
+                      </DialogClose>
+                      <Button
+                        variant="destructive"
+                        onClick={handleCancel}
+                        disabled={cancelMutation.isPending}
+                      >
+                        {cancelMutation.isPending
+                          ? 'Cancelling...'
+                          : 'Yes, cancel'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
 
               <Button
                 asChild

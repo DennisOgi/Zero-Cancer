@@ -1922,6 +1922,65 @@ appointmentApp.get("/patient/:id", async (c) => {
   });
 });
 
+// POST /api/appointment/patient/:id/cancel - Patient cancels their appointment
+appointmentApp.post(
+  "/patient/:id/cancel",
+  zValidator("json", cancelCenterAppointmentSchema, (result, c) => {
+    if (!result.success) {
+      return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
+    }
+  }),
+  async (c) => {
+    const db = getDB(c);
+    const payload = c.get("jwtPayload");
+    if (!payload) {
+      return c.json<TErrorResponse>({ ok: false, error: "Unauthorized" }, 401);
+    }
+
+    const id = c.req.param("id");
+    const { reason } = c.req.valid("json");
+    const appointment = await db.appointment.findUnique({ where: { id } });
+
+    if (!appointment || appointment.patientId !== payload.id) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Appointment not found." },
+        404
+      );
+    }
+
+    if (appointment.status === "CANCELLED") {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Already cancelled." },
+        400
+      );
+    }
+
+    if (!["SCHEDULED", "PENDING"].includes(appointment.status)) {
+      return c.json<TErrorResponse>(
+        {
+          ok: false,
+          error: "Only scheduled appointments can be cancelled.",
+        },
+        400
+      );
+    }
+
+    await db.appointment.update({
+      where: { id },
+      data: {
+        status: "CANCELLED",
+        cancellationReason: reason || "Cancelled by patient",
+        cancellationDate: new Date(),
+      },
+    });
+
+    return c.json<TCancelCenterAppointmentResponse>({
+      ok: true,
+      data: { id: id! },
+    });
+  }
+);
+
 // GET /api/appointment/patient/:id/checkin-code - Get appointment check-in code
 appointmentApp.get("/patient/:id/checkin-code", async (c) => {
   const db = getDB(c);

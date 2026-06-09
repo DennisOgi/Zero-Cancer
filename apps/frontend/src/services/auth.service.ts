@@ -1,9 +1,11 @@
 import request from '@/lib/request'
 import * as endpoints from '@/services/endpoints'
 import { loginSchema } from '@zerocancer/shared/schemas/auth.schema'
+import { updatePatientProfileSchema } from '@zerocancer/shared/schemas/register.schema'
 import type {
   TActors,
   TAuthMeResponse,
+  TUpdatePatientProfileResponse,
   TForgotPasswordResponse,
   TLoginResponse,
   TLogoutResponse,
@@ -35,6 +37,12 @@ export const authUser = async (): Promise<TAuthMeResponse | null> => {
     console.error('Error fetching authenticated user:', error)
     return null
   }
+}
+
+export const updatePatientProfile = async (
+  data: z.infer<typeof updatePatientProfileSchema>,
+): Promise<TUpdatePatientProfileResponse> => {
+  return await request.patch(endpoints.updatePatientProfile(), data)
 }
 
 // logout

@@ -4,6 +4,7 @@ import cross from '@/assets/images/cross.png'
 import logo from '@/assets/images/logo.svg'
 import logoutIcon from '@/assets/images/logout.png'
 import notification from '@/assets/images/notification.png'
+import people from '@/assets/images/people.png'
 import stethoscope from '@/assets/images/stethoscope.png'
 import reportIcon from '@/assets/images/stethoscope.png'
 import { cn } from '@/lib/utils'
@@ -20,6 +21,7 @@ export function PatientLayout() {
     { to: '/patient/appointments', label: 'Appointments', icon: calendar },
     { to: '/patient/reports', label: 'Reports', icon: reportIcon },
     { to: '/patient/notifications', label: 'Notifications', icon: notification },
+    { to: '/patient/profile', label: 'Profile', icon: people },
   ]
 
   const { data } = useQuery(useNotifications())

@@ -463,7 +463,9 @@ export const updateMatchingConfig = () => `/api/admin/config/matching`
 export const getSystemHealth = () => `/api/admin/system/health`
 
 export const cancelPatientAppointment = (appointmentId: string) =>
-  `/api/appointment/${appointmentId}/cancel`
+  `/api/appointment/patient/${appointmentId}/cancel`
+
+export const updatePatientProfile = () => '/api/auth/patient-profile'
 
 // Payouts
 // PAYOUTS

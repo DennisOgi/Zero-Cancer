@@ -72,7 +72,17 @@ export type TAuthMeResponse = TDataResponse<{
     email: string;
     profile: "PATIENT" | "DONOR" | "CENTER" | "CENTER_STAFF" | "ADMIN";
     gender?: "MALE" | "FEMALE";
+    phone?: string;
+    dateOfBirth?: string;
+    state?: string;
+    localGovernment?: string;
   };
+}>;
+
+export type TUpdatePatientProfileResponse = TDataResponse<{
+  phone: string;
+  state: string;
+  localGovernment: string;
 }>;
 
 export type TRefreshTokenResponse = TDataResponse<{

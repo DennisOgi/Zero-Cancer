@@ -1,8 +1,9 @@
 import { zValidator } from "@hono/zod-validator";
-import { actorSchema, loginSchema } from "@zerocancer/shared";
+import { actorSchema, loginSchema, updatePatientProfileSchema } from "@zerocancer/shared";
 import type {
   TAuthMeResponse,
   TErrorResponse,
+  TUpdatePatientProfileResponse,
   TForgotPasswordResponse,
   TLoginResponse,
   TLogoutResponse,
@@ -262,10 +263,10 @@ authApp.get(
         },
       });
     }
-    // Fetch user data from database to get full name
     const user = await db.user.findUnique({
       where: { id: jwtPayload.id! },
-      select: { id: true, fullName: true, email: true },
+      include:
+        jwtPayload.profile === "PATIENT" ? { patientProfile: true } : undefined,
     });
 
     if (!user) {
@@ -278,17 +279,13 @@ authApp.get(
       );
     }
 
+    const patientProfile = user.patientProfile;
     let gender: "MALE" | "FEMALE" | undefined;
-    if (jwtPayload.profile === "PATIENT") {
-      const patientProfile = await db.patientProfile.findUnique({
-        where: { userId: jwtPayload.id! },
-      });
-      if (
-        patientProfile?.gender === "MALE" ||
-        patientProfile?.gender === "FEMALE"
-      ) {
-        gender = patientProfile.gender;
-      }
+    if (
+      patientProfile?.gender === "MALE" ||
+      patientProfile?.gender === "FEMALE"
+    ) {
+      gender = patientProfile.gender;
     }
 
     return c.json<TAuthMeResponse>({
@@ -300,7 +297,63 @@ authApp.get(
           email: user.email!,
           profile: jwtPayload.profile,
           ...(gender ? { gender } : {}),
+          ...(jwtPayload.profile === "PATIENT"
+            ? {
+                phone: user.phone ?? "",
+                dateOfBirth: patientProfile?.dateOfBirth
+                  ? String(patientProfile.dateOfBirth).split("T")[0]
+                  : "",
+                state: patientProfile?.state ?? "",
+                localGovernment: patientProfile?.city ?? "",
+              }
+            : {}),
         },
+      },
+    });
+  }
+);
+
+// PATCH /api/auth/patient-profile - Update patient contact and location
+authApp.patch(
+  "/patient-profile",
+  (c, next) => {
+    const { JWT_TOKEN_SECRET } = env<TEnvs>(c);
+    const jwtMiddleware = jwt({ secret: JWT_TOKEN_SECRET });
+    return jwtMiddleware(c, next);
+  },
+  zValidator("json", updatePatientProfileSchema, (result, c) => {
+    if (!result.success) {
+      return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
+    }
+  }),
+  async (c) => {
+    const jwtPayload = c.get("jwtPayload");
+    if (!jwtPayload || jwtPayload.profile !== "PATIENT") {
+      return c.json<TErrorResponse>({ ok: false, error: "Unauthorized" }, 403);
+    }
+
+    const db = getDB(c);
+    const data = c.req.valid("json");
+
+    await db.user.update({
+      where: { id: jwtPayload.id! },
+      data: { phone: data.phone },
+    });
+
+    await db.patientProfile.update({
+      where: { userId: jwtPayload.id! },
+      data: {
+        state: data.state,
+        city: data.localGovernment,
+      },
+    });
+
+    return c.json<TUpdatePatientProfileResponse>({
+      ok: true,
+      data: {
+        phone: data.phone,
+        state: data.state,
+        localGovernment: data.localGovernment,
       },
     });
   }

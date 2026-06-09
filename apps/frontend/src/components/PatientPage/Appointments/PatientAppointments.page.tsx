@@ -1,4 +1,3 @@
-import appointment from '@/assets/images/appointment.png'
 import AppointmentCard from '@/components/shared/AppointmentCard'
 import { Button } from '@/components/shared/ui/button'
 import {
@@ -7,26 +6,47 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/shared/ui/tabs'
-import { usePatientAppointments } from '@/services/providers/patient.provider'
+import {
+  useCancelPatientAppointment,
+  usePatientAppointments,
+} from '@/services/providers/patient.provider'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { PatientAppointmentsList } from './PatientAppointmentsList'
 import { PatientAppointmentsEmptyState } from './PatientAppointmentsEmptyState'
 
 export function PatientAppointmentsPage() {
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const cancelMutation = useCancelPatientAppointment()
+
   const {
     data: appointmentsData,
     isLoading,
     error,
   } = useQuery({
     ...usePatientAppointments({}),
-    refetchInterval: 1000 * 15, // If scanning for QRcode, refresh every 15 seconds
+    refetchInterval: 1000 * 15,
   })
 
   const handleCancelAppointment = (appointmentId: string) => {
-    toast.info('Cancelling appointment...')
+    setCancellingId(appointmentId)
+    cancelMutation.mutate(
+      { appointmentId, reason: 'Cancelled by patient' },
+      {
+        onSuccess: () => {
+          toast.success('Appointment cancelled successfully')
+        },
+        onError: (err: any) => {
+          toast.error(
+            err?.response?.data?.error || 'Failed to cancel appointment',
+          )
+        },
+        onSettled: () => setCancellingId(null),
+      },
+    )
   }
 
   const appointments = (appointmentsData?.data?.appointments || []).filter(
@@ -34,13 +54,8 @@ export function PatientAppointmentsPage() {
   )
 
   const today = new Date()
-  today.setHours(0, 0, 0, 0) // Set to beginning of today
+  today.setHours(0, 0, 0, 0)
 
-  // Correct filtering logic:
-  // - Past: All completed appointments (regardless of original date)
-  // - Upcoming: Only scheduled appointments in the future
-  // - Ongoing: All in-progress appointments
-  // - Cancelled: All cancelled appointments
   const pastAppointments = appointments.filter(
     (appt) => appt.status === 'COMPLETED',
   )
@@ -121,6 +136,7 @@ export function PatientAppointmentsPage() {
             <PatientAppointmentsList
               appointments={upcomingAppointments}
               onCancel={handleCancelAppointment}
+              cancellingId={cancellingId}
             />
           ) : (
             <PatientAppointmentsEmptyState
@@ -135,6 +151,7 @@ export function PatientAppointmentsPage() {
             <PatientAppointmentsList
               appointments={ongoingAppointments}
               onCancel={handleCancelAppointment}
+              cancellingId={cancellingId}
             />
           ) : (
             <PatientAppointmentsEmptyState
@@ -148,6 +165,7 @@ export function PatientAppointmentsPage() {
             <PatientAppointmentsList
               appointments={pastAppointments}
               onCancel={handleCancelAppointment}
+              cancellingId={cancellingId}
             />
           ) : (
             <PatientAppointmentsEmptyState
@@ -161,6 +179,7 @@ export function PatientAppointmentsPage() {
             <PatientAppointmentsList
               appointments={cancelledAppointments}
               onCancel={handleCancelAppointment}
+              cancellingId={cancellingId}
             />
           ) : (
             <PatientAppointmentsEmptyState

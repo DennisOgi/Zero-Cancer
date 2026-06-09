@@ -98,5 +98,14 @@ export const getPatientAppointmentByIdSchema = z.object({
 });
 
 // Export types
+export const updatePatientProfileSchema = z.object({
+  phone: z.string().min(7, { message: "Please enter a valid phone number." }),
+  state: z.string().min(1, { message: "Please select a state." }),
+  localGovernment: z
+    .string()
+    .min(1, { message: "Please select a local government." }),
+});
+
 export type TPatientRegister = z.infer<typeof patientSchema>;
+export type TUpdatePatientProfile = z.infer<typeof updatePatientProfileSchema>;
 export type TDonorRegister = z.infer<typeof donorSchema>;

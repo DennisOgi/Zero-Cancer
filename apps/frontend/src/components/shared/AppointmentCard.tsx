@@ -22,7 +22,6 @@ import {
   FlaskConical,
   MapPin,
 } from 'lucide-react'
-import { toast } from 'sonner'
 import CheckInQR from '../CheckInQR'
 
 interface AppointmentCardProps {
@@ -107,54 +106,38 @@ export default function AppointmentCard({
           <CheckInQR checkInCode={appointment.checkInCode} />
         )}
       </CardContent>
-      {/* <CardFooter className="flex justify-end space-x-2 bg-gray-50 py-3 px-6">
-        {isPast ? (
-          hasResult && (
-            <Button
-              size="sm"
-              onClick={() =>
-                toast.info('Viewing results is not yet implemented.')
-              }
-            >
-              View Result
-            </Button>
-          )
-        ) : (
-          <>
-            <Button size="sm" variant="outline">
-              Reschedule
-            </Button>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="destructive" disabled={isCancelling}>
-                  {isCancelling ? 'Cancelling...' : 'Cancel'}
+      {canCancel && (
+        <CardFooter className="flex justify-end bg-gray-50 py-3 px-6">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="destructive" disabled={isCancelling}>
+                {isCancelling ? 'Cancelling...' : 'Cancel Appointment'}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Cancel this appointment?</DialogTitle>
+                <DialogDescription>
+                  This action cannot be undone. You will need to book again if
+                  you still want a screening.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="ghost">Keep appointment</Button>
+                </DialogClose>
+                <Button
+                  variant="destructive"
+                  onClick={() => onCancel(appointment.id)}
+                  disabled={isCancelling}
+                >
+                  {isCancelling ? 'Cancelling...' : 'Yes, cancel'}
                 </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Are you sure?</DialogTitle>
-                  <DialogDescription>
-                    This action cannot be undone. This will permanently cancel
-                    your appointment.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="ghost">Go back</Button>
-                  </DialogClose>
-                  <Button
-                    variant="destructive"
-                    onClick={() => onCancel(appointment.id)}
-                    disabled={isCancelling}
-                  >
-                    {isCancelling ? 'Cancelling...' : 'Yes, cancel'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </>
-        )}
-      </CardFooter> */}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardFooter>
+      )}
     </Card>
   )
 }

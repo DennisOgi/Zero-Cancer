@@ -18,10 +18,12 @@ import { Input } from '@/components/shared/ui/input'
 import { Label } from '@/components/shared/ui/label'
 import { Progress } from '@/components/shared/ui/progress'
 import { Separator } from '@/components/shared/ui/separator'
+import { Textarea } from '@/components/shared/ui/textarea'
 import {
   useDeleteCampaign,
   useDonorCampaign,
   useFundCampaign,
+  useUpdateCampaign,
 } from '@/services/providers/donor.provider'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
@@ -138,7 +140,10 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   const navigate = useNavigate()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [fundDialogOpen, setFundDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [fundAmount, setFundAmount] = useState('')
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
 
   const {
     data: campaignData,
@@ -148,8 +153,91 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
 
   const deleteCampaignMutation = useDeleteCampaign()
   const fundCampaignMutation = useFundCampaign()
+  const updateCampaignMutation = useUpdateCampaign()
 
   const campaign = campaignData?.data
+
+  const openEditDialog = () => {
+    if (!campaign) return
+    setEditTitle(campaign.title)
+    setEditDescription(campaign.description || '')
+    setEditDialogOpen(true)
+  }
+
+  const handleShareCampaign = async () => {
+    if (!campaign) return
+    const shareUrl = `${window.location.origin}/donor/campaigns/${campaignId}`
+    const shareText = `Support "${campaign.title}" on ZeroCancer Africa — ${formatCurrency(campaign.fundingAmount, 'NGN')} raised so far.`
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: campaign.title,
+          text: shareText,
+          url: shareUrl,
+        })
+      } else {
+        await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`)
+        toast.success('Campaign link copied to clipboard')
+      }
+    } catch {
+      toast.error('Could not share campaign')
+    }
+  }
+
+  const handleDownloadReport = () => {
+    if (!campaign) return
+
+    const rows = [
+      ['Campaign Report', campaign.title],
+      ['Status', campaign.status],
+      ['Total Donated (NGN)', String(campaign.fundingAmount)],
+      ['Amount Used (NGN)', String(campaign.usedAmount)],
+      ['Patients Helped', String(campaign.patientAllocations.patientsHelped)],
+      [
+        'Pending Acceptance',
+        String(campaign.patientAllocations.patientPendingAcceptance),
+      ],
+      ['Target Gender', campaign.targetGender || 'ALL'],
+      ['Target States', (campaign.targetStates || []).join('; ')],
+      ['Created', new Date(campaign.createdAt).toISOString()],
+      ['Description', campaign.description || ''],
+    ]
+
+    const csv = rows
+      .map(([label, value]) =>
+        `"${String(label).replace(/"/g, '""')}","${String(value).replace(/"/g, '""')}"`,
+      )
+      .join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${campaign.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-report.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success('Report downloaded')
+  }
+
+  const handleEditCampaign = async () => {
+    if (!editTitle.trim() || editDescription.trim().length < 10) {
+      toast.error('Title and description (min 10 chars) are required.')
+      return
+    }
+
+    try {
+      await updateCampaignMutation.mutateAsync({
+        campaignId,
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+      })
+      toast.success('Campaign updated successfully')
+      setEditDialogOpen(false)
+    } catch {
+      toast.error('Failed to update campaign')
+    }
+  }
 
   const handleDelete = async () => {
     if (!campaign) return
@@ -353,9 +441,22 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
           label="Add Donation"
           onClick={() => setFundDialogOpen(true)}
         />
-        <ActionButton icon={Share2} label="Share Campaign" disabled />
-        <ActionButton icon={Edit} label="Edit Campaign" disabled />
-        <ActionButton icon={Download} label="Download Report" disabled />
+        <ActionButton
+          icon={Share2}
+          label="Share Campaign"
+          onClick={handleShareCampaign}
+        />
+        <ActionButton
+          icon={Edit}
+          label="Edit Campaign"
+          onClick={openEditDialog}
+          disabled={campaign.status !== 'ACTIVE'}
+        />
+        <ActionButton
+          icon={Download}
+          label="Download Report"
+          onClick={handleDownloadReport}
+        />
         <ActionButton
           icon={Trash2}
           label="End Campaign"
@@ -453,6 +554,50 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
               {fundCampaignMutation.isPending
                 ? 'Processing...'
                 : 'Proceed to Fund'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Campaign Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Campaign</DialogTitle>
+            <DialogDescription>
+              Update your campaign title and description. Funding and allocations
+              are not affected.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="edit-title">Campaign Title</Label>
+              <Input
+                id="edit-title"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                className="mt-2 min-h-[120px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditCampaign}
+              disabled={updateCampaignMutation.isPending}
+            >
+              {updateCampaignMutation.isPending ? 'Saving...' : 'Save changes'}
             </Button>
           </DialogFooter>
         </DialogContent>

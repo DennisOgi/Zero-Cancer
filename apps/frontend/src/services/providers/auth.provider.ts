@@ -50,6 +50,17 @@ export const useAuthUser = () =>
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
+export const useUpdatePatientProfile = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: [MutationKeys.updatePatientProfile],
+    mutationFn: authService.updatePatientProfile,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['authUser'] })
+    },
+  })
+}
+
 export const isAuthMiddleware = async (
   queryClient: QueryClient,
   actor?: TActors,

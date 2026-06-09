@@ -509,6 +509,7 @@ export const getDB = (c: Context) => {
         const updates: any = {};
         if (data.fullName) updates.fullName = data.fullName;
         if (data.email) updates.email = data.email;
+        if (data.phone !== undefined) updates.phone = data.phone;
         if (data.passwordHash) updates.passwordHash = data.passwordHash;
         
         let query = supabase.from('User').update(updates);
@@ -1197,6 +1198,15 @@ export const getDB = (c: Context) => {
         if (data.retailPriceSnapshot !== undefined) updates.retailPriceSnapshot = data.retailPriceSnapshot;
         if (data.paymentStatus) updates.paymentStatus = data.paymentStatus;
         if (data.status) updates.status = data.status;
+        if (data.cancellationReason !== undefined) {
+          updates.cancellationReason = data.cancellationReason;
+        }
+        if (data.cancellationDate !== undefined) {
+          updates.cancellationDate =
+            data.cancellationDate instanceof Date
+              ? data.cancellationDate.toISOString()
+              : data.cancellationDate;
+        }
         
         const { data: appointment, error } = await supabase
           .from('Appointment')
@@ -1642,6 +1652,231 @@ export const getDB = (c: Context) => {
         const { error } = await query;
         if (error) throw error;
         return { count: where?.id?.in?.length ?? 0 };
+      },
+    },
+
+    transaction: {
+      findMany: async ({ where, include, orderBy }: any = {}) => {
+        let transactionIds: string[] | null = null;
+        const centerId = where?.appointments?.some?.centerId;
+
+        if (centerId) {
+          const { data: appointments, error: apptError } = await supabase
+            .from("Appointment")
+            .select("id, transactionId, centerId, patientId, screeningTypeId, appointmentDateTime")
+            .eq("centerId", centerId);
+          if (apptError) throw apptError;
+
+          transactionIds = [
+            ...new Set(
+              (appointments || [])
+                .map((appt: { transactionId?: string | null }) => appt.transactionId)
+                .filter(Boolean) as string[],
+            ),
+          ];
+          if (transactionIds.length === 0) return [];
+        }
+
+        let query = supabase.from("Transaction").select("*");
+        if (where?.status) query = query.eq("status", where.status);
+        if (where?.id?.in?.length) query = query.in("id", where.id.in);
+        if (transactionIds) query = query.in("id", transactionIds);
+
+        if (orderBy?.createdAt === "desc") {
+          query = query.order("createdAt", { ascending: false });
+        }
+
+        const { data: transactions, error } = await query;
+        if (error) throw error;
+
+        let results = transactions || [];
+
+        if (where?.payoutItem === null) {
+          const { data: payoutItems, error: payoutItemError } = await supabase
+            .from("payout_items")
+            .select("transactionId");
+          if (payoutItemError) throw payoutItemError;
+          const paidIds = new Set(
+            (payoutItems || []).map(
+              (item: { transactionId: string }) => item.transactionId,
+            ),
+          );
+          results = results.filter((tx: { id: string }) => !paidIds.has(tx.id));
+        }
+
+        if (!include?.appointments) {
+          return results.map((tx: Record<string, unknown>) => ({
+            ...tx,
+            createdAt: new Date(String(tx.createdAt)),
+          }));
+        }
+
+        return Promise.all(
+          results.map(async (tx: Record<string, unknown>) => {
+            const { data: appointments } = await supabase
+              .from("Appointment")
+              .select("*")
+              .eq("transactionId", tx.id as string);
+
+            const enrichedAppointments = await Promise.all(
+              (appointments || []).map(async (appt: Record<string, unknown>) => {
+                const enriched: Record<string, unknown> = { ...appt };
+                const apptInclude = include.appointments.include || {};
+
+                if (apptInclude.patient) {
+                  const { data: patient } = await supabase
+                    .from("User")
+                    .select("id, fullName, email")
+                    .eq("id", appt.patientId as string)
+                    .maybeSingle();
+                  enriched.patient = patient;
+                }
+                if (apptInclude.center) {
+                  const { data: center } = await supabase
+                    .from("ServiceCenter")
+                    .select("centerName")
+                    .eq("id", appt.centerId as string)
+                    .maybeSingle();
+                  enriched.center = center;
+                }
+                if (apptInclude.screeningType) {
+                  const { data: screeningType } = await supabase
+                    .from("ScreeningType")
+                    .select("name")
+                    .eq("id", appt.screeningTypeId as string)
+                    .maybeSingle();
+                  enriched.screeningType = screeningType;
+                }
+
+                return enriched;
+              }),
+            );
+
+            return {
+              ...tx,
+              createdAt: new Date(String(tx.createdAt)),
+              appointments: enrichedAppointments,
+            };
+          }),
+        );
+      },
+
+      count: async ({ where }: any = {}) => {
+        let query = supabase
+          .from("Transaction")
+          .select("*", { count: "exact", head: true });
+        if (where?.status) query = query.eq("status", where.status);
+        const { count, error } = await query;
+        if (error) throw error;
+        return count || 0;
+      },
+    },
+
+    payout: {
+      findMany: async ({ where, skip, take, orderBy, include }: any = {}) => {
+        let query = supabase.from("payouts").select("*");
+        if (where?.centerId) query = query.eq("centerId", where.centerId);
+        if (where?.status) query = query.eq("status", where.status);
+        if (orderBy?.createdAt === "desc") {
+          query = query.order("createdAt", { ascending: false });
+        }
+        if (skip != null) query = query.range(skip, skip + (take || 20) - 1);
+        else if (take) query = query.limit(take);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        return Promise.all(
+          (data || []).map(async (payout: Record<string, unknown>) => {
+            const result: Record<string, unknown> = {
+              ...payout,
+              createdAt: new Date(String(payout.createdAt)),
+              completedAt: payout.completedAt
+                ? new Date(String(payout.completedAt))
+                : null,
+            };
+
+            if (include?.center) {
+              const { data: center } = await supabase
+                .from("ServiceCenter")
+                .select("centerName, email")
+                .eq("id", payout.centerId as string)
+                .maybeSingle();
+              result.center = center;
+            }
+
+            return result;
+          }),
+        );
+      },
+
+      findFirst: async ({ where, orderBy, select }: any = {}) => {
+        let query = supabase.from("payouts").select("*");
+        if (where?.centerId) query = query.eq("centerId", where.centerId);
+        if (where?.status) query = query.eq("status", where.status);
+        if (orderBy?.completedAt === "desc") {
+          query = query.order("completedAt", { ascending: false });
+        }
+
+        const { data, error } = await query.limit(1).maybeSingle();
+        if (error && error.code !== "PGRST116") throw error;
+        if (!data) return null;
+
+        if (select) {
+          const picked: Record<string, unknown> = {};
+          for (const key of Object.keys(select)) {
+            if (select[key]) {
+              picked[key] =
+                key === "completedAt" && data.completedAt
+                  ? new Date(String(data.completedAt))
+                  : data[key];
+            }
+          }
+          return picked;
+        }
+
+        return {
+          ...data,
+          completedAt: data.completedAt
+            ? new Date(String(data.completedAt))
+            : null,
+        };
+      },
+
+      count: async ({ where }: any = {}) => {
+        let query = supabase
+          .from("payouts")
+          .select("*", { count: "exact", head: true });
+        if (where?.centerId) query = query.eq("centerId", where.centerId);
+        if (where?.status) query = query.eq("status", where.status);
+        const { count, error } = await query;
+        if (error) throw error;
+        return count || 0;
+      },
+
+      aggregate: async ({ where, _sum }: any = {}) => {
+        let query = supabase.from("payouts").select("amount, status, centerId");
+        if (where?.centerId) query = query.eq("centerId", where.centerId);
+        if (where?.status?.in?.length) {
+          query = query.in("status", where.status.in);
+        } else if (where?.status) {
+          query = query.eq("status", where.status);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const sum = (data || []).reduce(
+          (acc: number, row: { amount?: number }) => acc + Number(row.amount || 0),
+          0,
+        );
+
+        return {
+          _sum: {
+            amount: _sum?.amount !== undefined ? sum : undefined,
+          },
+          _count: (data || []).length,
+        };
       },
     },
 

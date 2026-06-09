@@ -883,14 +883,16 @@ donationApp.patch(
       const updateFields: any = {};
 
       if (updateData.title !== undefined) {
-        updateFields.purpose = updateData.title; // Map title to purpose field
+        updateFields.title = updateData.title;
+      }
+
+      if (updateData.description !== undefined) {
+        updateFields.purpose = updateData.description;
       }
 
       if (updateData.targetGender !== undefined) {
         updateFields.targetGender =
-          updateData.targetGender === "ALL"
-            ? null
-            : updateData.targetGender === "MALE";
+          updateData.targetGender === "ALL" ? null : updateData.targetGender;
       }
 
       if (
@@ -920,17 +922,11 @@ donationApp.patch(
       }
 
       if (updateData.targetStates !== undefined) {
-        updateFields.targetState =
-          updateData.targetStates.length > 0
-            ? updateData.targetStates.join(",")
-            : null;
+        updateFields.targetStates = updateData.targetStates;
       }
 
       if (updateData.targetLgas !== undefined) {
-        updateFields.targetLga =
-          updateData.targetLgas.length > 0
-            ? updateData.targetLgas.join(",")
-            : null;
+        updateFields.targetLgas = updateData.targetLgas;
       }
 
       // Update campaign with new data

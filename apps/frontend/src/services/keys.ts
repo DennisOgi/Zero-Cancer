@@ -142,6 +142,7 @@ export enum MutationKeys {
 
   triggerWaitlistMatching = 'trigger-waitlist-matching',
   cancelAppointment = 'cancelAppointment',
+  updatePatientProfile = 'updatePatientProfile',
 
   // Waitlist Matching System
   triggerMatching = 'triggerMatching',

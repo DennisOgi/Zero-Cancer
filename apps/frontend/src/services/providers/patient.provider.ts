@@ -179,6 +179,25 @@ export function useSelectCenter() {
   })
 }
 
+export function useCancelPatientAppointment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: [MutationKeys.cancelAppointment],
+    mutationFn: ({
+      appointmentId,
+      reason,
+    }: {
+      appointmentId: string
+      reason?: string
+    }) => patientService.cancelPatientAppointment(appointmentId, reason),
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QueryKeys.authUser, QueryKeys.patientAppointments],
+      })
+    },
+  })
+}
+
 // Get patient appointments (paginated, filterable)
 export function usePatientAppointments(params: {
   page?: number

@@ -51,7 +51,7 @@ async function main() {
     const me = await fetch(`${BASE}/auth/me`, {
       headers: { Authorization: `Bearer ${patientToken}` },
     }).then((r) => r.json());
-    console.log('PATIENT_GENDER', me.data?.user?.patientProfile?.gender ?? 'missing');
+    console.log('PATIENT_GENDER', me.data?.user?.gender ?? 'missing');
   } catch (e) {
     console.log('PATIENT_ERR', e.message);
   }

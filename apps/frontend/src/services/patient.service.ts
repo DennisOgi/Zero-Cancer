@@ -13,6 +13,7 @@ import {
   leaveWaitlistSchema,
 } from '@zerocancer/shared/schemas/waitlist.schema'
 import type {
+  TCancelCenterAppointmentResponse,
   TBookSelfPayAppointmentResponse,
   TCheckWaitlistStatusResponse,
   // TGetPatientResultsResponse,
@@ -105,6 +106,18 @@ export const selectCenter = async (
 ): Promise<TSelectCenterResponse> => {
   const res = await request.post(endpoints.selectCenter(), data)
   return res as TSelectCenterResponse
+}
+
+// Cancel a scheduled patient appointment
+export const cancelPatientAppointment = async (
+  appointmentId: string,
+  reason?: string,
+): Promise<TCancelCenterAppointmentResponse> => {
+  const res = await request.post(
+    endpoints.cancelPatientAppointment(appointmentId),
+    { reason },
+  )
+  return res as TCancelCenterAppointmentResponse
 }
 
 // Get patient appointments (paginated, filterable)
