@@ -1,3 +1,4 @@
+import { Badge } from '@/components/shared/ui/badge'
 import { Button } from '@/components/shared/ui/button'
 import {
   Card,
@@ -6,6 +7,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/shared/ui/card'
+import {
+  groupByServiceCategory,
+  getServiceTypeLabel,
+  serviceTypeBadgeStyles,
+  serviceTypeOrder,
+} from '@/lib/service-types'
 import {
   addCenterMyServices,
   getCenterMyServices,
@@ -39,6 +46,16 @@ export function CenterServicesPage() {
         (type) => !offeredTypeIds.has(type.id),
       ),
     [offeredTypeIds, screeningTypesData?.data],
+  )
+
+  const currentByCategory = useMemo(
+    () => groupByServiceCategory(services),
+    [services],
+  )
+
+  const availableByCategory = useMemo(
+    () => groupByServiceCategory(availableToAdd),
+    [availableToAdd],
   )
 
   const addMutation = useMutation({
@@ -87,93 +104,111 @@ export function CenterServicesPage() {
       <div>
         <h1 className="text-2xl font-bold">Services Offered</h1>
         <p className="text-muted-foreground">
-          Manage the screening and vaccination services patients can book at your
-          center.
+          Manage vaccination, screening, and treatment services patients can
+          find and book at your center.
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Current services</CardTitle>
-          <CardDescription>
-            These services appear in search results and on your center profile.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {services.length === 0 ? (
-            <p className="text-muted-foreground">
-              No services added yet. Select services below to get started.
-            </p>
-          ) : (
-            services.map((service) => (
-              <div
-                key={service.id}
-                className="flex items-center justify-between rounded-lg border p-4"
-              >
-                <div>
-                  <p className="font-medium">{service.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Listed price: ₦{service.price.toLocaleString()}
-                  </p>
-                </div>
-                <Button
+      {serviceTypeOrder.map((category) => {
+        const current = currentByCategory[category]
+        const available = availableByCategory[category]
+        if (current.length === 0 && available.length === 0) return null
+
+        return (
+          <Card key={category}>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <CardTitle>{getServiceTypeLabel(category)}</CardTitle>
+                <Badge
                   variant="outline"
-                  size="sm"
-                  disabled={removeMutation.isPending}
-                  onClick={() => removeMutation.mutate(service.screeningTypeId)}
+                  className={serviceTypeBadgeStyles[category]}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Remove
-                </Button>
+                  {current.length} offered
+                </Badge>
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+              <CardDescription>
+                {category === 'vaccination' &&
+                  'Immunizations such as HPV and Hepatitis B vaccines.'}
+                {category === 'screening' &&
+                  'Cancer and diagnostic screenings offered at your center.'}
+                {category === 'treatment' &&
+                  'Oncology consultations and treatment services.'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {current.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No {getServiceTypeLabel(category).toLowerCase()} services
+                  added yet.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {current.map((service) => (
+                    <div
+                      key={service.id}
+                      className="flex items-center justify-between rounded-lg border p-4"
+                    >
+                      <div>
+                        <p className="font-medium">{service.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Listed price: ₦{service.price.toLocaleString()}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={removeMutation.isPending}
+                        onClick={() =>
+                          removeMutation.mutate(service.screeningTypeId)
+                        }
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Add services</CardTitle>
-          <CardDescription>
-            Choose from the platform catalog. New services use the agreed base
-            price by default.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {availableToAdd.length === 0 ? (
-            <p className="text-muted-foreground">
-              You already offer all available services.
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {availableToAdd.map((type) => (
-                <Button
-                  key={type.id}
-                  type="button"
-                  variant={
-                    selectedToAdd.includes(type.id) ? 'default' : 'outline'
-                  }
-                  onClick={() => toggleSelection(type.id)}
-                >
-                  {type.name}
-                </Button>
-              ))}
-            </div>
-          )}
+              {available.length > 0 && (
+                <div className="space-y-3 border-t pt-4">
+                  <p className="text-sm font-medium">
+                    Add {getServiceTypeLabel(category).toLowerCase()} services
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {available.map((type) => (
+                      <Button
+                        key={type.id}
+                        type="button"
+                        variant={
+                          selectedToAdd.includes(type.id)
+                            ? 'default'
+                            : 'outline'
+                        }
+                        onClick={() => toggleSelection(type.id)}
+                      >
+                        {type.name}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )
+      })}
 
-          <Button
-            disabled={selectedToAdd.length === 0 || addMutation.isPending}
-            onClick={() => addMutation.mutate(selectedToAdd)}
-          >
-            {addMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4 mr-2" />
-            )}
-            Add selected services
-          </Button>
-        </CardContent>
-      </Card>
+      <Button
+        disabled={selectedToAdd.length === 0 || addMutation.isPending}
+        onClick={() => addMutation.mutate(selectedToAdd)}
+      >
+        {addMutation.isPending ? (
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        ) : (
+          <Plus className="h-4 w-4 mr-2" />
+        )}
+        Add selected services
+      </Button>
     </div>
   )
 }

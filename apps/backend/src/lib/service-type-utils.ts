@@ -11,7 +11,7 @@ export const serviceTypeFilters = {
   },
   treatment: {
     categoryIds: ["treatment", "treatement"],
-    terms: ["treatment"],
+    terms: ["treatment", "therapy"],
   },
 } as const;
 

@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -25,6 +25,11 @@ import {
 } from '@/components/shared/ui/select'
 import { useCenterRegistration } from '@/services/providers/register.provider'
 import { useAllScreeningTypes } from '@/services/providers/screeningType.provider'
+import {
+  groupByServiceCategory,
+  getServiceTypeLabel,
+  serviceTypeOrder,
+} from '@/lib/service-types'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import statesData from '@zerocancer/shared/constants/states.json'
@@ -112,6 +117,10 @@ export default function ScreeningCenterForm({
 
   // Get screening types for the services selection
   const screeningTypes = screeningTypesResponse?.data || []
+  const servicesByCategory = useMemo(
+    () => groupByServiceCategory(screeningTypes),
+    [screeningTypes],
+  )
 
   return (
     <Form {...form}>
@@ -208,38 +217,52 @@ export default function ScreeningCenterForm({
             <FormItem>
               <FormLabel>Services Offered</FormLabel>
               <FormDescription>
-                Select all services offered at your center.
+                Select vaccination, screening, and treatment services offered at
+                your center.
               </FormDescription>
               {isLoadingScreeningTypes ? (
                 <div className="flex justify-center py-4">
                   <div className="animate-spin h-5 w-5 border-2 border-gray-300 border-t-blue-600 rounded-full"></div>
                 </div>
               ) : (
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {screeningTypes.map((screeningType) => (
-                    <Button
-                      type="button"
-                      key={screeningType.id}
-                      variant={
-                        field.value.includes(screeningType.id)
-                          ? 'default'
-                          : 'outline'
-                      }
-                      onClick={() => {
-                        const currentServices = field.value
-                        const newServices = currentServices.includes(
-                          screeningType.id,
-                        )
-                          ? currentServices.filter(
-                              (s) => s !== screeningType.id,
-                            )
-                          : [...currentServices, screeningType.id]
-                        field.onChange(newServices)
-                      }}
-                    >
-                      {screeningType.name}
-                    </Button>
-                  ))}
+                <div className="space-y-5 pt-2">
+                  {serviceTypeOrder.map((category) => {
+                    const types = servicesByCategory[category]
+                    if (types.length === 0) return null
+                    return (
+                      <div key={category} className="space-y-2">
+                        <p className="text-sm font-semibold">
+                          {getServiceTypeLabel(category)}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {types.map((screeningType) => (
+                            <Button
+                              type="button"
+                              key={screeningType.id}
+                              variant={
+                                field.value.includes(screeningType.id)
+                                  ? 'default'
+                                  : 'outline'
+                              }
+                              onClick={() => {
+                                const currentServices = field.value
+                                const newServices = currentServices.includes(
+                                  screeningType.id,
+                                )
+                                  ? currentServices.filter(
+                                      (s) => s !== screeningType.id,
+                                    )
+                                  : [...currentServices, screeningType.id]
+                                field.onChange(newServices)
+                              }}
+                            >
+                              {screeningType.name}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
               <FormMessage />
