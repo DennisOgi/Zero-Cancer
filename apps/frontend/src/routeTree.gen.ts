@@ -29,6 +29,7 @@ import { Route as CenterWalletRouteImport } from './routes/center/wallet'
 import { Route as CenterVerifyCodeRouteImport } from './routes/center/verify-code'
 import { Route as CenterUploadResultsRouteImport } from './routes/center/upload-results'
 import { Route as CenterStaffRouteImport } from './routes/center/staff'
+import { Route as CenterServicesRouteImport } from './routes/center/services'
 import { Route as CenterReportsRouteImport } from './routes/center/reports'
 import { Route as CenterRegisterPatientRouteImport } from './routes/center/register-patient'
 import { Route as CenterReferPatientRouteImport } from './routes/center/refer-patient'
@@ -181,6 +182,11 @@ const CenterUploadResultsRoute = CenterUploadResultsRouteImport.update({
 const CenterStaffRoute = CenterStaffRouteImport.update({
   id: '/staff',
   path: '/staff',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterServicesRoute = CenterServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
   getParentRoute: () => CenterRouteRoute,
 } as any)
 const CenterReportsRoute = CenterReportsRouteImport.update({
@@ -501,6 +507,7 @@ export interface FileRoutesByFullPath {
   '/center/refer-patient': typeof CenterReferPatientRoute
   '/center/register-patient': typeof CenterRegisterPatientRoute
   '/center/reports': typeof CenterReportsRoute
+  '/center/services': typeof CenterServicesRoute
   '/center/staff': typeof CenterStaffRoute
   '/center/upload-results': typeof CenterUploadResultsRoute
   '/center/verify-code': typeof CenterVerifyCodeRoute
@@ -572,6 +579,7 @@ export interface FileRoutesByTo {
   '/center/refer-patient': typeof CenterReferPatientRoute
   '/center/register-patient': typeof CenterRegisterPatientRoute
   '/center/reports': typeof CenterReportsRoute
+  '/center/services': typeof CenterServicesRoute
   '/center/staff': typeof CenterStaffRoute
   '/center/upload-results': typeof CenterUploadResultsRoute
   '/center/verify-code': typeof CenterVerifyCodeRoute
@@ -650,6 +658,7 @@ export interface FileRoutesById {
   '/center/refer-patient': typeof CenterReferPatientRoute
   '/center/register-patient': typeof CenterRegisterPatientRoute
   '/center/reports': typeof CenterReportsRoute
+  '/center/services': typeof CenterServicesRoute
   '/center/staff': typeof CenterStaffRoute
   '/center/upload-results': typeof CenterUploadResultsRoute
   '/center/verify-code': typeof CenterVerifyCodeRoute
@@ -727,6 +736,7 @@ export interface FileRouteTypes {
     | '/center/refer-patient'
     | '/center/register-patient'
     | '/center/reports'
+    | '/center/services'
     | '/center/staff'
     | '/center/upload-results'
     | '/center/verify-code'
@@ -798,6 +808,7 @@ export interface FileRouteTypes {
     | '/center/refer-patient'
     | '/center/register-patient'
     | '/center/reports'
+    | '/center/services'
     | '/center/staff'
     | '/center/upload-results'
     | '/center/verify-code'
@@ -875,6 +886,7 @@ export interface FileRouteTypes {
     | '/center/refer-patient'
     | '/center/register-patient'
     | '/center/reports'
+    | '/center/services'
     | '/center/staff'
     | '/center/upload-results'
     | '/center/verify-code'
@@ -1067,6 +1079,13 @@ declare module '@tanstack/react-router' {
       path: '/staff'
       fullPath: '/center/staff'
       preLoaderRoute: typeof CenterStaffRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/services': {
+      id: '/center/services'
+      path: '/services'
+      fullPath: '/center/services'
+      preLoaderRoute: typeof CenterServicesRouteImport
       parentRoute: typeof CenterRouteRoute
     }
     '/center/reports': {
@@ -1580,6 +1599,7 @@ interface CenterRouteRouteChildren {
   CenterReferPatientRoute: typeof CenterReferPatientRoute
   CenterRegisterPatientRoute: typeof CenterRegisterPatientRoute
   CenterReportsRoute: typeof CenterReportsRoute
+  CenterServicesRoute: typeof CenterServicesRoute
   CenterStaffRoute: typeof CenterStaffRoute
   CenterUploadResultsRoute: typeof CenterUploadResultsRoute
   CenterVerifyCodeRoute: typeof CenterVerifyCodeRoute
@@ -1595,6 +1615,7 @@ const CenterRouteRouteChildren: CenterRouteRouteChildren = {
   CenterReferPatientRoute: CenterReferPatientRoute,
   CenterRegisterPatientRoute: CenterRegisterPatientRoute,
   CenterReportsRoute: CenterReportsRoute,
+  CenterServicesRoute: CenterServicesRoute,
   CenterStaffRoute: CenterStaffRoute,
   CenterUploadResultsRoute: CenterUploadResultsRoute,
   CenterVerifyCodeRoute: CenterVerifyCodeRoute,

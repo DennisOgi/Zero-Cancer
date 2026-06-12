@@ -27,7 +27,7 @@ import { setCookie } from "hono/cookie";
 import { sign, verify } from "hono/jwt";
 import { getDB } from "../lib/db";
 import { sendEmail } from "../lib/email";
-import { serviceTypeFilters } from "../lib/service-type-utils";
+import type { ServiceTypeKey } from "../lib/service-type-utils";
 import { getSupabaseClient } from "../lib/supabase";
 import { TEnvs, THonoApp } from "../lib/types";
 import { comparePassword, hashPassword } from "../lib/utils";
@@ -36,14 +36,25 @@ import { authMiddleware } from "../middleware/auth.middleware";
 export const centerApp = new Hono<THonoApp>();
 
 // GET /api/center - List centers (paginated, filtered, searched)
-centerApp.get(
-  "/",
-  zValidator("query", getCentersQuerySchema, (result, c) => {
-    if (!result.success)
-      return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
-  }),
-  async (c) => {
+centerApp.get("/", async (c) => {
     const db = getDB(c);
+    const queryParse = getCentersQuerySchema.safeParse({
+      page: c.req.query("page"),
+      pageSize: c.req.query("pageSize"),
+      search: c.req.query("search"),
+      status: c.req.query("status"),
+      state: c.req.query("state"),
+      lga: c.req.query("lga"),
+      serviceType: c.req.query("serviceType"),
+    });
+
+    if (!queryParse.success) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: queryParse.error.flatten() },
+        400
+      );
+    }
+
     const {
       page = 1,
       pageSize = 20,
@@ -52,7 +63,7 @@ centerApp.get(
       state,
       lga,
       serviceType,
-    } = c.req.valid("query");
+    } = queryParse.data;
 
     try {
       const where: any = {};
@@ -68,22 +79,7 @@ centerApp.get(
       if (lga) where.lga = lga;
 
       if (serviceType) {
-        const filter = serviceTypeFilters[serviceType];
-        where.screeningTypes = {
-          some: {
-            screeningType: {
-              OR: [
-                { screeningTypeCategoryId: { in: filter.categoryIds } },
-                ...filter.terms.map((term) => ({
-                  name: { contains: term, mode: "insensitive" },
-                })),
-                ...filter.terms.map((term) => ({
-                  category: { name: { contains: term, mode: "insensitive" } },
-                })),
-              ],
-            },
-          },
-        };
+        where._serviceTypeKey = serviceType as ServiceTypeKey;
       }
 
       const [centers, total] = await Promise.all([
@@ -111,38 +107,43 @@ centerApp.get(
         db.serviceCenter.count({ where }),
       ]);
 
-      const formattedCenters = centers.map((center) => {
-        const services = Array.isArray(center.screeningTypes)
-          ? center.screeningTypes.map((service) => ({
-              id: service.screeningType.id,
-              name: service.screeningType.name,
-              price: service.amount || 0,
-            }))
-          : (center.services || []).map((service) => ({
-              id: service.id,
-              name: service.name,
-              price: service.price || service.amount || 0,
-            }));
+      const formattedCenters = centers
+        .map((center) => {
+          const services = Array.isArray(center.screeningTypes)
+            ? center.screeningTypes.map((service) => ({
+                id: service.screeningType.id,
+                name: service.screeningType.name,
+                price: service.amount || 0,
+              }))
+            : (center.services || []).map((service) => ({
+                id: service.id,
+                name: service.name,
+                price: service.price || service.amount || 0,
+              }));
 
-        return {
-          id: center.id,
-          email: center.email,
-          centerName: center.centerName,
-          address: center.address,
-          state: center.state,
-          lga: center.lga,
-          phone: center.phone,
-          bankAccount: center.bankAccount,
-          bankName: center.bankName,
-          status: center.status?.toString?.() ?? String(center.status ?? ''),
-          createdAt:
-            center.createdAt instanceof Date
-              ? center.createdAt.toISOString()
-              : center.createdAt,
-          services,
-          staff: center.staff,
-        };
-      });
+          return {
+            id: center.id,
+            email: center.email,
+            centerName: center.centerName,
+            address: center.address,
+            state: center.state,
+            lga: center.lga,
+            phone: center.phone,
+            bankAccount: center.bankAccount,
+            bankName: center.bankName,
+            status: center.status?.toString?.() ?? String(center.status ?? ""),
+            createdAt:
+              center.createdAt instanceof Date
+                ? center.createdAt.toISOString()
+                : center.createdAt,
+            services,
+            staff: center.staff,
+          };
+        })
+        .sort((a, b) => b.services.length - a.services.length)
+        .filter((center) =>
+          serviceType ? center.services.length > 0 : true,
+        );
 
       return c.json<TGetCentersResponse>({
         ok: true,
@@ -162,6 +163,163 @@ centerApp.get(
 
       return c.json<TErrorResponse>(
         { ok: false, error: "Failed to load centers" },
+        500
+      );
+    }
+  }
+);
+
+// GET /api/center/my-services - List services offered by the logged-in center
+centerApp.get(
+  "/my-services",
+  authMiddleware(["center", "center_staff"]),
+  async (c) => {
+    const db = getDB(c);
+    const payload = c.get("jwtPayload");
+    const centerId = payload?.centerId || payload?.id;
+
+    if (!centerId) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Center ID not found" },
+        400
+      );
+    }
+
+    try {
+      const links = await db.serviceCenterScreeningType.findMany({
+        where: { centerId },
+        include: {
+          screeningType: {
+            select: { id: true, name: true, description: true, agreedPrice: true },
+          },
+        },
+      });
+
+      const services = links.map((link: any) => ({
+        id: link.id,
+        screeningTypeId: link.screeningTypeId,
+        name: link.screeningType?.name || "",
+        description: link.screeningType?.description || null,
+        agreedPrice: link.screeningType?.agreedPrice || 0,
+        price: link.amount || 0,
+      }));
+
+      return c.json({ ok: true, data: { services } });
+    } catch (error) {
+      console.error("Get center services error:", error);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to load services" },
+        500
+      );
+    }
+  }
+);
+
+// POST /api/center/my-services - Add screening services to the center
+centerApp.post(
+  "/my-services",
+  authMiddleware(["center", "center_staff"]),
+  async (c) => {
+    const db = getDB(c);
+    const payload = c.get("jwtPayload");
+    const centerId = payload?.centerId || payload?.id;
+
+    if (!centerId) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Center ID not found" },
+        400
+      );
+    }
+
+    const body = await c.req.json<{ screeningTypeIds?: string[] }>();
+    const screeningTypeIds = body.screeningTypeIds || [];
+
+    if (screeningTypeIds.length === 0) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Select at least one service to add" },
+        400
+      );
+    }
+
+    try {
+      const existing = await db.serviceCenterScreeningType.findMany({
+        where: { centerId },
+      });
+      const existingTypeIds = new Set(
+        existing.map((link: { screeningTypeId: string }) => link.screeningTypeId)
+      );
+
+      const added = [];
+      for (const screeningTypeId of screeningTypeIds) {
+        if (existingTypeIds.has(screeningTypeId)) continue;
+
+        const screeningType = await db.screeningType.findUnique({
+          where: { id: screeningTypeId },
+        });
+        if (!screeningType) continue;
+
+        const link = await db.serviceCenterScreeningType.create({
+          data: {
+            centerId,
+            screeningTypeId,
+            amount: screeningType.agreedPrice || 10000,
+          },
+          include: {
+            screeningType: {
+              select: { id: true, name: true, agreedPrice: true },
+            },
+          },
+        });
+        added.push(link);
+      }
+
+      return c.json({
+        ok: true,
+        message:
+          added.length > 0
+            ? `Added ${added.length} service(s)`
+            : "Selected services are already offered",
+        data: { addedCount: added.length },
+      });
+    } catch (error) {
+      console.error("Add center services error:", error);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to add services" },
+        500
+      );
+    }
+  }
+);
+
+// DELETE /api/center/my-services/:screeningTypeId - Remove a service from the center
+centerApp.delete(
+  "/my-services/:screeningTypeId",
+  authMiddleware(["center", "center_staff"]),
+  async (c) => {
+    const db = getDB(c);
+    const payload = c.get("jwtPayload");
+    const centerId = payload?.centerId || payload?.id;
+    const screeningTypeId = c.req.param("screeningTypeId");
+
+    if (!centerId) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Center ID not found" },
+        400
+      );
+    }
+
+    try {
+      await db.serviceCenterScreeningType.delete({
+        where: {
+          centerId_screeningTypeId: { centerId, screeningTypeId },
+        },
+      });
+
+      return c.json({ ok: true, message: "Service removed" });
+    } catch (error) {
+      console.error("Remove center service error:", error);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to remove service" },
         500
       );
     }

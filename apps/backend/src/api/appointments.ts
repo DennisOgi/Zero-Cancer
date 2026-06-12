@@ -1030,6 +1030,7 @@ appointmentApp.post(
       return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
   }),
   async (c) => {
+    try {
     const db = getDB(c);
     const {
       screeningTypeId,
@@ -1069,7 +1070,8 @@ appointmentApp.post(
     }
 
     // Get base price and retail price for price snapshots
-    const basePrice = result.screeningType.basePrice;
+    const basePrice =
+      result.screeningType.agreedPrice ?? result.screeningType.basePrice ?? 0;
     const retailPrice = result.amount; // The amount is the retail price set by the center
 
     // TODO: Validate input, authenticate user, verify payment with Paystack
@@ -1113,16 +1115,25 @@ appointmentApp.post(
       },
     });
 
-    const paystackResponse = await initializePaystackPayment(c, {
-      email: payload.email!,
-      amount: result.amount * 100, // Use the amount from the screening type
-      reference: paymentReference,
-      paymentType: "appointment_booking",
-      patientId: userId,
-      metadata: {
-        appointmentId: appointment.id,
-      },
-    });
+    let paystackResponse: {
+      authorization_url?: string;
+      access_code?: string;
+    } | null = null;
+
+    try {
+      paystackResponse = await initializePaystackPayment(c, {
+        email: payload.email!,
+        amount: result.amount * 100,
+        reference: paymentReference,
+        paymentType: "appointment_booking",
+        patientId: userId,
+        metadata: {
+          appointmentId: appointment.id,
+        },
+      });
+    } catch (paystackError) {
+      console.error("Paystack initialization failed for booking:", paystackError);
+    }
 
     // Strictly shape the appointment object to TPatientAppointment
     const safeAppointment = {
@@ -1166,7 +1177,10 @@ appointmentApp.post(
             amount: appointment.transaction.amount!,
             paymentReference: appointment.transaction.paymentReference!,
             paymentChannel: appointment.transaction.paymentChannel!,
-            createdAt: appointment.transaction.createdAt.toISOString(),
+            createdAt:
+              appointment.transaction.createdAt instanceof Date
+                ? appointment.transaction.createdAt.toISOString()
+                : String(appointment.transaction.createdAt),
           }
         : undefined,
       result: appointment.result ? { id: appointment.result.id! } : undefined, // Add more fields if needed
@@ -1175,14 +1189,23 @@ appointmentApp.post(
       ok: true,
       data: {
         appointment: safeAppointment,
-        payment: {
-          transactionId: paymentReference,
-          reference: paymentReference,
-          authorizationUrl: paystackResponse.authorization_url,
-          accessCode: paystackResponse.access_code,
-        },
+        payment: paystackResponse
+          ? {
+              transactionId: paymentReference,
+              reference: paymentReference,
+              authorizationUrl: paystackResponse.authorization_url,
+              accessCode: paystackResponse.access_code,
+            }
+          : undefined,
       },
     });
+    } catch (error) {
+      console.error("Patient book appointment error:", error);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to book appointment" },
+        500
+      );
+    }
   }
 );
 

@@ -59,6 +59,35 @@ export const getCenters = async (
   return res as TGetCentersResponse
 }
 
+export const getCenterMyServices = async () => {
+  const res = await request.get(endpoints.getCenterMyServices())
+  return res as {
+    ok: boolean
+    data: {
+      services: Array<{
+        id: string
+        screeningTypeId: string
+        name: string
+        description: string | null
+        agreedPrice: number
+        price: number
+      }>
+    }
+  }
+}
+
+export const addCenterMyServices = async (screeningTypeIds: string[]) => {
+  const res = await request.post(endpoints.addCenterMyServices(), {
+    screeningTypeIds,
+  })
+  return res as { ok: boolean; message: string; data: { addedCount: number } }
+}
+
+export const removeCenterMyService = async (screeningTypeId: string) => {
+  const res = await request.delete(endpoints.removeCenterMyService(screeningTypeId))
+  return res as { ok: boolean; message: string }
+}
+
 export const getCenterById = async (
   id: string,
 ): Promise<TGetCenterByIdResponse> => {

@@ -13,7 +13,13 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/shared/ui/form'
-import { Input } from '@/components/shared/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/ui/select'
 import { centers } from '@/services/providers/center.provider'
 import { useBookSelfPayAppointment } from '@/services/providers/patient.provider'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -23,7 +29,7 @@ import { Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 // Use the new shared components for consistency
 import CenterCombobox from './components/CenterCombobox'
 import SchedulePicker from './components/SchedulePicker'
@@ -73,6 +79,20 @@ export function PatientPayBookingPage({
       status: 'ACTIVE',
     }),
   )
+
+  const availableServices = useMemo(() => {
+    const serviceMap = new Map<string, { id: string; name: string; price: number }>()
+    centersData?.data?.centers?.forEach((center) => {
+      center.services?.forEach((service) => {
+        if (!serviceMap.has(service.id)) {
+          serviceMap.set(service.id, service)
+        }
+      })
+    })
+    return Array.from(serviceMap.values()).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    )
+  }, [centersData])
 
   // Filter centers that offer the selected screening service
   const availableCenters =
@@ -199,13 +219,31 @@ export function PatientPayBookingPage({
                   name="screeningTypeId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Screening Type ID</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Enter screening type ID"
-                          {...field}
-                        />
-                      </FormControl>
+                      <FormLabel>Screening or vaccination service</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose a service" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {availableServices.length === 0 ? (
+                            <SelectItem value="__none" disabled>
+                              No services available yet
+                            </SelectItem>
+                          ) : (
+                            availableServices.map((service) => (
+                              <SelectItem key={service.id} value={service.id}>
+                                {service.name} (from ₦
+                                {service.price.toLocaleString()})
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

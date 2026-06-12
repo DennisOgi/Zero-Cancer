@@ -2,6 +2,10 @@
 // This allows gradual migration from mock database to Supabase
 
 import type { Context } from 'hono';
+import {
+  matchesServiceTypeFilter,
+  type ServiceTypeKey,
+} from './service-type-utils';
 import { getSupabaseClient } from './supabase';
 
 type SupabaseClient = ReturnType<typeof getSupabaseClient>;
@@ -125,6 +129,50 @@ async function enrichDonationCampaign(
   return result;
 }
 
+async function getCenterIdsForServiceType(
+  supabase: SupabaseClient,
+  serviceTypeKey: ServiceTypeKey,
+): Promise<string[]> {
+  const [{ data: screeningTypes, error: screeningTypesError }, { data: categories, error: categoriesError }] =
+    await Promise.all([
+      supabase.from('ScreeningType').select('id,name,screeningTypeCategoryId'),
+      supabase.from('ScreeningTypeCategory').select('id,name'),
+    ]);
+
+  if (screeningTypesError) throw screeningTypesError;
+  if (categoriesError) throw categoriesError;
+
+  const categoryNameById = new Map(
+    (categories || []).map((category: { id: string; name: string }) => [
+      category.id,
+      category.name,
+    ]),
+  );
+
+  const matchingScreeningTypeIds = (screeningTypes || [])
+    .filter((screeningType: { id: string; name?: string; screeningTypeCategoryId?: string }) =>
+      matchesServiceTypeFilter(
+        {
+          name: screeningType.name,
+          screeningTypeCategoryId: screeningType.screeningTypeCategoryId,
+          categoryName: categoryNameById.get(screeningType.screeningTypeCategoryId || ''),
+        },
+        serviceTypeKey,
+      ),
+    )
+    .map((screeningType: { id: string }) => screeningType.id);
+
+  if (matchingScreeningTypeIds.length === 0) return [];
+
+  const { data: links, error: linksError } = await supabase
+    .from('ServiceCenterScreeningType')
+    .select('centerId')
+    .in('screeningTypeId', matchingScreeningTypeIds);
+
+  if (linksError) throw linksError;
+  return [...new Set((links || []).map((link: { centerId: string }) => link.centerId))];
+}
+
 export const getDB = (c: Context) => {
   const supabase = getSupabaseClient(c);
   
@@ -165,46 +213,17 @@ export const getDB = (c: Context) => {
       
       findMany: async ({ where, skip, take, orderBy, include }: any = {}) => {
         let query = supabase.from('ServiceCenter').select('*');
-        const serviceTypeFilter = where?.screeningTypes?.some?.screeningType?.OR;
         let matchingCenterIds: string[] | undefined;
 
-        if (Array.isArray(serviceTypeFilter)) {
-          const categoryIds = serviceTypeFilter
-            .map((filter: any) => filter.screeningTypeCategoryId?.in)
-            .flat()
-            .filter(Boolean);
-          const terms = serviceTypeFilter
-            .map((filter: any) => filter.name?.contains || filter.category?.name?.contains)
-            .filter(Boolean)
-            .map((term: string) => term.toLowerCase());
+        if (where?._serviceTypeKey) {
+          matchingCenterIds = await getCenterIdsForServiceType(
+            supabase,
+            where._serviceTypeKey as ServiceTypeKey,
+          );
+        }
 
-          const { data: screeningTypes, error: screeningTypesError } = await supabase
-            .from('ScreeningType')
-            .select('id,name,screeningTypeCategoryId');
-
-          if (screeningTypesError) throw screeningTypesError;
-
-          const matchingScreeningTypeIds = (screeningTypes || [])
-            .filter((screeningType: any) => {
-              const name = String(screeningType.name || '').toLowerCase();
-              return (
-                categoryIds.includes(screeningType.screeningTypeCategoryId) ||
-                terms.some((term: string) => name.includes(term))
-              );
-            })
-            .map((screeningType: any) => screeningType.id);
-
-          if (matchingScreeningTypeIds.length === 0) {
-            matchingCenterIds = [];
-          } else {
-            const { data: links, error: linksError } = await supabase
-              .from('ServiceCenterScreeningType')
-              .select('centerId')
-              .in('screeningTypeId', matchingScreeningTypeIds);
-
-            if (linksError) throw linksError;
-            matchingCenterIds = [...new Set((links || []).map((link: any) => link.centerId))];
-          }
+        if (matchingCenterIds !== undefined && matchingCenterIds.length === 0) {
+          return [];
         }
         
         // Apply filters
@@ -212,10 +231,8 @@ export const getDB = (c: Context) => {
           if (where.status) query = query.eq('status', where.status);
           if (where.state) query = query.eq('state', where.state);
           if (where.lga) query = query.eq('lga', where.lga);
-          if (matchingCenterIds) {
-            query = matchingCenterIds.length > 0
-              ? query.in('id', matchingCenterIds)
-              : query.eq('id', '__no_matching_centers__');
+          if (matchingCenterIds !== undefined && matchingCenterIds.length > 0) {
+            query = query.in('id', matchingCenterIds);
           }
           if (where.OR && Array.isArray(where.OR)) {
             const searchTerm = where.OR[0]?.centerName?.contains;
@@ -290,56 +307,25 @@ export const getDB = (c: Context) => {
       
       count: async ({ where }: any = {}) => {
         let query = supabase.from('ServiceCenter').select('*', { count: 'exact', head: true });
-        const serviceTypeFilter = where?.screeningTypes?.some?.screeningType?.OR;
         let matchingCenterIds: string[] | undefined;
 
-        if (Array.isArray(serviceTypeFilter)) {
-          const categoryIds = serviceTypeFilter
-            .map((filter: any) => filter.screeningTypeCategoryId?.in)
-            .flat()
-            .filter(Boolean);
-          const terms = serviceTypeFilter
-            .map((filter: any) => filter.name?.contains || filter.category?.name?.contains)
-            .filter(Boolean)
-            .map((term: string) => term.toLowerCase());
+        if (where?._serviceTypeKey) {
+          matchingCenterIds = await getCenterIdsForServiceType(
+            supabase,
+            where._serviceTypeKey as ServiceTypeKey,
+          );
+        }
 
-          const { data: screeningTypes, error: screeningTypesError } = await supabase
-            .from('ScreeningType')
-            .select('id,name,screeningTypeCategoryId');
-
-          if (screeningTypesError) throw screeningTypesError;
-
-          const matchingScreeningTypeIds = (screeningTypes || [])
-            .filter((screeningType: any) => {
-              const name = String(screeningType.name || '').toLowerCase();
-              return (
-                categoryIds.includes(screeningType.screeningTypeCategoryId) ||
-                terms.some((term: string) => name.includes(term))
-              );
-            })
-            .map((screeningType: any) => screeningType.id);
-
-          if (matchingScreeningTypeIds.length === 0) {
-            matchingCenterIds = [];
-          } else {
-            const { data: links, error: linksError } = await supabase
-              .from('ServiceCenterScreeningType')
-              .select('centerId')
-              .in('screeningTypeId', matchingScreeningTypeIds);
-
-            if (linksError) throw linksError;
-            matchingCenterIds = [...new Set((links || []).map((link: any) => link.centerId))];
-          }
+        if (matchingCenterIds !== undefined && matchingCenterIds.length === 0) {
+          return 0;
         }
         
         if (where) {
           if (where.status) query = query.eq('status', where.status);
           if (where.state) query = query.eq('state', where.state);
           if (where.lga) query = query.eq('lga', where.lga);
-          if (matchingCenterIds) {
-            query = matchingCenterIds.length > 0
-              ? query.in('id', matchingCenterIds)
-              : query.eq('id', '__no_matching_centers__');
+          if (matchingCenterIds !== undefined && matchingCenterIds.length > 0) {
+            query = query.in('id', matchingCenterIds);
           }
         }
         
@@ -476,7 +462,7 @@ export const getDB = (c: Context) => {
                 ? data.patientProfile.create.emailVerified instanceof Date
                   ? data.patientProfile.create.emailVerified.toISOString()
                   : data.patientProfile.create.emailVerified
-                : null,
+                : new Date().toISOString(),
             })
             .select()
             .single();
@@ -493,6 +479,7 @@ export const getDB = (c: Context) => {
               userId: user.id,
               organizationName: data.donorProfile.create.organizationName,
               country: data.donorProfile.create.country,
+              emailVerified: new Date().toISOString(),
             })
             .select()
             .single();
@@ -1006,16 +993,123 @@ export const getDB = (c: Context) => {
     
     // ServiceCenterScreeningType operations
     serviceCenterScreeningType: {
-      findUnique: async ({ where }: any) => {
-        const { data, error } = await supabase
-          .from('ServiceCenterScreeningType')
-          .select('*')
-          .eq('centerId', where.centerId_screeningTypeId.centerId)
-          .eq('screeningTypeId', where.centerId_screeningTypeId.screeningTypeId)
-          .single();
-          
+      findMany: async ({ where, include }: any = {}) => {
+        let query = supabase.from('ServiceCenterScreeningType').select('*');
+        if (where?.centerId) query = query.eq('centerId', where.centerId);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        if (!include?.screeningType) return data || [];
+
+        const screeningTypeIds = [
+          ...new Set((data || []).map((link: { screeningTypeId: string }) => link.screeningTypeId)),
+        ];
+        if (screeningTypeIds.length === 0) return data || [];
+
+        const { data: screeningTypes, error: screeningTypesError } = await supabase
+          .from('ScreeningType')
+          .select(include.screeningType.select ? Object.keys(include.screeningType.select).join(',') : '*')
+          .in('id', screeningTypeIds);
+
+        if (screeningTypesError) throw screeningTypesError;
+
+        const screeningTypesById = new Map(
+          (screeningTypes || []).map((screeningType: Record<string, unknown>) => [
+            screeningType.id,
+            screeningType,
+          ]),
+        );
+
+        return (data || []).map((link: Record<string, unknown>) => ({
+          ...link,
+          screeningType: screeningTypesById.get(link.screeningTypeId as string) || null,
+        }));
+      },
+
+      findUnique: async ({ where, include }: any) => {
+        let query = supabase.from('ServiceCenterScreeningType').select('*');
+
+        if (where.id) {
+          query = query.eq('id', where.id);
+        } else if (where.centerId_screeningTypeId) {
+          query = query
+            .eq('centerId', where.centerId_screeningTypeId.centerId)
+            .eq('screeningTypeId', where.centerId_screeningTypeId.screeningTypeId);
+        } else {
+          return null;
+        }
+
+        const { data, error } = await query.single();
         if (error && error.code !== 'PGRST116') throw error;
+        if (!data) return null;
+
+        if (include?.screeningType) {
+          const { data: screeningType, error: screeningTypeError } = await supabase
+            .from('ScreeningType')
+            .select('*')
+            .eq('id', data.screeningTypeId)
+            .single();
+
+          if (screeningTypeError && screeningTypeError.code !== 'PGRST116') {
+            throw screeningTypeError;
+          }
+
+          return {
+            ...data,
+            screeningType: screeningType
+              ? {
+                  ...screeningType,
+                  basePrice: screeningType.agreedPrice,
+                }
+              : null,
+          };
+        }
+
         return data;
+      },
+
+      create: async ({ data, include }: any) => {
+        const { data: link, error } = await supabase
+          .from('ServiceCenterScreeningType')
+          .insert({
+            id: data.id || crypto.randomUUID(),
+            centerId: data.centerId,
+            screeningTypeId: data.screeningTypeId,
+            amount: data.amount ?? 10000,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        if (include?.screeningType) {
+          const { data: screeningType } = await supabase
+            .from('ScreeningType')
+            .select(include.screeningType.select ? Object.keys(include.screeningType.select).join(',') : '*')
+            .eq('id', link.screeningTypeId)
+            .single();
+
+          return { ...link, screeningType };
+        }
+
+        return link;
+      },
+
+      delete: async ({ where }: any) => {
+        let query = supabase.from('ServiceCenterScreeningType').delete();
+
+        if (where.centerId_screeningTypeId) {
+          query = query
+            .eq('centerId', where.centerId_screeningTypeId.centerId)
+            .eq('screeningTypeId', where.centerId_screeningTypeId.screeningTypeId);
+        } else if (where.id) {
+          query = query.eq('id', where.id);
+        }
+
+        const { error } = await query;
+        if (error) throw error;
+        return { id: where.id || where.centerId_screeningTypeId?.screeningTypeId };
       },
     },
     
@@ -1217,6 +1311,77 @@ export const getDB = (c: Context) => {
         
         if (error) throw error;
         return appointment;
+      },
+
+      create: async ({ data, include }: any) => {
+        const appointmentId = data.id || crypto.randomUUID();
+        const { data: appointment, error } = await supabase
+          .from('Appointment')
+          .insert({
+            id: appointmentId,
+            patientId: data.patientId,
+            centerId: data.centerId,
+            screeningTypeId: data.screeningTypeId,
+            donationId: data.donationId ?? null,
+            isDonation: data.isDonation ?? false,
+            appointmentDateTime:
+              data.appointmentDateTime instanceof Date
+                ? data.appointmentDateTime.toISOString()
+                : data.appointmentDateTime,
+            transactionId: data.transactionId ?? null,
+            status: data.status,
+            basePriceSnapshot: data.basePriceSnapshot ?? null,
+            retailPriceSnapshot: data.retailPriceSnapshot ?? null,
+            checkInCode: data.checkInCode ?? null,
+            checkInCodeExpiresAt: data.checkInCodeExpiresAt
+              ? data.checkInCodeExpiresAt instanceof Date
+                ? data.checkInCodeExpiresAt.toISOString()
+                : data.checkInCodeExpiresAt
+              : null,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        const result: Record<string, unknown> = {
+          ...appointment,
+          appointmentDateTime: new Date(String(appointment.appointmentDateTime)),
+          createdAt: new Date(String(appointment.createdAt)),
+          checkInCodeExpiresAt: appointment.checkInCodeExpiresAt
+            ? new Date(String(appointment.checkInCodeExpiresAt))
+            : null,
+        };
+
+        if (include?.transaction && data.transactionId) {
+          const { data: transaction } = await supabase
+            .from('Transaction')
+            .select('*')
+            .eq('id', data.transactionId)
+            .single();
+          result.transaction = transaction || null;
+        }
+
+        if (include?.center) {
+          const { data: center } = await supabase
+            .from('ServiceCenter')
+            .select('*')
+            .eq('id', data.centerId)
+            .single();
+          result.center = center || null;
+        }
+
+        if (include?.screeningType) {
+          const { data: screeningType } = await supabase
+            .from('ScreeningType')
+            .select('*')
+            .eq('id', data.screeningTypeId)
+            .single();
+          result.screeningType = screeningType || null;
+        }
+
+        result.result = include?.result ? null : undefined;
+        return result;
       },
     },
     
@@ -1769,6 +1934,28 @@ export const getDB = (c: Context) => {
         const { count, error } = await query;
         if (error) throw error;
         return count || 0;
+      },
+
+      create: async ({ data }: any) => {
+        const { data: transaction, error } = await supabase
+          .from("Transaction")
+          .insert({
+            id: data.id || crypto.randomUUID(),
+            type: data.type,
+            status: data.status,
+            amount: data.amount,
+            paymentReference: data.paymentReference ?? null,
+            paymentChannel: data.paymentChannel ?? null,
+            relatedDonationId: data.relatedDonationId ?? null,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        return {
+          ...transaction,
+          createdAt: new Date(String(transaction.createdAt)),
+        };
       },
     },
 

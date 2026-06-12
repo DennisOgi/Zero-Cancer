@@ -98,20 +98,6 @@ authApp.post(
           );
         }
 
-        if (
-          justUser.donorProfile?.emailVerified === null ||
-          justUser.patientProfile?.emailVerified === null
-        ) {
-          return c.json<TErrorResponse>(
-            {
-              ok: false,
-              err_code: "email_not_verified",
-              error: "Email not verified. Please verify your email first.",
-            },
-            403
-          );
-        }
-
         passwordHash = user.passwordHash!;
         id = user.id!;
       }

@@ -88,10 +88,12 @@ export default function ScreeningCenterForm({
       onSuccess: (data) => {
         console.log('Registration successful:', data)
         onSubmitSuccess(values)
-        toast.success('Registration successful! Redirecting to login...')
+        toast.success('Registration successful!', {
+          description: 'Your account is pending admin approval. You\'ll receive an email once approved.',
+        })
         setTimeout(() => {
           navigate({ to: '/login', replace: true })
-        }, 1500)
+        }, 3000)
       },
       onError: (error) => {
         console.error('Registration failed:', error)
@@ -170,13 +172,16 @@ export default function ScreeningCenterForm({
           name="phoneNumber"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Phone Number</FormLabel>
+              <FormLabel>WhatsApp Number</FormLabel>
               <FormControl>
                 <PhoneInputComponent
                   value={field.value as RPNInput.Value}
                   onChange={field.onChange}
                 />
               </FormControl>
+              <FormDescription>
+                Used for patient communication and sending screening reports via WhatsApp.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

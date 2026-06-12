@@ -194,6 +194,10 @@ export const getCenters = (params: {
 }
 
 export const getCenterById = (id: string) => `/api/center/${id}`
+export const getCenterMyServices = () => '/api/center/my-services'
+export const addCenterMyServices = () => '/api/center/my-services'
+export const removeCenterMyService = (screeningTypeId: string) =>
+  `/api/center/my-services/${screeningTypeId}`
 
 export const getCenterAppointments = (params: {
   page?: number

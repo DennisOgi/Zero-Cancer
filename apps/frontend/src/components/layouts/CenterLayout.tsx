@@ -26,6 +26,7 @@ export function CenterLayout() {
   // Navigation links - Updated: 2026-04-22 14:10
   const baseNavLinks = [
     { to: '/center', label: 'Dashboard', icon: cross },
+    { to: '/center/services', label: 'Services', icon: health },
     { to: '/center/register-patient', label: 'Patient Waitlist', icon: people },
     { to: '/center/appointments', label: 'Appointments', icon: calendar },
     { to: '/center/verify-code', label: 'Verify Code', icon: screening },

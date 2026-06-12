@@ -43,7 +43,9 @@ export default function Find() {
     }
   }, [featuredCentersError])
 
-  const featuredCenters = featuredCentersData?.data?.centers || []
+  const featuredCenters = (featuredCentersData?.data?.centers || []).filter(
+    (center) => center.services.length > 0,
+  )
   const showFeatured = featuredCentersLoading || featuredCenters.length > 0
 
   // Auto-scrolling marquee for the featured centers slider.

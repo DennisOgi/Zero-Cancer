@@ -18,6 +18,7 @@ export const serviceTypeFilters = {
 type ScreeningTypeLike = {
   name?: string | null;
   screeningTypeCategoryId?: string | null;
+  categoryName?: string | null;
 };
 
 export function matchesServiceTypeFilter(
@@ -26,11 +27,10 @@ export function matchesServiceTypeFilter(
 ): boolean {
   const filter = serviceTypeFilters[serviceType];
   const name = String(screeningType.name || "").toLowerCase();
-  const categoryId = screeningType.screeningTypeCategoryId || "";
+  const categoryName = String(screeningType.categoryName || "").toLowerCase();
 
-  return (
-    filter.categoryIds.includes(categoryId) ||
-    filter.terms.some((term) => name.includes(term))
+  return filter.terms.some(
+    (term) => name.includes(term) || categoryName.includes(term)
   );
 }
 
