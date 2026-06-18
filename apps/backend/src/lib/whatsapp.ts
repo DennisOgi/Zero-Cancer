@@ -1,74 +1,138 @@
 import { env } from "hono/adapter";
+import { normalizeWhatsappNumber } from "./phone";
 import { TEnvs } from "./types";
 
+type SendCenterReportParams = {
+  to: string;
+  message: string;
+  centerName: string;
+  centerWhatsappNumber?: string;
+  mediaUrl?: string;
+};
+
+export type WhatsAppSendResult = {
+  success: boolean;
+  mock?: boolean;
+  error?: string;
+};
+
 /**
- * WhatsApp Service for sending notifications.
- * 
- * Supports a "MOCK" mode for development until a provider is configured.
+ * WhatsApp delivery for screening reports.
+ * Production requires Twilio credentials; dev mode can mock delivery.
  */
 export class WhatsAppService {
   private c: any;
   private mode: "MOCK" | "PRODUCTION";
-  private provider: "TWILIO" | "VONAGE" | "GENERIC";
 
   constructor(c: any) {
     this.c = c;
     const { ENV_MODE } = env<TEnvs>(c);
     this.mode = ENV_MODE === "production" ? "PRODUCTION" : "MOCK";
-    
-    // Default to generic for now, can be configured via env
-    this.provider = "GENERIC";
   }
 
-  /**
-   * Send a WhatsApp message to a phone number.
-   * 
-   * @param to Phone number in international format (e.g., +234...)
-   * @param message The message content
-   */
-  async sendMessage(to: string, message: string): Promise<boolean> {
-    console.log(`[WhatsAppService] Sending to ${to}: ${message}`);
+  async sendMessage(
+    to: string,
+    message: string,
+    mediaUrl?: string
+  ): Promise<WhatsAppSendResult> {
+    console.log(`[WhatsAppService] Sending to ${to}${mediaUrl ? " (with media)" : ""}`);
 
-    if (this.mode === "MOCK") {
-      console.log(`[WhatsAppService][MOCK] Message "sent" successfully.`);
-      return true;
+    const accountSid = (this.c.env as TEnvs & { TWILIO_ACCOUNT_SID?: string })
+      ?.TWILIO_ACCOUNT_SID;
+    const authToken = (this.c.env as TEnvs & { TWILIO_AUTH_TOKEN?: string })
+      ?.TWILIO_AUTH_TOKEN;
+    const fromNumber = (this.c.env as TEnvs & { TWILIO_WHATSAPP_FROM?: string })
+      ?.TWILIO_WHATSAPP_FROM;
+
+    if (!accountSid || !authToken || !fromNumber) {
+      if (this.mode === "MOCK") {
+        console.log(`[WhatsAppService][MOCK] ${message}`);
+        return { success: true, mock: true };
+      }
+
+      const error =
+        "WhatsApp is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_WHATSAPP_FROM.";
+      console.error(`[WhatsAppService] ${error}`);
+      return { success: false, error };
     }
 
     try {
-      // In production, you would call your provider's API here.
-      // Example for Twilio:
-      // const client = require('twilio')(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
-      // await client.messages.create({ body: message, from: 'whatsapp:+14155238886', to: `whatsapp:${to}` });
-      
-      console.log(`[WhatsAppService][PRODUCTION] Provider ${this.provider} not yet fully implemented.`);
-      return true;
+      const e164 = normalizeWhatsappNumber(to);
+      const normalizedTo = e164.startsWith("whatsapp:") ? e164 : `whatsapp:${e164}`;
+      const normalizedFrom = fromNumber.startsWith("whatsapp:")
+        ? fromNumber
+        : `whatsapp:${fromNumber}`;
+
+      const body = new URLSearchParams({
+        From: normalizedFrom,
+        To: normalizedTo,
+        Body: message,
+      });
+      if (mediaUrl) body.set("MediaUrl", mediaUrl);
+
+      const response = await fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${btoa(`${accountSid}:${authToken}`)}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: body.toString(),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[WhatsAppService] Twilio error:", errorText);
+        return { success: false, error: "Twilio rejected the WhatsApp message" };
+      }
+
+      return { success: true };
     } catch (error) {
-      console.error(`[WhatsAppService] Failed to send message:`, error);
-      return false;
+      console.error("[WhatsAppService] Failed to send message:", error);
+      return { success: false, error: "Failed to send WhatsApp message" };
     }
   }
 
-  /**
-   * Send a notification to a specific beneficiary about a targeted donation.
-   */
-  async sendDonationNotification(to: string, donorName: string, amount: number, screeningType: string) {
-    const message = `Hello! A kind donation of ₦${amount.toLocaleString()} has been made on your behalf by ${donorName} for a ${screeningType} screening. Log in to ZeroCancer to see more details!`;
-    return this.sendMessage(to, message);
+  async sendCenterReport(params: SendCenterReportParams): Promise<WhatsAppSendResult> {
+    const header = params.centerWhatsappNumber
+      ? `[${params.centerName}]`
+      : `[${params.centerName} via ZeroCancer]`;
+
+    const message = `${header}\n\n${params.message}`;
+    return this.sendMessage(params.to, message, params.mediaUrl);
   }
 
-  /**
-   * Notification for Associations/Groups.
-   */
-  async sendGroupDonationNotification(to: string, groupName: string, donorName: string, screeningType: string) {
+  async sendDonationNotification(
+    to: string,
+    donorName: string,
+    amount: number,
+    screeningType: string
+  ) {
+    const message = `Hello! A kind donation of ₦${amount.toLocaleString()} has been made on your behalf by ${donorName} for a ${screeningType} screening. Log in to ZeroCancer to see more details!`;
+    const result = await this.sendMessage(to, message);
+    return result.success;
+  }
+
+  async sendGroupDonationNotification(
+    to: string,
+    groupName: string,
+    donorName: string,
+    screeningType: string
+  ) {
     const message = `Hello! ${donorName} has made a donation to the ${groupName} group for ${screeningType} screenings. Members can now apply for these kits on ZeroCancer!`;
-    return this.sendMessage(to, message);
+    const result = await this.sendMessage(to, message);
+    return result.success;
   }
 }
 
-/**
- * Helper to send WhatsApp notification.
- */
-export async function sendWhatsAppNotification(c: any, to: string, message: string) {
+export async function sendWhatsAppNotification(
+  c: any,
+  to: string,
+  message: string
+) {
   const service = new WhatsAppService(c);
-  return service.sendMessage(to, message);
+  const result = await service.sendMessage(to, message);
+  return result.success;
 }

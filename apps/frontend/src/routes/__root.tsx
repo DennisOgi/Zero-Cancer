@@ -17,7 +17,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   head: () => ({
     meta: [
       {
-        name: 'Zero Cancer',
+        name: 'description',
         content: 'Reaching out to save lives one donation at a time',
       },
       {
@@ -27,7 +27,8 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     links: [
       {
         rel: 'icon',
-        href: '/favicon.ico',
+        type: 'image/svg+xml',
+        href: '/zerocancer-logo.svg',
       },
     ],
     // scripts: [

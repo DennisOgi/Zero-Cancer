@@ -17,8 +17,8 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 import { Checkbox } from '../shared/ui/checkbox'
 import { useQuery } from '@tanstack/react-query'
-import { allWaitlists } from '@/services/providers/waitlist.provider'
-import { useState } from 'react'
+import { Link } from '@tanstack/react-router'
+import { useMemo, useState } from 'react'
 import {
   Select,
   SelectContent,
@@ -28,10 +28,12 @@ import {
 } from '@/components/shared/ui/select'
 import { NIGERIA_STATES_LGAS, getLGAsForState } from '@/data/nigeria-locations'
 import {
-  getServiceCategoryFromName,
-  getServiceTypeLabel,
-  serviceTypeBadgeStyles,
-} from '@/lib/service-types'
+  aggregateWaitlistByCancerCategory,
+  CANCER_TYPE_OPTIONS,
+  type CancerTypeKey,
+  waitlistCategoryBadgeStyles,
+} from '@/lib/waitlist-cancer-types'
+import { allWaitlists } from '@/services/providers/waitlist.provider'
 
 // This local form schema resolves the type conflicts with react-hook-form
 // by using simple booleans for checkboxes and handling validation locally.
@@ -63,20 +65,32 @@ export default function AnonymousDonate() {
   const [isWaitlistOpen, setIsWaitlistOpen] = useState(false)
   const [waitlistState, setWaitlistState] = useState('')
   const [waitlistLga, setWaitlistLga] = useState('')
-  const [waitlistServiceType, setWaitlistServiceType] = useState<
-    'vaccination' | 'screening' | 'treatment' | ''
-  >('')
+  const [waitlistCancerType, setWaitlistCancerType] =
+    useState<CancerTypeKey>('cervical')
   const [waitlistLgas, setWaitlistLgas] = useState<string[]>([])
 
   const { data: waitlistResponse, isLoading: isWaitlistLoading } = useQuery(
     allWaitlists({
       page: 1,
-      pageSize: 50,
+      pageSize: 100,
       demandOrder: 'desc',
       state: waitlistState || undefined,
       lga: waitlistLga || undefined,
-      serviceType: waitlistServiceType || undefined,
     }),
+  )
+
+  const waitlistRows = useMemo(
+    () =>
+      aggregateWaitlistByCancerCategory(
+        waitlistResponse?.data?.waitlists || [],
+        waitlistCancerType,
+      ),
+    [waitlistResponse?.data?.waitlists, waitlistCancerType],
+  )
+
+  const totalPatientsWaiting = useMemo(
+    () => waitlistRows.reduce((sum, row) => sum + row.patientsWaiting, 0),
+    [waitlistRows],
   )
 
   const donateMutation = useDonateAnonymous()
@@ -291,14 +305,35 @@ export default function AnonymousDonate() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-200 text-white">
             {/* Modal Header */}
-            <div className="p-6 border-b border-gray-800 flex justify-between items-center">
-              <div>
+            <div className="p-6 border-b border-gray-800 flex justify-between items-start gap-4">
+              <div className="flex-1 min-w-0">
                 <h3 className="text-2xl font-bold text-white">Patient Waiting List</h3>
-                <p className="text-gray-400 text-sm mt-1">Real-time demand for cancer screenings and vaccinations</p>
+                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-gray-400 text-sm">
+                    Real time demands for cancer prevention and treatment
+                  </p>
+                  <Select
+                    value={waitlistCancerType}
+                    onValueChange={(value) =>
+                      setWaitlistCancerType(value as CancerTypeKey)
+                    }
+                  >
+                    <SelectTrigger className="w-full sm:w-[180px] bg-gray-800 border-gray-700 text-white shrink-0">
+                      <SelectValue placeholder="Type of cancer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CANCER_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <button 
                 onClick={() => setIsWaitlistOpen(false)}
-                className="text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 p-2 rounded-lg transition-all cursor-pointer"
+                className="text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 p-2 rounded-lg transition-all cursor-pointer shrink-0"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -308,29 +343,7 @@ export default function AnonymousDonate() {
             
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto flex-1 text-left">
-              <div className="mb-6 grid gap-3 sm:grid-cols-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-400">
-                    Service type
-                  </label>
-                  <Select
-                    value={waitlistServiceType}
-                    onValueChange={(value) =>
-                      setWaitlistServiceType(
-                        value as 'vaccination' | 'screening' | 'treatment',
-                      )
-                    }
-                  >
-                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                      <SelectValue placeholder="All services" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="vaccination">Vaccination</SelectItem>
-                      <SelectItem value="screening">Screening</SelectItem>
-                      <SelectItem value="treatment">Treatment</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="mb-6 grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-400">
                     State
@@ -383,11 +396,6 @@ export default function AnonymousDonate() {
                   <Loader2 className="h-8 w-8 animate-spin text-pink-650 mb-2" />
                   <p className="text-gray-400 text-sm">Loading active waiting list...</p>
                 </div>
-              ) : !waitlistResponse?.data?.waitlists || waitlistResponse.data.waitlists.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-400">No active waitlist entries found.</p>
-                  <p className="text-gray-500 text-sm mt-2">All patients have been successfully matched with sponsors!</p>
-                </div>
               ) : (
                 <div className="space-y-4">
                   <div className="bg-blue-950/20 border border-blue-900/30 p-4 rounded-xl text-sm text-blue-300">
@@ -397,36 +405,44 @@ export default function AnonymousDonate() {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-gray-800 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-800">
-                          <th className="p-4 font-semibold">Service</th>
+                          <th className="p-4 font-semibold">Type of Cancer</th>
                           <th className="p-4 font-semibold">Category</th>
                           <th className="p-4 font-semibold text-right">Patients Waiting</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-800">
-                        {waitlistResponse.data.waitlists.map((item: any) => {
-                          const serviceName = item.screeningType?.name ?? 'Unknown service'
-                          const category = getServiceCategoryFromName(serviceName)
-                          return (
-                            <tr key={item.screeningTypeId} className="hover:bg-gray-800/30 transition-colors">
-                              <td className="p-4 font-medium text-gray-200">{serviceName}</td>
-                              <td className="p-4">
-                                <span
-                                  className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium ${serviceTypeBadgeStyles[category]}`}
-                                >
-                                  {getServiceTypeLabel(category)}
-                                </span>
-                              </td>
-                              <td className="p-4 text-right">
-                                <span className="bg-pink-900/40 text-pink-400 px-3 py-1 rounded-full text-sm font-semibold border border-pink-500/20">
-                                  {item.pendingCount}
-                                </span>
-                              </td>
-                            </tr>
-                          )
-                        })}
+                        {waitlistRows.map((row) => (
+                          <tr
+                            key={row.category}
+                            className="hover:bg-gray-800/30 transition-colors"
+                          >
+                            <td className="p-4 font-medium text-gray-200">
+                              {row.cancerTypeLabel}
+                            </td>
+                            <td className="p-4">
+                              <span
+                                className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium ${waitlistCategoryBadgeStyles[row.category]}`}
+                              >
+                                {row.category}
+                              </span>
+                            </td>
+                            <td className="p-4 text-right">
+                              <span className="bg-pink-900/40 text-pink-400 px-3 py-1 rounded-full text-sm font-semibold border border-pink-500/20">
+                                {row.patientsWaiting}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
+                  {totalPatientsWaiting === 0 && (
+                    <p className="text-center text-sm text-gray-500">
+                      No patients are currently waiting for{' '}
+                      {waitlistRows[0]?.cancerTypeLabel.toLowerCase()} services
+                      in the selected area.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -434,11 +450,14 @@ export default function AnonymousDonate() {
             {/* Modal Footer */}
             <div className="flex flex-col gap-3 border-t border-gray-800 p-6 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-gray-400">
-                Donors can{' '}
-                <a href="/signup?role=donor" className="font-medium text-pink-400 underline">
+                Donors{' '}
+                <Link
+                  to="/sign-up/donor"
+                  className="font-medium text-pink-400 underline"
+                >
                   sign up
-                </a>{' '}
-                to fund individual patients or create group campaigns.
+                </Link>{' '}
+                to fund individual patients or groups.
               </p>
               <Button 
                 onClick={() => setIsWaitlistOpen(false)}

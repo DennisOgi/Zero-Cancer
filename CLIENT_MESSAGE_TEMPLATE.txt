@@ -1,0 +1,57 @@
+Subject: Your Zerocancer Center Account Has Been Recovered
+
+Hi,
+
+We've successfully recovered your account! Here are your login credentials:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+LOGIN DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Login URL: https://zerocancerafrica.netlify.app/login
+Email: rinde23401@gmail.com
+Temporary Password: TempCenter2026!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HOW TO LOGIN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Go to the login page
+2. Select "Center" as your role
+3. Enter your email and the temporary password above
+4. You'll be redirected to your center dashboard
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMPORTANT NOTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Your account has been approved and is now ACTIVE
+✅ Please change your password after logging in for security
+✅ You can now use the "Forgot Password?" link if you ever forget your password again
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NEW FEATURE: SELF-SERVICE PASSWORD RESET
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+We've implemented a password reset feature for centers! If you forget your password in the future:
+
+1. Click "Forgot Password?" on the login page
+2. Enter your email address
+3. Check your email for a reset link
+4. Create a new password
+
+The reset link will expire after 1 hour for security.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+If you have any issues logging in or need assistance, please don't hesitate to reach out.
+
+Best regards,
+Zerocancer Team
+
+---
+
+P.S. Your center information:
+- Center Name: Oyerinde S. O
+- Location: Ibadan North, Oyo State
+- Status: ACTIVE

@@ -18,6 +18,8 @@ import { FinancialSummary } from './FinancialSummary'
 import { PayoutTable } from './PayoutTable'
 import { TransactionTable } from './TransactionTable'
 import type { Transaction } from './TransactionTable'
+import * as walletService from '@/services/wallet.service'
+import { CashoutHistoryTable } from './CashoutHistoryTable'
 
 export function CenterReceiptHistoryPage() {
   const authUserQuery = useQuery(useAuthUser())
@@ -28,7 +30,7 @@ export function CenterReceiptHistoryPage() {
   const [payoutStatusFilter, setPayoutStatusFilter] = useState<string>('ALL')
   const [page] = useState(1)
 
-  // Fetch data
+  // Fetch legacy data
   const { data: balanceData, isLoading: balanceLoading } = useQuery(
     centerBalance(centerId || ''),
   )
@@ -41,10 +43,25 @@ export function CenterReceiptHistoryPage() {
     centerPayouts(centerId || '', { page, limit: 10 }),
   )
 
+  // NEW: Fetch wallet data
+  const { data: walletData, isLoading: walletLoading } = useQuery({
+    queryKey: ['centerWallet', centerId],
+    queryFn: () => walletService.getCenterWalletBalance(centerId!),
+    enabled: !!centerId,
+  })
+
+  const { data: cashoutsData, isLoading: cashoutsLoading } = useQuery({
+    queryKey: ['centerCashouts', centerId, page],
+    queryFn: () => walletService.getCenterCashouts(centerId!, { page, pageSize: 10 }),
+    enabled: !!centerId,
+  })
+
   const balance = balanceData?.data
+  const walletBalance = walletData?.data?.balance
   const transactions: Transaction[] =
     (transactionsData?.data?.transactions as Transaction[]) || []
   const payouts = payoutsData?.data?.payouts || []
+  const cashouts = cashoutsData?.data?.data || []
 
   // Filter transactions
   const filteredTransactions = useMemo(() => {
@@ -110,13 +127,19 @@ export function CenterReceiptHistoryPage() {
       </div>
 
       {/* Financial Summary Cards */}
-      <FinancialSummary balance={balance} isLoading={balanceLoading} />
+      <FinancialSummary 
+        balance={balance} 
+        walletBalance={walletBalance}
+        centerId={centerId}
+        isLoading={balanceLoading || walletLoading} 
+      />
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="transactions" className="space-y-4">
         <TabsList>
           <TabsTrigger value="transactions">Transaction History</TabsTrigger>
-          <TabsTrigger value="payouts">Payout History</TabsTrigger>
+          <TabsTrigger value="cashouts">Cashout History</TabsTrigger>
+          <TabsTrigger value="payouts">Payout History (Legacy)</TabsTrigger>
         </TabsList>
 
         <TabsContent value="transactions" className="space-y-4">
@@ -130,6 +153,13 @@ export function CenterReceiptHistoryPage() {
             payoutStatusFilter={payoutStatusFilter}
             setPayoutStatusFilter={setPayoutStatusFilter}
             onClearFilters={handleClearFilters}
+          />
+        </TabsContent>
+
+        <TabsContent value="cashouts" className="space-y-4">
+          <CashoutHistoryTable 
+            cashouts={cashouts} 
+            isLoading={cashoutsLoading} 
           />
         </TabsContent>
 

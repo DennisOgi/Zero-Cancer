@@ -5,6 +5,8 @@ import {
   CardTitle,
 } from '@/components/shared/ui/card'
 import { format } from 'date-fns'
+import { CashoutRequestDialog } from './CashoutRequestDialog'
+import { useState } from 'react'
 
 // Image assets
 import outstandingBalanceIcon from '@/assets/images/calendar.png'
@@ -18,11 +20,15 @@ interface FinancialSummaryProps {
     lastPayoutDate?: string
     transactionCount: number
   }
+  walletBalance?: number // NEW: Wallet balance from wallet system
+  centerId?: string // NEW: Center ID for cashout
   isLoading?: boolean
 }
 
 export function FinancialSummary({
   balance,
+  walletBalance,
+  centerId,
   isLoading,
 }: FinancialSummaryProps) {
   if (isLoading) {
@@ -43,6 +49,9 @@ export function FinancialSummary({
     )
   }
 
+  // Use wallet balance if available, otherwise fall back to calculated balance
+  const currentBalance = walletBalance !== undefined ? walletBalance : (balance?.eligibleAmount || 0)
+  
   const totalEarnings =
     (balance?.eligibleAmount || 0) + (balance?.totalPaidOut || 0)
 
@@ -93,16 +102,30 @@ export function FinancialSummary({
       <Card className="border-0 bg-purple-100 relative overflow-hidden">
         <CardHeader className="relative z-10">
           <CardTitle className="text-sm font-medium text-purple-800">
-            Outstanding Balance
+            {walletBalance !== undefined ? 'Wallet Balance' : 'Outstanding Balance'}
           </CardTitle>
         </CardHeader>
         <CardContent className="relative z-10">
           <div className="text-3xl font-bold text-purple-900">
-            ₦{(balance?.eligibleAmount || 0).toLocaleString()}
+            ₦{currentBalance.toLocaleString()}
           </div>
           <p className="text-xs text-purple-700 mt-1">
-            {balance?.transactionCount || 0} eligible transactions
+            {walletBalance !== undefined 
+              ? 'Available for cashout'
+              : `${balance?.transactionCount || 0} eligible transactions`
+            }
           </p>
+          {/* NEW: Cashout button - show if wallet balance exists and center ID is available */}
+          {walletBalance !== undefined && centerId && (
+            <div className="mt-4">
+              <CashoutRequestDialog
+                currentBalance={currentBalance}
+                centerId={centerId}
+                disabled={currentBalance < 1000}
+                variant="default"
+              />
+            </div>
+          )}
         </CardContent>
         <img
           src={outstandingBalanceIcon}
