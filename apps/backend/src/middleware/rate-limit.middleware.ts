@@ -110,23 +110,3 @@ export const verificationRateLimit = rateLimiter({
     }, 429);
   },
 });
-
-// Strict rate limit for unauthenticated file uploads
-export const uploadRateLimit = rateLimiter({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  limit: 15, // 15 uploads per hour per IP
-  standardHeaders: 'draft-6',
-  keyGenerator: (c: Context) => {
-    const ip = c.req.header('cf-connecting-ip') ||
-               c.req.header('x-forwarded-for') ||
-               c.req.header('x-real-ip') ||
-               'unknown';
-    return ip;
-  },
-  handler: (c: Context) => {
-    return c.json({
-      ok: false,
-      error: 'Too many upload attempts. Please try again later.',
-    }, 429);
-  },
-});

@@ -30,7 +30,7 @@ import {
   pickAutoAssignedCenter,
 } from "../lib/patient-center-utils";
 // import { sendEmail } from "../lib/email"; // Disabled for now
-import { uploadRateLimit } from "../middleware/rate-limit.middleware";
+import { uploadRateLimit } from "../middleware/upload-rate-limit.middleware";
 import { TEnvs, THonoApp } from "../lib/types";
 import { getUserWithProfiles } from "../lib/utils";
 
