@@ -35,8 +35,8 @@ export function AdminLoginPage() {
   const form = useForm<AdminLoginForm>({
     resolver: zodResolver(adminLoginSchema),
     defaultValues: {
-      email: 'ttaiwo4910@gmail.com',
-      password: 'fake.password',
+      email: '',
+      password: '',
     },
   })
 
@@ -46,7 +46,7 @@ export function AdminLoginPage() {
 
       if (response.ok) {
         toast.success('Welcome back, Admin!')
-        navigate({ to: '/admin', replace: true, reloadDocument: true })
+        navigate({ to: '/admin', replace: true })
       }
     } catch (error: any) {
       const errorMessage =

@@ -22,9 +22,8 @@ import { screeningReportsApp } from "./api/screening-reports";
 import { centerPatientsApp } from "./api/center-patients";
 import { patientScreeningReportsApp } from "./api/patient-screening-reports";
 import { publicScreeningReportsApp } from "./api/public-screening-reports";
-import { getDB } from "./lib/db";
+import { debugApp } from "./api/debug";
 import { TEnvs } from "./lib/types";
-import { displayEnvVars } from "./lib/utils";
 
 // Create the main app (no basePath for root)
 const app = new Hono();
@@ -69,76 +68,7 @@ app.use("*", async (c, next) => {
 apiApp.get("/", (c) => c.text("Hello from Hono.js + Prisma + CORS!"));
 apiApp.get("/healthz", (c) => c.json({ status: "ok" }));
 
-// Debug endpoint to test database connection
-apiApp.get("/debug/db", async (c) => {
-  try {
-    const db = getDB(c);
-    
-    // Test simple query
-    const userCount = await db.user.count();
-    const adminCount = await db.admins.count();
-    const centerCount = await db.serviceCenter.count();
-    
-    return c.json({
-      status: "ok",
-      database: "connected",
-      counts: {
-        users: userCount,
-        admins: adminCount,
-        centers: centerCount
-      },
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error("Database test error:", error);
-    return c.json({
-      status: "error",
-      database: "failed",
-      error: error instanceof Error ? error.message : "Unknown error",
-      timestamp: new Date().toISOString(),
-    }, 500);
-  }
-});
-
-// Debug endpoint to test admin password
-apiApp.get("/debug/admin", async (c) => {
-  try {
-    const db = getDB(c);
-    const admin = await db.admins.findUnique({
-      where: { email: "ttaiwo4910@gmail.com" }
-    });
-    
-    return c.json({
-      status: "ok",
-      admin: admin ? {
-        id: admin.id,
-        email: admin.email,
-        fullName: admin.fullName,
-        hasPassword: !!admin.passwordHash,
-        passwordLength: admin.passwordHash?.length || 0
-      } : null,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error("Admin test error:", error);
-    return c.json({
-      status: "error",
-      error: error instanceof Error ? error.message : "Unknown error",
-      timestamp: new Date().toISOString(),
-    }, 500);
-  }
-});
-
-// Debug endpoint to check environment variables
-apiApp.get("/debug/env", (c) => {
-  const envVars = displayEnvVars(c);
-
-  return c.json({
-    status: "ok",
-    environment: envVars,
-    timestamp: new Date().toISOString(),
-  });
-});
+apiApp.route("/debug", debugApp);
 
 // ROUTES
 apiApp.route("/auth", authApp);

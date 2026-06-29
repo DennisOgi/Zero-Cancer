@@ -8,6 +8,7 @@ import { getDB } from "../lib/db";
 import { PayoutService } from "../lib/payout.service";
 import { PaystackService } from "../lib/paystack.service";
 import { authMiddleware } from "../middleware/auth.middleware";
+import { authorizeCronRequest } from "../lib/cron-auth";
 
 // =========
 // TO BE FIXED AND UPDATED
@@ -329,13 +330,8 @@ payoutsApp.get(
 // POST /api/payouts/monthly-batch - AUTOMATED MONTHLY PAYOUTS (for cron job)
 payoutsApp.post("/monthly-batch", async (c) => {
   try {
-    // Optional: Add API key authentication for cron job
-    const apiKey = c.req.header("x-api-key");
-    const { CRON_API_KEY } = env<{ CRON_API_KEY?: string }>(c);
-
-    if (CRON_API_KEY && apiKey !== CRON_API_KEY) {
-      return c.json({ error: "Unauthorized" }, 401);
-    }
+    const cronAuthError = authorizeCronRequest(c);
+    if (cronAuthError) return cronAuthError;
 
     const payoutService = getPayoutService(c);
 

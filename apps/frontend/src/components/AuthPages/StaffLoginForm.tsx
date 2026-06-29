@@ -19,7 +19,8 @@ import {
   centers,
   useCenterStaffLogin,
 } from '@/services/providers/center.provider'
-import { useQuery } from '@tanstack/react-query'
+import { useAuthUser } from '@/services/providers/auth.provider'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   centerStaffLoginSchema,
   type TCenterStaffLoginParams,
@@ -28,6 +29,7 @@ import { Loader2 } from 'lucide-react'
 
 export function StaffLoginForm() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const {
     data: centersData,
@@ -63,9 +65,8 @@ export function StaffLoginForm() {
       onSuccess: () => {
         toast.success('Login successful')
 
-        queryClient.fetchQuery(useAuthUser()).then((data) => {
-          const userProfile = data?.data?.user?.profile.toLowerCase()
-          navigate({ to: `/center` })
+        queryClient.fetchQuery(useAuthUser()).then(() => {
+          navigate({ to: '/center' })
         })
       },
       onError: (error: any) => {

@@ -8,17 +8,19 @@ import type {
   TTimeBasedReportResponse,
 } from "@zerocancer/shared/types";
 import { Hono } from "hono";
-import { env } from "hono/adapter";
 import { getDB } from "../lib/db";
-import { TEnvs, THonoApp } from "../lib/types";
+import { THonoApp } from "../lib/types";
 import { z } from "zod";
 import * as analyticsService from "../lib/analytics.service";
+import { authMiddleware } from "../middleware/auth.middleware";
 
 // ===================================================
 // REDO THE ENTIER MODULE HERE...
 // ===================================================
 
 const analyticsApp = new Hono<THonoApp>();
+
+analyticsApp.use(authMiddleware(["admin"]));
 
 // Validation schemas
 const timeReportQuerySchema = z.object({

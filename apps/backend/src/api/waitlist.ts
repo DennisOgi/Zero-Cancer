@@ -17,6 +17,7 @@ import {
 import { Hono } from "hono";
 import { env } from "hono/adapter";
 import { triggerWaitlistMatching } from "../lib/utils";
+import { authorizeCronRequest } from "../lib/cron-auth";
 import { z } from "zod";
 import { CryptoUtils } from "../lib/crypto.utils";
 import { getDB } from "../lib/db";
@@ -536,13 +537,8 @@ const triggerMatchingSchema = z.object({
 // POST /api/waitlist/trigger-matching - Trigger waitlist matching algorithm (for cron jobs)
 waitlistApp.post("/trigger-matching", async (c) => {
   try {
-    // Optional: Add API key authentication for cron job (same pattern as payouts)
-    const apiKey = c.req.header("x-api-key");
-    const { CRON_API_KEY } = env<{ CRON_API_KEY?: string }>(c);
-
-    if (CRON_API_KEY && apiKey !== CRON_API_KEY) {
-      return c.json({ error: "Unauthorized" }, 401);
-    }
+    const cronAuthError = authorizeCronRequest(c);
+    if (cronAuthError) return cronAuthError;
 
     console.log("Triggering waitlist matching algorithm...");
     const startTime = Date.now();
