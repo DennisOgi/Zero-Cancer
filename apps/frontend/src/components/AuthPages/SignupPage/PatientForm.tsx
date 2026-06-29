@@ -23,8 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/ui/select'
+import PhotoUpload from '@/components/shared/PhotoUpload'
 import statesData from '@zerocancer/shared/constants/states.json'
 import { patientSchema } from '@zerocancer/shared/schemas/register.schema'
+import type { TPatientRegisterResponse } from '@zerocancer/shared/types'
 
 import { Calendar as ShadCalendar } from '@/components/shared/ui/calendar'
 import { Label as ShadLabel } from '@/components/shared/ui/label'
@@ -40,7 +42,10 @@ import { toast } from 'sonner'
 type FormData = z.infer<typeof patientSchema>
 
 type PatientFormProps = {
-  onSubmitSuccess: (data: FormData) => void
+  onSubmitSuccess: (
+    data: FormData,
+    response: TPatientRegisterResponse,
+  ) => void
 }
 
 export default function PatientForm({ onSubmitSuccess }: PatientFormProps) {
@@ -64,6 +69,7 @@ export default function PatientForm({ onSubmitSuccess }: PatientFormProps) {
       gender: undefined,
       state: '',
       localGovernment: '',
+      photoUrl: '',
     },
   })
 
@@ -90,11 +96,12 @@ export default function PatientForm({ onSubmitSuccess }: PatientFormProps) {
       dateOfBirth: values.dateOfBirth
         ? new Date(values.dateOfBirth).toISOString()
         : values.dateOfBirth,
+      photoUrl: values.photoUrl || undefined,
     }
 
     mutation.mutate(formattedValues, {
-      onSuccess: (data) => {
-        onSubmitSuccess(formattedValues)
+      onSuccess: (response) => {
+        onSubmitSuccess(formattedValues, response)
       },
       onError: (error) => {
         toast.error(
@@ -111,6 +118,24 @@ export default function PatientForm({ onSubmitSuccess }: PatientFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="photoUrl"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Profile Photo</FormLabel>
+              <FormControl>
+                <PhotoUpload
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={mutation.isPending}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <FormField
           control={form.control}
           name="fullName"

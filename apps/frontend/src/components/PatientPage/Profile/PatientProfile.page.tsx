@@ -127,6 +127,19 @@ export function PatientProfilePage() {
           )}
         </CardHeader>
         <CardContent className="space-y-4">
+          {user.photoUrl && (
+            <div className="flex items-center gap-4 pb-4 border-b">
+              <img
+                src={user.photoUrl}
+                alt={user.fullName}
+                className="h-20 w-20 rounded-full object-cover border"
+              />
+              <div>
+                <p className="text-sm text-muted-foreground">Profile Photo</p>
+                <p className="font-medium">{user.fullName}</p>
+              </div>
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <p className="text-sm text-muted-foreground">Full Name</p>

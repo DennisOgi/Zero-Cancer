@@ -24,6 +24,7 @@ export const backendHealth = () => '/api/healthz'
 // USER REGISTRATION
 export const registerUser = (actor: t.TActors) => `/api/register/${actor}`
 export const checkProfiles = () => '/api/register/check-profiles'
+export const uploadPatientPhoto = () => '/api/register/patient-photo'
 
 // AUTHENTICATION
 export const loginUser = (actor: t.TActors) =>
@@ -470,6 +471,8 @@ export const cancelPatientAppointment = (appointmentId: string) =>
   `/api/appointment/patient/${appointmentId}/cancel`
 
 export const updatePatientProfile = () => '/api/auth/patient-profile'
+export const assignPatientCenter = () => '/api/auth/patient/assign-center'
+export const getRecommendedCenters = () => '/api/auth/patient/recommended-centers'
 
 // Payouts
 // PAYOUTS

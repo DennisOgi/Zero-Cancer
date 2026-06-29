@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { isAuthMiddleware } from '@/services/providers/auth.provider'
+import { isAuthMiddleware, useAuthUser } from '@/services/providers/auth.provider'
+import { getRecommendedCenters } from '@/services/auth.service'
 import { useNotifications } from '@/services/providers/notification.provider'
 import { usePatientAppointments } from '@/services/providers/patient.provider'
 import { useAllScreeningTypes } from '@/services/providers/screeningType.provider'
@@ -29,6 +30,26 @@ export const Route = createFileRoute('/patient')({
     if (!isAuthorized) {
       if (profile === 'DONOR') return redirect({ to: '/donor' })
       if (profile === 'CENTER') return redirect({ to: '/center' })
+    }
+
+    const auth = await context.queryClient.ensureQueryData(useAuthUser())
+    const assignedCenterId = auth?.data?.user?.assignedCenterId
+    const isSelectCenterRoute = location.pathname === '/patient/select-center'
+
+    if (!assignedCenterId && !isSelectCenterRoute) {
+      try {
+        const centersResponse = await context.queryClient.fetchQuery({
+          queryKey: ['recommendedCenters', auth?.data?.user?.id],
+          queryFn: getRecommendedCenters,
+        })
+        if ((centersResponse?.data?.recommendedCenters?.length || 0) > 0) {
+          throw redirect({ to: '/patient/select-center' })
+        }
+      } catch (error) {
+        if (error && typeof error === 'object' && 'to' in error) {
+          throw error
+        }
+      }
     }
 
     return null

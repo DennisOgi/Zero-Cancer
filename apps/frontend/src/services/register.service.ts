@@ -9,6 +9,7 @@ import {
 import type {
   TCheckProfilesResponse,
   TDonorRegisterResponse,
+  TPatientPhotoUploadResponse,
   TPatientRegisterResponse,
   TScreeningCenterRegisterResponse,
 } from '@zerocancer/shared/types'
@@ -19,6 +20,15 @@ export const registerPatient = async (
 ): Promise<TPatientRegisterResponse> => {
   const res = await request.post(endpoints.registerUser('patient'), params)
   return res as TPatientRegisterResponse
+}
+
+export const uploadPatientPhoto = async (params: {
+  fileBase64: string
+  fileName: string
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp'
+}): Promise<TPatientPhotoUploadResponse> => {
+  const res = await request.post(endpoints.uploadPatientPhoto(), params)
+  return res as TPatientPhotoUploadResponse
 }
 
 export const registerDonor = async (

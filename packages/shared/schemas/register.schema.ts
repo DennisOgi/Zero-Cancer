@@ -17,6 +17,8 @@ export const patientSchema = z.object({
     .min(1, { message: "Please select a local government." }),
   associationId: z.string().optional(),
   groupId: z.string().optional(),
+  photoUrl: z.string().url().optional(),
+  centerId: z.string().uuid().optional(),
 });
 
 export const donorSchema = z.object({
@@ -104,6 +106,19 @@ export const updatePatientProfileSchema = z.object({
   localGovernment: z
     .string()
     .min(1, { message: "Please select a local government." }),
+  photoUrl: z.string().url().optional(),
+});
+
+export const assignPatientCenterSchema = z.object({
+  centerId: z.string().uuid({ message: "Please select a valid center." }),
+});
+
+export const patientPhotoUploadSchema = z.object({
+  fileBase64: z.string().min(1, { message: "Image data is required." }),
+  fileName: z.string().min(1, { message: "File name is required." }),
+  mimeType: z.enum(["image/jpeg", "image/png", "image/webp"], {
+    message: "Only JPG, PNG, or WEBP images are allowed.",
+  }),
 });
 
 export type TPatientRegister = z.infer<typeof patientSchema>;

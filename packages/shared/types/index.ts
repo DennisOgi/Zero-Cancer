@@ -45,6 +45,34 @@ export type TPatientRegisterResponse = TDataResponse<{
   gender: "MALE" | "FEMALE";
   state: string;
   localGovernment: string;
+  photoUrl?: string | null;
+  token?: string;
+  recommendedCenters?: TRecommendedCenter[];
+  assignedCenter?: TRecommendedCenter | null;
+}>;
+
+export type TRecommendedCenter = {
+  id: string;
+  centerName: string;
+  address: string;
+  state: string;
+  lga: string;
+  services: Array<{ id: string; name: string }>;
+  distanceTier: "same_lga" | "same_state";
+};
+
+export type TAssignPatientCenterResponse = TDataResponse<{
+  center: TRecommendedCenter;
+  enrolledCount: number;
+}>;
+
+export type TGetRecommendedCentersResponse = TDataResponse<{
+  recommendedCenters: TRecommendedCenter[];
+}>;
+
+export type TPatientPhotoUploadResponse = TDataResponse<{
+  url: string;
+  publicId: string;
 }>;
 
 export type TDonorRegisterResponse = TDataResponse<{
@@ -76,6 +104,8 @@ export type TAuthMeResponse = TDataResponse<{
     dateOfBirth?: string;
     state?: string;
     localGovernment?: string;
+    photoUrl?: string | null;
+    assignedCenterId?: string | null;
   };
 }>;
 

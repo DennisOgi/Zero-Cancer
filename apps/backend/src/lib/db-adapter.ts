@@ -458,6 +458,8 @@ export const getDB = (c: Context) => {
               state: data.patientProfile.create.state,
               associationId: data.patientProfile.create.associationId || null,
               groupId: data.patientProfile.create.groupId || null,
+              photoUrl: data.patientProfile.create.photoUrl || null,
+              assignedCenterId: data.patientProfile.create.assignedCenterId || null,
               emailVerified: data.patientProfile.create.emailVerified
                 ? data.patientProfile.create.emailVerified instanceof Date
                   ? data.patientProfile.create.emailVerified.toISOString()
@@ -522,6 +524,8 @@ export const getDB = (c: Context) => {
               state: data.patientProfile.create.state,
               associationId: data.patientProfile.create.associationId || null,
               groupId: data.patientProfile.create.groupId || null,
+              photoUrl: data.patientProfile.create.photoUrl || null,
+              assignedCenterId: data.patientProfile.create.assignedCenterId || null,
               emailVerified: data.patientProfile.create.emailVerified
                 ? data.patientProfile.create.emailVerified instanceof Date
                   ? data.patientProfile.create.emailVerified.toISOString()

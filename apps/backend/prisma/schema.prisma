@@ -55,6 +55,9 @@ model PatientProfile {
 
   associationId String?
   groupId       String?
+  photoUrl      String?
+  assignedCenterId String?
+  assignedCenter   ServiceCenter? @relation("PatientAssignedCenter", fields: [assignedCenterId], references: [id], onDelete: SetNull)
   association   Association? @relation("PatientAssociation", fields: [associationId], references: [id])
   group         Group?       @relation("PatientGroup", fields: [groupId], references: [id])
 
@@ -113,6 +116,7 @@ model ServiceCenter {
   staff         CenterStaff[]
   appointments  Appointment[]
   enrolledWaitlists Waitlist[] @relation("CenterEnrolledWaitlists")
+  assignedPatients  PatientProfile[] @relation("PatientAssignedCenter")
   screeningReports  ScreeningReport[] @relation("CenterScreeningReports")
 
   services      ScreeningType[]

@@ -4,7 +4,9 @@ import { loginSchema } from '@zerocancer/shared/schemas/auth.schema'
 import { updatePatientProfileSchema } from '@zerocancer/shared/schemas/register.schema'
 import type {
   TActors,
+  TAssignPatientCenterResponse,
   TAuthMeResponse,
+  TGetRecommendedCentersResponse,
   TUpdatePatientProfileResponse,
   TForgotPasswordResponse,
   TLoginResponse,
@@ -44,6 +46,17 @@ export const updatePatientProfile = async (
 ): Promise<TUpdatePatientProfileResponse> => {
   return await request.patch(endpoints.updatePatientProfile(), data)
 }
+
+export const assignPatientCenter = async (
+  centerId: string,
+): Promise<TAssignPatientCenterResponse> => {
+  return await request.post(endpoints.assignPatientCenter(), { centerId })
+}
+
+export const getRecommendedCenters =
+  async (): Promise<TGetRecommendedCentersResponse> => {
+    return await request.get(endpoints.getRecommendedCenters())
+  }
 
 // logout
 export const logout = async (): Promise<TLogoutResponse> => {

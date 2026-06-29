@@ -1,8 +1,10 @@
 import { zValidator } from "@hono/zod-validator";
-import { actorSchema, loginSchema, updatePatientProfileSchema } from "@zerocancer/shared";
+import { actorSchema, loginSchema, updatePatientProfileSchema, assignPatientCenterSchema } from "@zerocancer/shared";
 import type {
+  TAssignPatientCenterResponse,
   TAuthMeResponse,
   TErrorResponse,
+  TGetRecommendedCentersResponse,
   TUpdatePatientProfileResponse,
   TForgotPasswordResponse,
   TLoginResponse,
@@ -20,6 +22,8 @@ import { getCookie, setCookie } from "hono/cookie";
 import { jwt, sign, verify } from "hono/jwt";
 import { getDB } from "../lib/db";
 import { sendEmail } from "../lib/email";
+import { assignPatientToCenter, findRecommendedCenters } from "../lib/patient-center-utils";
+import { isAllowedPatientPhotoUrl } from "../lib/cloudinary-signed-upload";
 import { TEnvs, THonoApp } from "../lib/types";
 import { getUserWithProfiles } from "../lib/utils";
 import { z } from "zod";
@@ -187,8 +191,6 @@ authApp.get(
     const jwtPayload = c.get("jwtPayload");
     const db = getDB(c);
 
-    console.log("JWT Payload:", jwtPayload);
-
     if (jwtPayload.profile === "ADMIN") {
       // Fetch admin data from database
       const admin = await db.admins.findUnique({
@@ -291,6 +293,8 @@ authApp.get(
                   : "",
                 state: patientProfile?.state ?? "",
                 localGovernment: patientProfile?.city ?? "",
+                photoUrl: patientProfile?.photoUrl ?? null,
+                assignedCenterId: patientProfile?.assignedCenterId ?? null,
               }
             : {}),
         },
@@ -320,6 +324,17 @@ authApp.patch(
 
     const db = getDB(c);
     const data = c.req.valid("json");
+    const { CLOUDINARY_CLOUD_NAME } = env<TEnvs>(c);
+
+    if (
+      data.photoUrl &&
+      !isAllowedPatientPhotoUrl(data.photoUrl, CLOUDINARY_CLOUD_NAME)
+    ) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Profile photo must be uploaded through the app." },
+        400
+      );
+    }
 
     await db.user.update({
       where: { id: jwtPayload.id! },
@@ -331,6 +346,7 @@ authApp.patch(
       data: {
         state: data.state,
         city: data.localGovernment,
+        ...(data.photoUrl !== undefined ? { photoUrl: data.photoUrl || null } : {}),
       },
     });
 
@@ -340,6 +356,82 @@ authApp.patch(
         phone: data.phone,
         state: data.state,
         localGovernment: data.localGovernment,
+      },
+    });
+  }
+);
+
+// GET /api/auth/patient/recommended-centers
+authApp.get(
+  "/patient/recommended-centers",
+  (c, next) => {
+    const { JWT_TOKEN_SECRET } = env<TEnvs>(c);
+    const jwtMiddleware = jwt({ secret: JWT_TOKEN_SECRET });
+    return jwtMiddleware(c, next);
+  },
+  async (c) => {
+    const jwtPayload = c.get("jwtPayload");
+    if (!jwtPayload || jwtPayload.profile !== "PATIENT") {
+      return c.json<TErrorResponse>({ ok: false, error: "Unauthorized" }, 403);
+    }
+
+    const db = getDB(c);
+    const profile = await db.patientProfile.findUnique({
+      where: { userId: jwtPayload.id! },
+    });
+
+    if (!profile?.state || !profile?.city) {
+      return c.json<TGetRecommendedCentersResponse>({
+        ok: true,
+        data: { recommendedCenters: [] },
+      });
+    }
+
+    const recommendedCenters = await findRecommendedCenters(
+      db,
+      profile.state,
+      profile.city
+    );
+
+    return c.json<TGetRecommendedCentersResponse>({
+      ok: true,
+      data: { recommendedCenters },
+    });
+  }
+);
+
+// POST /api/auth/patient/assign-center - Link patient to nearest chosen center
+authApp.post(
+  "/patient/assign-center",
+  (c, next) => {
+    const { JWT_TOKEN_SECRET } = env<TEnvs>(c);
+    const jwtMiddleware = jwt({ secret: JWT_TOKEN_SECRET });
+    return jwtMiddleware(c, next);
+  },
+  zValidator("json", assignPatientCenterSchema, (result, c) => {
+    if (!result.success) {
+      return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
+    }
+  }),
+  async (c) => {
+    const jwtPayload = c.get("jwtPayload");
+    if (!jwtPayload || jwtPayload.profile !== "PATIENT") {
+      return c.json<TErrorResponse>({ ok: false, error: "Unauthorized" }, 403);
+    }
+
+    const { centerId } = c.req.valid("json");
+    const assignment = await assignPatientToCenter(c, jwtPayload.id!, centerId);
+
+    if ("error" in assignment) {
+      return c.json<TErrorResponse>({ ok: false, error: assignment.error }, 400);
+    }
+
+    return c.json<TAssignPatientCenterResponse>({
+      ok: true,
+      message: "Center assigned successfully",
+      data: {
+        center: assignment.center,
+        enrolledCount: assignment.enrolledCount,
       },
     });
   }

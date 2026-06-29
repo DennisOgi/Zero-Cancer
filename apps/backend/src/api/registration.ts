@@ -3,25 +3,133 @@ import {
   centerSchema,
   checkProfilesSchema,
   donorSchema,
+  patientPhotoUploadSchema,
   patientSchema,
 } from "@zerocancer/shared";
+import type { TRecommendedCenter } from "@zerocancer/shared/types";
 import {
   TCheckProfilesResponse,
   TDonorRegisterResponse,
   TErrorResponse,
+  TPatientPhotoUploadResponse,
   TPatientRegisterResponse,
   TScreeningCenterRegisterResponse,
 } from "@zerocancer/shared/types";
 import bcrypt from "bcryptjs";
 import { Hono } from "hono";
 import { env } from "hono/adapter";
+import { setCookie } from "hono/cookie";
 import { HTTPException } from "hono/http-exception";
+import { sign } from "hono/jwt";
 import { getDB } from "../lib/db";
+import { uploadBase64ImageToCloudinary, isAllowedPatientPhotoUrl } from "../lib/cloudinary-signed-upload";
+import {
+  assignPatientToCenter,
+  findRecommendedCenters,
+  isCenterRecommendedForPatient,
+  pickAutoAssignedCenter,
+} from "../lib/patient-center-utils";
 // import { sendEmail } from "../lib/email"; // Disabled for now
-import { THonoApp } from "../lib/types";
+import { uploadRateLimit } from "../middleware/rate-limit.middleware";
+import { TEnvs, THonoApp } from "../lib/types";
 import { getUserWithProfiles } from "../lib/utils";
 
 export const registerApp = new Hono<THonoApp>();
+
+function parseAllowedImageMimeType(fileBase64: string) {
+  const match = fileBase64.match(/^data:(image\/(?:jpeg|png|webp));base64,/i);
+  return match?.[1]?.toLowerCase() as
+    | "image/jpeg"
+    | "image/png"
+    | "image/webp"
+    | undefined;
+}
+
+async function issuePatientAuthTokens(
+  c: any,
+  patient: { id: string; email: string; fullName: string }
+) {
+  const { JWT_TOKEN_SECRET } = env<TEnvs>(c);
+  const payload = {
+    id: patient.id,
+    email: patient.email,
+    profile: "PATIENT" as const,
+  };
+
+  const token = await sign(
+    { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 5 },
+    JWT_TOKEN_SECRET
+  );
+  const refreshToken = await sign(
+    { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 },
+    JWT_TOKEN_SECRET
+  );
+
+  setCookie(c, "refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "None",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+
+  return token;
+}
+
+function formatPatientRegisterData(patient: any) {
+  return {
+    patientId: patient.id,
+    email: patient.email,
+    fullName: patient.fullName,
+    phone: patient.phone ?? "",
+    dateOfBirth:
+      patient.patientProfile?.dateOfBirth instanceof Date
+        ? patient.patientProfile.dateOfBirth.toISOString()
+        : patient.patientProfile?.dateOfBirth ?? "",
+    gender:
+      patient.patientProfile?.gender === "MALE" ||
+      patient.patientProfile?.gender === "FEMALE"
+        ? patient.patientProfile.gender
+        : "MALE",
+    state: patient.patientProfile?.state ?? "",
+    localGovernment: patient.patientProfile?.city ?? "",
+    photoUrl: patient.patientProfile?.photoUrl ?? null,
+  };
+}
+
+async function resolveCenterAssignment(
+  c: any,
+  patientId: string,
+  state: string,
+  localGovernment: string,
+  centerId?: string
+) {
+  const db = getDB(c);
+  const recommendedCenters = await findRecommendedCenters(
+    db,
+    state,
+    localGovernment
+  );
+
+  let assignedCenter: TRecommendedCenter | null = null;
+
+  let selectedCenterId = pickAutoAssignedCenter(recommendedCenters)?.id;
+  if (
+    centerId &&
+    isCenterRecommendedForPatient(recommendedCenters, centerId)
+  ) {
+    selectedCenterId = centerId;
+  }
+
+  if (selectedCenterId) {
+    const assignment = await assignPatientToCenter(c, patientId, selectedCenterId);
+    if (!("error" in assignment)) {
+      assignedCenter = assignment.center;
+    }
+  }
+
+  return { recommendedCenters, assignedCenter };
+}
 
 registerApp.post(
   "/check-profiles",
@@ -40,6 +148,80 @@ registerApp.post(
   }
 );
 
+// POST /api/register/patient-photo - Upload patient profile photo
+registerApp.post(
+  "/patient-photo",
+  uploadRateLimit,
+  zValidator("json", patientPhotoUploadSchema, (result) => {
+    if (!result.success) throw new HTTPException(400, { cause: result.error });
+  }),
+  async (c) => {
+    try {
+      const {
+        CLOUDINARY_CLOUD_NAME,
+        CLOUDINARY_API_KEY,
+        CLOUDINARY_API_SECRET,
+      } = env<TEnvs>(c);
+      const { fileBase64, fileName, mimeType } = c.req.valid("json");
+
+      const detectedMime = parseAllowedImageMimeType(fileBase64);
+      if (fileBase64.startsWith("data:") && !detectedMime) {
+        return c.json<TErrorResponse>(
+          { ok: false, error: "Only JPG, PNG, or WEBP images are allowed." },
+          400
+        );
+      }
+      if (detectedMime && detectedMime !== mimeType) {
+        return c.json<TErrorResponse>(
+          { ok: false, error: "Image type does not match file contents." },
+          400
+        );
+      }
+
+      const normalizedBase64 = fileBase64.startsWith("data:")
+        ? fileBase64
+        : `data:${mimeType};base64,${fileBase64}`;
+
+      const estimatedBytes = Math.ceil(
+        (normalizedBase64.length - normalizedBase64.indexOf(",") - 1) * 0.75
+      );
+      if (estimatedBytes > 5 * 1024 * 1024) {
+        return c.json<TErrorResponse>(
+          { ok: false, error: "Photo must be 5MB or smaller." },
+          400
+        );
+      }
+
+      const safeName = fileName.replace(/[^\w.-]+/g, "_").slice(0, 80);
+      const uploaded = await uploadBase64ImageToCloudinary({
+        cloudName: CLOUDINARY_CLOUD_NAME,
+        apiKey: CLOUDINARY_API_KEY,
+        apiSecret: CLOUDINARY_API_SECRET,
+        fileBase64: normalizedBase64,
+        folder: "patient-photos",
+        publicId: `patient-photos/${Date.now()}-${safeName.replace(/\.[^.]+$/, "")}`,
+      });
+
+      return c.json<TPatientPhotoUploadResponse>({
+        ok: true,
+        message: "Photo uploaded successfully",
+        data: {
+          url: uploaded.secure_url,
+          publicId: uploaded.public_id,
+        },
+      });
+    } catch (error) {
+      console.error("[PATIENT_PHOTO] Upload error:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to upload patient photo";
+      const status = message.includes("not configured") ? 503 : 500;
+      return c.json<TErrorResponse>({ ok: false, error: message }, status);
+    }
+  }
+);
+
 // Patient Registration
 registerApp.post(
   "/patient",
@@ -50,6 +232,21 @@ registerApp.post(
     try {
       const db = getDB(c);
       const data = c.req.valid("json");
+      const { CLOUDINARY_CLOUD_NAME } = env<TEnvs>(c);
+
+      if (
+        data.photoUrl &&
+        !isAllowedPatientPhotoUrl(data.photoUrl, CLOUDINARY_CLOUD_NAME)
+      ) {
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            err_code: "invalid_photo_url",
+            error: "Profile photo must be uploaded through the app.",
+          },
+          400
+        );
+      }
 
       // Concurrently check if user exists and if center with same email exists
       const [userResult, existingCenter] = await Promise.all([
@@ -69,7 +266,18 @@ registerApp.post(
 
     const { user: existingUser, profiles } = userResult;
 
-    // if already has a profile, just update the patient profile
+    if (profiles.includes("PATIENT")) {
+      return c.json<TErrorResponse>(
+        {
+          ok: false,
+          err_code: "patient_already_registered",
+          error: "Email already registered",
+        },
+        409
+      );
+    }
+
+    // Donor adding a patient profile on the same account
     if (profiles.includes("DONOR")) {
       const updatedUser = await db.user.update({
         where: { id: existingUser?.id },
@@ -82,32 +290,32 @@ registerApp.post(
               state: data.state!,
               associationId: data.associationId || null,
               groupId: data.groupId || null,
+              photoUrl: data.photoUrl || null,
             },
           },
         },
         include: { patientProfile: true },
       });
 
+      const { recommendedCenters, assignedCenter } =
+        await resolveCenterAssignment(
+          c,
+          updatedUser.id,
+          data.state!,
+          data.localGovernment!,
+          data.centerId
+        );
+      const token = await issuePatientAuthTokens(c, updatedUser);
+
       return c.json<TPatientRegisterResponse>(
         {
           ok: true,
           message: "Patient registered successfully",
           data: {
-            patientId: updatedUser.id,
-            email: updatedUser.email,
-            fullName: updatedUser.fullName,
-            phone: updatedUser.phone ?? "",
-            dateOfBirth:
-              updatedUser.patientProfile?.dateOfBirth instanceof Date
-                ? updatedUser.patientProfile.dateOfBirth.toISOString()
-                : updatedUser.patientProfile?.dateOfBirth ?? "",
-            gender:
-              updatedUser.patientProfile?.gender === "MALE" ||
-              updatedUser.patientProfile?.gender === "FEMALE"
-                ? updatedUser.patientProfile.gender
-                : "MALE",
-            state: updatedUser.patientProfile?.state ?? "",
-            localGovernment: updatedUser.patientProfile?.city ?? "",
+            ...formatPatientRegisterData(updatedUser),
+            token,
+            recommendedCenters,
+            assignedCenter,
           },
         },
         201
@@ -142,45 +350,32 @@ registerApp.post(
               state: data.state!,
               associationId: data.associationId || null,
               groupId: data.groupId || null,
+              photoUrl: data.photoUrl || null,
             },
           },
         },
         include: { patientProfile: true },
       });
 
-      // Email verification disabled for now
-      // TODO: Re-enable when SMTP is properly configured
-      // const verifyToken = crypto.randomBytes(32).toString("hex");
-      // await db.emailVerificationToken.create({
-      //   data: {
-      //     userId: patient.id,
-      //     profileType: "PATIENT",
-      //     token: verifyToken,
-      //     expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
-      //   },
-      // });
-      // await sendEmail(c, { ... });
+      const { recommendedCenters, assignedCenter } =
+        await resolveCenterAssignment(
+          c,
+          patient.id,
+          data.state!,
+          data.localGovernment!,
+          data.centerId
+        );
+      const token = await issuePatientAuthTokens(c, patient);
 
       return c.json<TPatientRegisterResponse>(
         {
           ok: true,
           message: "Patient registered successfully",
           data: {
-            patientId: patient.id,
-            email: patient.email,
-            fullName: patient.fullName,
-            phone: patient.phone ?? "",
-            dateOfBirth:
-              patient.patientProfile?.dateOfBirth instanceof Date
-                ? patient.patientProfile.dateOfBirth.toISOString()
-                : patient.patientProfile?.dateOfBirth ?? "",
-            gender:
-              patient.patientProfile?.gender === "MALE" ||
-              patient.patientProfile?.gender === "FEMALE"
-                ? patient.patientProfile.gender
-                : "MALE",
-            state: patient.patientProfile?.state ?? "",
-            localGovernment: patient.patientProfile?.city ?? "",
+            ...formatPatientRegisterData(patient),
+            token,
+            recommendedCenters,
+            assignedCenter,
           },
         },
         201

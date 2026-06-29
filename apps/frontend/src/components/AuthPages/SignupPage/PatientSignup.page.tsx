@@ -1,65 +1,57 @@
-import { EmailVerificationPage } from '@/components/AuthPages/EmailVerificationPage'
 import PatientForm from '@/components/AuthPages/SignupPage/PatientForm'
-import { useResendVerification } from '@/services/providers/auth.provider'
-import { Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import { ACCESS_TOKEN_KEY } from '@/services/keys'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
+import type { TPatientRegisterResponse } from '@zerocancer/shared/types'
 import { toast } from 'sonner'
+import { z } from 'zod'
+import { patientSchema } from '@zerocancer/shared/schemas/register.schema'
+
+type FormData = z.infer<typeof patientSchema>
 
 export function PatientSignupPage() {
-  const [showVerify, setShowVerify] = useState(false)
-  const [email, setEmail] = useState('')
-  const resendVerificationMutation = useResendVerification()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
-  const handleFormSubmit = (data: any) => {
-    if (data && data.email) {
-      setEmail(data.email)
+  const handleFormSubmit = (
+    _values: FormData,
+    response: TPatientRegisterResponse,
+  ) => {
+    const token = response.data?.token
+    if (token) {
+      queryClient.setQueryData([ACCESS_TOKEN_KEY], token)
+      queryClient.invalidateQueries({ queryKey: ['authUser'] })
     }
-    setShowVerify(true)
-  }
 
-  const handleResend = async () => {
-    if (!email) {
-      toast.error('Email address not found. Please try registering again.')
+    const recommendedCenters = response.data?.recommendedCenters || []
+    const assignedCenter = response.data?.assignedCenter || null
+    const state = response.data?.state || _values.state
+    const lga = response.data?.localGovernment || _values.localGovernment
+
+    sessionStorage.setItem(
+      'patientSignupCenters',
+      JSON.stringify({ recommendedCenters, assignedCenter }),
+    )
+
+    toast.success('Account created successfully')
+
+    if (assignedCenter) {
+      navigate({
+        to: '/sign-up/patient/centers',
+        search: { state, lga },
+      })
       return
     }
 
-    const resendPromise = new Promise((resolve, reject) => {
-      resendVerificationMutation.mutate(
-        {
-          email,
-          profileType: 'PATIENT',
-        },
-        {
-          onSuccess: (data) => {
-            resolve(data)
-          },
-          onError: (error: any) => {
-            reject(error)
-          },
-        },
-      )
-    })
+    if (recommendedCenters.length > 0) {
+      navigate({
+        to: '/sign-up/patient/centers',
+        search: { state, lga },
+      })
+      return
+    }
 
-    toast.promise(resendPromise, {
-      loading: 'Resending verification email...',
-      success: 'Verification email resent successfully!',
-      error: (error: any) => {
-        return (
-          error.response?.data?.error ||
-          'Failed to resend verification email. Please try again.'
-        )
-      },
-    })
-  }
-
-  if (showVerify) {
-    return (
-      <EmailVerificationPage
-        email={email}
-        onResend={handleResend}
-        isResending={resendVerificationMutation.isPending}
-      />
-    )
+    navigate({ to: '/patient' })
   }
 
   return (
@@ -71,6 +63,13 @@ export function PatientSignupPage() {
         >
           Back
         </Link>
+      </div>
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold">Create your patient account</h1>
+        <p className="text-sm text-muted-foreground">
+          Register with your location so we can connect you to the nearest
+          screening center for vaccination, screening, and treatment.
+        </p>
       </div>
       <PatientForm onSubmitSuccess={handleFormSubmit} />
     </div>
