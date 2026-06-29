@@ -1961,6 +1961,52 @@ export const getDB = (c: Context) => {
           createdAt: new Date(String(transaction.createdAt)),
         };
       },
+
+      findFirst: async ({ where }: any = {}) => {
+        let query = supabase.from("Transaction").select("*");
+        if (where?.paymentReference) {
+          query = query.eq("paymentReference", where.paymentReference);
+        }
+        if (where?.type) {
+          query = query.eq("type", where.type);
+        }
+        if (where?.status) {
+          query = query.eq("status", where.status);
+        }
+
+        const { data, error } = await query.limit(1).maybeSingle();
+        if (error && error.code !== "PGRST116") throw error;
+        if (!data) return null;
+
+        return {
+          ...data,
+          createdAt: new Date(String(data.createdAt)),
+        };
+      },
+
+      updateMany: async ({ where, data }: any) => {
+        const updates: Record<string, unknown> = {};
+        if (data.status !== undefined) updates.status = data.status;
+        if (data.paymentChannel !== undefined) {
+          updates.paymentChannel = data.paymentChannel;
+        }
+
+        if (Object.keys(updates).length === 0) {
+          return { count: 0 };
+        }
+
+        let query = supabase.from("Transaction").update(updates);
+        if (where?.paymentReference) {
+          query = query.eq("paymentReference", where.paymentReference);
+        }
+        if (where?.id?.in?.length) {
+          query = query.in("id", where.id.in);
+        }
+
+        const { data: updatedRows, error } = await query.select("id");
+        if (error) throw error;
+        return { count: updatedRows?.length ?? 0 };
+      },
     },
 
     payout: {

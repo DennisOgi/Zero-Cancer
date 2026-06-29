@@ -1133,6 +1133,23 @@ appointmentApp.post(
       });
     } catch (paystackError) {
       console.error("Paystack initialization failed for booking:", paystackError);
+      return c.json<TErrorResponse>(
+        {
+          ok: false,
+          error:
+            paystackError instanceof Error
+              ? paystackError.message
+              : "Failed to initialize payment",
+        },
+        502
+      );
+    }
+
+    if (!paystackResponse?.authorization_url) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Payment provider did not return a checkout URL" },
+        502
+      );
     }
 
     // Strictly shape the appointment object to TPatientAppointment
@@ -1189,14 +1206,12 @@ appointmentApp.post(
       ok: true,
       data: {
         appointment: safeAppointment,
-        payment: paystackResponse
-          ? {
+        payment: {
               transactionId: paymentReference,
               reference: paymentReference,
               authorizationUrl: paystackResponse.authorization_url,
               accessCode: paystackResponse.access_code,
-            }
-          : undefined,
+            },
       },
     });
     } catch (error) {

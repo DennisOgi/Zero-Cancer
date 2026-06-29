@@ -1,6 +1,6 @@
 import { env } from "hono/adapter";
 import { getDB } from "./db";
-import { TEnvs } from "./types";
+import { getPaystackKeys } from "./paystack-config";
 
 // Helper function to initialize Paystack payment with context-aware callback URLs
 export async function initializePaystackPayment(
@@ -19,7 +19,8 @@ export async function initializePaystackPayment(
     metadata?: any;
   }
 ) {
-  const { PAYSTACK_SECRET_KEY, FRONTEND_URL } = env<TEnvs>(c);
+  const { secretKey: PAYSTACK_SECRET_KEY } = getPaystackKeys(c);
+  const { FRONTEND_URL } = env<{ FRONTEND_URL: string }>(c);
 
   // Generate context-aware callback URL based on payment type
   let callbackUrl: string;
@@ -70,11 +71,27 @@ export async function initializePaystackPayment(
   );
 
   if (!response.ok) {
-    throw new Error("Failed to initialize Paystack payment");
+    const errorBody = (await response.json().catch(() => ({}))) as {
+      message?: string;
+    };
+    throw new Error(
+      errorBody.message ||
+        `Failed to initialize Paystack payment (${response.status})`
+    );
   }
 
-  const result = await response.json();
-  console.log("Paystack payment initialized:", result.data);
+  const result = (await response.json()) as {
+    data?: {
+      authorization_url?: string;
+      access_code?: string;
+      reference?: string;
+    };
+  };
+
+  if (!result.data?.authorization_url) {
+    throw new Error("Paystack did not return a payment authorization URL");
+  }
+
   return result.data;
 }
 

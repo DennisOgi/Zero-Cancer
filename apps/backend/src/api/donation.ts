@@ -34,11 +34,12 @@ import {
   addToGeneralDonorPool,
   initializePaystackPayment,
 } from "../lib/paystack";
+import { getPaystackKeys } from "../lib/paystack-config";
+import { processSuccessfulPaystackCharge } from "../lib/paystack-payment";
 import { TEnvs, THonoApp } from "../lib/types";
 import {
   createNotificationForUsers,
   formatCampaignForResponse,
-  generateHexId,
 } from "../lib/utils";
 // import {
 //   createNotificationForUsers,
@@ -89,6 +90,21 @@ donationApp.post(
     const reference = `donation-anon-${Date.now()}-${crypto
       .randomBytes(8)
       .toString("hex")}`;
+
+    try {
+      getPaystackKeys(c);
+    } catch (configError) {
+      return c.json<TErrorResponse>(
+        {
+          ok: false,
+          error:
+            configError instanceof Error
+              ? configError.message
+              : "Payment provider is not configured",
+        },
+        503
+      );
+    }
 
     try {
       // Initialize Paystack payment
@@ -143,148 +159,61 @@ donationApp.post(
 // ========================================
 
 // POST /api/donor/paystack-webhook - Handle Paystack webhook
-donationApp.post(
-  "/paystack-webhook",
-  // Verify webhook signature
-  async (c, next) => {
-    try {
-      console.log("Received Paystack webhook request");
+donationApp.post("/paystack-webhook", async (c) => {
+  try {
+    const signature = c.req.header("x-paystack-signature");
+    const rawBody = await c.req.text();
 
-      // Verify webhook signature
-      const signature = c.req.header("x-paystack-signature");
-
-      // Get the raw body
-      const rawBody = await c.req.raw.arrayBuffer();
-      const rawBodyBuffer = Buffer.from(rawBody);
-
-      const { PAYSTACK_SECRET_KEY } = env<{ PAYSTACK_SECRET_KEY: string }>(
-        c,
-        "node"
-      );
-
-      const hash = crypto
-        .createHmac("sha512", PAYSTACK_SECRET_KEY)
-        .update(rawBodyBuffer)
-        .digest("hex");
-
-      if (hash !== signature) {
-        return c.json({ error: "Invalid signature" }, 401);
-      }
-
-      console.log(JSON.parse(rawBodyBuffer.toString()));
-
-      const payload = (await JSON.parse(rawBodyBuffer.toString())) as z.infer<
-        typeof paystackWebhookSchema
-      >;
-
-      c.set("jwtPayload", payload);
-
-      console.log("Received Valid Paystack webhook!!!:", payload);
-
-      await next();
-    } catch (error) {
-      console.error("Webhook verification error:", error);
-      return c.json({ error: "Webhook verification failed" }, 401);
+    if (!signature) {
+      return c.json({ ok: false, error: "Missing Paystack signature" }, 401);
     }
-  },
-  async (c) => {
-    try {
-      console.log("Processing Paystack webhook...");
 
-      // Get the database instance
-      const db = getDB(c);
-      const payload = c.get("jwtPayload") as unknown as z.infer<
-        typeof paystackWebhookSchema
-      >;
+    const { secretKey } = getPaystackKeys(c);
+    const hash = crypto
+      .createHmac("sha512", secretKey)
+      .update(rawBody)
+      .digest("hex");
 
-      if (payload.event === "charge.success") {
-        const { data } = payload;
-
-        // Ensure data exists and has required properties
-        if (!data || !data.reference || !data.amount) {
-          return c.json({ error: "Invalid webhook data" }, 400);
-        }
-
-        const { reference, amount, metadata } = data;
-        const paymentType = metadata?.payment_type;
-
-        // Update transaction status
-        await db.transaction.updateMany({
-          where: { paymentReference: reference },
-          data: { status: "COMPLETED" },
-        });
-
-        if (paymentType === "anonymous_donation") {
-          // Add to general donor pool
-          console.log("Adding to general donor pool:", amount / 100);
-          await addToGeneralDonorPool(amount / 100, c);
-        } else if (paymentType === "campaign_creation" && metadata) {
-          console.log("Funding new campaign:", metadata);
-
-          // Update campaign with initial funding
-          const campaignId = metadata.campaign_id;
-          // const initialFunding = metadata.funding_amount;
-
-          if (campaignId) {
-            await db.donationCampaign.update({
-              where: { id: campaignId },
-              data: {
-                totalAmount: { increment: amount / 100 },
-                availableAmount: { increment: amount / 100 },
-                status: "ACTIVE",
-              },
-            });
-          }
-
-          // Trigger matching for this campaign
-          // TODO: Call matching algorithm
-        } else if (paymentType === "campaign_funding" && metadata) {
-          console.log("Adding funds to campaign:", metadata.campaign_id);
-
-          // Add funds to existing campaign
-          const campaignId = metadata.campaign_id;
-
-          if (campaignId) {
-            await db.donationCampaign.update({
-              where: { id: campaignId },
-              data: {
-                totalAmount: { increment: amount / 100 },
-                availableAmount: { increment: amount / 100 },
-                status: "ACTIVE",
-              },
-            });
-          }
-        } else if (paymentType === "appointment_booking" && metadata) {
-          console.log("Processing appointment booking:", metadata);
-
-          const appointmentId = metadata.appointmentId;
-
-          await db.appointment.update({
-            where: { id: appointmentId },
-            data: {
-              status: "SCHEDULED",
-              checkInCode: generateHexId(6).toUpperCase(),
-              checkInCodeExpiresAt: new Date(
-                Date.now() + 365 * 24 * 60 * 60 * 1000 // 1 year expiry - since you paid, it shouldn't expire
-              ),
-              // paymentReference: reference,
-            },
-          });
-        }
-
-        return c.json({ message: "Webhook processed successfully" });
-      }
-
-      return c.json(
-        { message: "Event not handled", event: payload.event },
-        200
-      );
-    } catch (error) {
-      console.error("Webhook processing error:", error);
-      return c.json({ error: "Webhook processing failed" }, 200);
+    if (hash !== signature) {
+      return c.json({ ok: false, error: "Invalid signature" }, 401);
     }
+
+    const payload = JSON.parse(rawBody) as z.infer<typeof paystackWebhookSchema>;
+
+    if (payload.event !== "charge.success") {
+      return c.json({ ok: true, message: "Event ignored", event: payload.event });
+    }
+
+    const { data } = payload;
+    if (!data?.reference || !data.amount) {
+      return c.json({ ok: false, error: "Invalid webhook data" }, 400);
+    }
+
+    const result = await processSuccessfulPaystackCharge(c, {
+      reference: data.reference,
+      amountKobo: data.amount,
+      metadata: (data.metadata || {}) as Record<string, unknown>,
+    });
+
+    return c.json({
+      ok: true,
+      message: result.alreadyProcessed
+        ? "Payment already processed"
+        : "Webhook processed successfully",
+      paymentType: result.paymentType,
+    });
+  } catch (error) {
+    console.error("[PAYSTACK] Webhook processing error:", error);
+    return c.json(
+      {
+        ok: false,
+        error:
+          error instanceof Error ? error.message : "Webhook processing failed",
+      },
+      500
+    );
   }
-);
+});
 
 // ========================================
 // CAMPAIGN MANAGEMENT ENDPOINTS (DONOR AUTH REQUIRED)
@@ -1173,6 +1102,39 @@ donationApp.delete(
 );
 
 // ========================================
+// PAYMENT CONFIG (for Paystack dashboard setup)
+// ========================================
+
+donationApp.get("/payment-config", async (c) => {
+  try {
+    const { publicKey, envMode } = getPaystackKeys(c);
+    const { FRONTEND_URL } = env<TEnvs>(c);
+
+    return c.json({
+      ok: true,
+      data: {
+        configured: true,
+        mode: publicKey.startsWith("pk_live_") ? "live" : "test",
+        envMode,
+        webhookUrl: `${FRONTEND_URL}/api/v1/donor/paystack-webhook`,
+        callbackBaseUrl: FRONTEND_URL,
+      },
+    });
+  } catch (error) {
+    return c.json<TErrorResponse>(
+      {
+        ok: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Paystack is not configured",
+      },
+      503
+    );
+  }
+});
+
+// ========================================
 // PAYMENT VERIFICATION ENDPOINT
 // ========================================
 
@@ -1180,19 +1142,16 @@ donationApp.delete(
 donationApp.get("/verify-payment/:reference", async (c) => {
   const db = getDB(c);
   const reference = c.req.param("reference");
-  const { PAYSTACK_SECRET_KEY } = env<{ PAYSTACK_SECRET_KEY: string }>(
-    c,
-    "node"
-  );
 
   try {
-    // Verify payment with Paystack
+    const { secretKey } = getPaystackKeys(c);
+
     const response = await fetch(
-      `https://api.paystack.co/transaction/verify/${reference}`,
+      `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
       {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          Authorization: `Bearer ${secretKey}`,
           "Content-Type": "application/json",
         },
       }
@@ -1219,6 +1178,14 @@ donationApp.get("/verify-payment/:reference", async (c) => {
         },
         404
       );
+    }
+
+    if (paymentData.status === "success") {
+      await processSuccessfulPaystackCharge(c, {
+        reference: paymentData.reference,
+        amountKobo: paymentData.amount,
+        metadata: (paymentData.metadata || {}) as Record<string, unknown>,
+      });
     }
 
     // Get local transaction record
