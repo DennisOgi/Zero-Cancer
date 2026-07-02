@@ -128,6 +128,12 @@ export const centerAppointments = (
     queryFn: () => centerService.getCenterAppointments(params),
   })
 
+export const centerPatientsOverview = () =>
+  queryOptions({
+    queryKey: [QueryKeys.centerPatientsOverview],
+    queryFn: () => centerService.getCenterPatientsOverview(),
+  })
+
 // Get center appointments with infinite loading (paginated, filterable)
 export const centerAppointmentsInfinite = (params: {
   pageSize?: number

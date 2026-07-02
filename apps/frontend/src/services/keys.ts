@@ -78,6 +78,7 @@ export enum QueryKeys {
   priceHistory = 'priceHistory',
   centerServices = 'centerServices',
   centerPriceHistory = 'centerPriceHistory',
+  centerPatientsOverview = 'centerPatientsOverview',
 }
 
 export enum MutationKeys {

@@ -259,6 +259,7 @@ export const centerRegisterAndEnroll = () => `/api/center/patients/register-and-
 export const centerEnrollWaitlist = () => `/api/center/patients/enroll-waitlist`
 export const centerSearchPatients = (q: string) =>
   `/api/center/patients/search${buildQuery({ q })}`
+export const centerPatientsOverview = () => `/api/center/patients/overview`
 
 // PATIENT SCREENING REPORTS
 export const patientScreeningReports = () => `/api/patient/screening-reports`

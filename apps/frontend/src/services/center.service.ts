@@ -271,3 +271,35 @@ export const completeAppointment = async (
   })
   return res as TCompleteAppointmentResponse
 }
+
+export type TCenterPatientsOverview = {
+  ok: boolean
+  data: {
+    assignedPatientCount: number
+    totalWaitlistEntries: number
+    pendingWaitlistEntries: number
+    matchedWaitlistEntries: number
+    waitlistSummary: Array<{
+      screeningTypeId: string
+      name: string
+      pending: number
+      matched: number
+    }>
+    recentPatients: Array<{
+      id: string
+      fullName: string
+      email: string
+      phone: string
+      state: string | null
+      city: string | null
+      waitlistCount: number
+      pendingCount: number
+      matchedCount: number
+    }>
+  }
+}
+
+export const getCenterPatientsOverview = async (): Promise<TCenterPatientsOverview> => {
+  const res = await request.get(endpoints.centerPatientsOverview())
+  return res as TCenterPatientsOverview
+}

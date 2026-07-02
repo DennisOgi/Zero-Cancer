@@ -464,14 +464,19 @@ appointmentApp.post(
     }
 
     // Create verification record and update appointment status
-    const staffId = payload.id; // Center staff ID from JWT
+    let verifiedByStaffId: string | null = null;
+    if (payload.profile?.toLowerCase() === "center_staff" && payload.email) {
+      const staff = await db.centerStaff.findFirst({
+        where: { centerId, email: payload.email },
+      });
+      verifiedByStaffId = staff?.id ?? null;
+    }
 
     await db.$transaction(async (tx) => {
-      // Create verification record
       await tx.appointmentVerification.create({
         data: {
-          appointmentId: appointment.id, // Link to appointment ID
-          verifiedBy: staffId!, // Center staff ID from JWT or in case of admin - the id of the center is the same with the id of a n admin ceenter staff
+          appointmentId: appointment.id,
+          verifiedBy: verifiedByStaffId,
           verifiedAt: new Date(),
         },
       });

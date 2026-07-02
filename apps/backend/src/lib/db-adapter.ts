@@ -1310,14 +1310,86 @@ export const getDB = (c: Context) => {
         
         const { data, error } = await query;
         if (error) throw error;
-        
-        // Return empty objects for includes
-        return (data || []).map(a => ({
-          ...a,
-          patient: include?.patient ? {} : undefined,
-          center: include?.center ? {} : undefined,
-          screeningType: include?.screeningType ? {} : undefined,
-          transaction: include?.transaction ? {} : undefined,
+
+        const rows = data || [];
+        if (!include?.patient && !include?.screeningType && !include?.center) {
+          return rows.map((appointment) => ({
+            ...appointment,
+            appointmentDateTime: new Date(String(appointment.appointmentDateTime)),
+            createdAt: new Date(String(appointment.createdAt)),
+            cancellationDate: appointment.cancellationDate
+              ? new Date(String(appointment.cancellationDate))
+              : null,
+            checkInCodeExpiresAt: appointment.checkInCodeExpiresAt
+              ? new Date(String(appointment.checkInCodeExpiresAt))
+              : null,
+          }));
+        }
+
+        const patientIds = [...new Set(rows.map((row) => row.patientId))];
+        const screeningTypeIds = [...new Set(rows.map((row) => row.screeningTypeId))];
+        const centerIds = [...new Set(rows.map((row) => row.centerId))];
+
+        const [{ data: patients }, { data: screeningTypes }, { data: centers }] =
+          await Promise.all([
+            include?.patient && patientIds.length
+              ? supabase
+                  .from("User")
+                  .select(
+                    include.patient.select
+                      ? Object.keys(include.patient.select).join(",")
+                      : "id,fullName,email,phone"
+                  )
+                  .in("id", patientIds)
+              : Promise.resolve({ data: [] }),
+            include?.screeningType && screeningTypeIds.length
+              ? supabase
+                  .from("ScreeningType")
+                  .select(
+                    include.screeningType.select
+                      ? Object.keys(include.screeningType.select).join(",")
+                      : "id,name"
+                  )
+                  .in("id", screeningTypeIds)
+              : Promise.resolve({ data: [] }),
+            include?.center && centerIds.length
+              ? supabase
+                  .from("ServiceCenter")
+                  .select(
+                    include.center.select
+                      ? Object.keys(include.center.select).join(",")
+                      : "id,centerName"
+                  )
+                  .in("id", centerIds)
+              : Promise.resolve({ data: [] }),
+          ]);
+
+        const patientsById = new Map((patients || []).map((row) => [row.id, row]));
+        const screeningById = new Map(
+          (screeningTypes || []).map((row) => [row.id, row])
+        );
+        const centersById = new Map((centers || []).map((row) => [row.id, row]));
+
+        return rows.map((appointment) => ({
+          ...appointment,
+          appointmentDateTime: new Date(String(appointment.appointmentDateTime)),
+          createdAt: new Date(String(appointment.createdAt)),
+          cancellationDate: appointment.cancellationDate
+            ? new Date(String(appointment.cancellationDate))
+            : null,
+          checkInCodeExpiresAt: appointment.checkInCodeExpiresAt
+            ? new Date(String(appointment.checkInCodeExpiresAt))
+            : null,
+          patient: include?.patient
+            ? patientsById.get(appointment.patientId) || null
+            : undefined,
+          screeningType: include?.screeningType
+            ? screeningById.get(appointment.screeningTypeId) || null
+            : undefined,
+          center: include?.center
+            ? centersById.get(appointment.centerId) || null
+            : undefined,
+          transaction: include?.transaction ? null : undefined,
         }));
       },
       
@@ -1336,14 +1408,82 @@ export const getDB = (c: Context) => {
       },
       
       findUnique: async ({ where, include }: any) => {
-        const { data, error } = await supabase
-          .from('Appointment')
-          .select('*')
-          .eq('id', where.id)
-          .single();
-          
-        if (error && error.code !== 'PGRST116') throw error;
-        return data;
+        let query = supabase.from("Appointment").select("*");
+        if (where.id) query = query.eq("id", where.id);
+        else if (where.checkInCode) query = query.eq("checkInCode", where.checkInCode);
+        else return null;
+
+        const { data, error } = await query.maybeSingle();
+        if (error && error.code !== "PGRST116") throw error;
+        if (!data) return null;
+
+        const appointment = {
+          ...data,
+          appointmentDateTime: new Date(String(data.appointmentDateTime)),
+          createdAt: new Date(String(data.createdAt)),
+          cancellationDate: data.cancellationDate
+            ? new Date(String(data.cancellationDate))
+            : null,
+          checkInCodeExpiresAt: data.checkInCodeExpiresAt
+            ? new Date(String(data.checkInCodeExpiresAt))
+            : null,
+        };
+
+        const result: Record<string, unknown> = { ...appointment };
+
+        if (include?.patient) {
+          const { data: patient } = await supabase
+            .from("User")
+            .select(
+              include.patient.select
+                ? Object.keys(include.patient.select).join(",")
+                : "id,fullName,email,phone"
+            )
+            .eq("id", data.patientId)
+            .maybeSingle();
+          result.patient = patient;
+        }
+
+        if (include?.screeningType) {
+          const { data: screeningType } = await supabase
+            .from("ScreeningType")
+            .select(
+              include.screeningType.select
+                ? Object.keys(include.screeningType.select).join(",")
+                : "id,name"
+            )
+            .eq("id", data.screeningTypeId)
+            .maybeSingle();
+          result.screeningType = screeningType;
+        }
+
+        if (include?.center) {
+          const { data: center } = await supabase
+            .from("ServiceCenter")
+            .select(
+              include.center.select
+                ? Object.keys(include.center.select).join(",")
+                : "id,centerName"
+            )
+            .eq("id", data.centerId)
+            .maybeSingle();
+          result.center = center;
+        }
+
+        if (include?.verification) {
+          const { data: verification } = await supabase
+            .from("AppointmentVerification")
+            .select(
+              include.verification.select
+                ? Object.keys(include.verification.select).join(",")
+                : "id,verifiedAt,verifiedBy"
+            )
+            .eq("appointmentId", data.id)
+            .maybeSingle();
+          result.verification = verification;
+        }
+
+        return result;
       },
       
       update: async ({ where, data }: any) => {
@@ -1361,6 +1501,13 @@ export const getDB = (c: Context) => {
               ? data.cancellationDate.toISOString()
               : data.cancellationDate;
         }
+        if (data.appointmentDateTime !== undefined) {
+          updates.appointmentDateTime =
+            data.appointmentDateTime instanceof Date
+              ? data.appointmentDateTime.toISOString()
+              : data.appointmentDateTime;
+        }
+        if (data.kitId !== undefined) updates.kitId = data.kitId;
         
         const { data: appointment, error } = await supabase
           .from('Appointment')
@@ -1444,6 +1591,45 @@ export const getDB = (c: Context) => {
         return result;
       },
     },
+
+    appointmentVerification: {
+      create: async ({ data }: any = {}) => {
+        const verificationId = crypto.randomUUID();
+
+        const { data: verification, error } = await supabase
+          .from("AppointmentVerification")
+          .insert({
+            id: verificationId,
+            appointmentId: data.appointmentId,
+            verifiedBy: data.verifiedBy ?? null,
+            verifiedAt: data.verifiedAt
+              ? data.verifiedAt instanceof Date
+                ? data.verifiedAt.toISOString()
+                : data.verifiedAt
+              : new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        return {
+          ...verification,
+          verifiedAt: new Date(String(verification.verifiedAt)),
+        };
+      },
+      findFirst: async ({ where }: any = {}) => {
+        let query = supabase.from("AppointmentVerification").select("*");
+        if (where?.appointmentId) query = query.eq("appointmentId", where.appointmentId);
+        const { data, error } = await query.limit(1).maybeSingle();
+        if (error) throw error;
+        if (!data) return null;
+        return {
+          ...data,
+          verifiedAt: new Date(String(data.verifiedAt)),
+        };
+      },
+    },
     
     // Notification operations
     notification: {
@@ -1503,12 +1689,54 @@ export const getDB = (c: Context) => {
         
         const { data, error } = await query;
         if (error) throw error;
-        
-        // Return empty objects for includes
-        return (data || []).map(nr => ({
-          ...nr,
-          notification: include?.notification ? {} : undefined,
+
+        if (!include?.notification) {
+          return data || [];
+        }
+
+        const notificationIds = [
+          ...new Set((data || []).map((row) => row.notificationId as string)),
+        ];
+        const { data: notifications } = notificationIds.length
+          ? await supabase.from("Notification").select("*").in("id", notificationIds)
+          : { data: [] };
+
+        const notificationsById = new Map(
+          (notifications || []).map((notification) => {
+            let parsedData: unknown = notification.data;
+            if (typeof notification.data === "string") {
+              try {
+                parsedData = JSON.parse(notification.data);
+              } catch {
+                parsedData = null;
+              }
+            }
+            return [
+              notification.id as string,
+              {
+                ...notification,
+                data: parsedData,
+                createdAt: new Date(String(notification.createdAt)),
+              },
+            ];
+          })
+        );
+
+        return (data || []).map((recipient) => ({
+          ...recipient,
+          readAt: recipient.readAt ? new Date(String(recipient.readAt)) : null,
+          notification: notificationsById.get(recipient.notificationId as string) || null,
         }));
+      },
+
+      updateMany: async ({ where, data }: any = {}) => {
+        let query = supabase.from("NotificationRecipient").update(data);
+        if (where?.userId) query = query.eq("userId", where.userId);
+        if (where?.id?.in?.length) query = query.in("id", where.id.in);
+        if (where?.read === false) query = query.eq("read", false);
+        const { error } = await query;
+        if (error) throw error;
+        return { count: where?.id?.in?.length ?? 0 };
       },
     },
     
@@ -1915,7 +2143,21 @@ export const getDB = (c: Context) => {
     },
 
     donationAllocation: {
-      findFirst: async ({ where }: any = {}) => {
+      findUnique: async ({ where, include }: any = {}) => {
+        let query = supabase.from("DonationAllocation").select("*");
+
+        if (where?.waitlistId) query = query.eq("waitlistId", where.waitlistId);
+        if (where?.patientId) query = query.eq("patientId", where.patientId);
+        if (where?.campaignId) query = query.eq("campaignId", where.campaignId);
+        if (where?.id) query = query.eq("id", where.id);
+        if (where?.claimedAt === null) query = query.is("claimedAt", null);
+
+        const { data, error } = await query.limit(1).maybeSingle();
+        if (error && error.code !== "PGRST116") throw error;
+        return data;
+      },
+
+      findFirst: async ({ where, include }: any = {}) => {
         let query = supabase.from("DonationAllocation").select("*");
 
         if (where?.waitlistId) query = query.eq("waitlistId", where.waitlistId);

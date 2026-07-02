@@ -10,6 +10,7 @@ import { useAuthUser } from '@/services/providers/auth.provider'
 import {
   centerAppointments,
   centerById,
+  centerPatientsOverview,
 } from '@/services/providers/center.provider'
 import { centerTransactionHistory } from '@/services/providers/payout.provider'
 import { useQuery } from '@tanstack/react-query'
@@ -17,6 +18,7 @@ import { Link } from '@tanstack/react-router'
 
 // Component imports
 import { AppointmentTable } from './AppointmentTable'
+import { AssignedPatientsWidget } from './AssignedPatientsWidget'
 import { DashboardStats } from './DashboardStats'
 import { QuickActions } from './QuickActions'
 import { WaitlistWidget } from './WaitlistWidget'
@@ -59,6 +61,12 @@ export function CenterDashboard() {
       enabled: !!centerId,
     })
 
+  const { data: patientsOverviewData, isLoading: patientsOverviewLoading } =
+    useQuery({
+      ...centerPatientsOverview(),
+      enabled: !!centerId,
+    })
+
   // Client-side calculations from fetched data
   const allAppointments = appointmentsData?.data?.appointments || []
   const todayStr = new Date().toISOString().split('T')[0]
@@ -80,6 +88,8 @@ export function CenterDashboard() {
 
   const totalAppointmentsToday = todaysAppointments.length
   const totalStaff = centerData?.data?.staff?.length ?? 0
+  const assignedPatientCount =
+    patientsOverviewData?.data?.assignedPatientCount ?? 0
   const totalEarnedToday =
     todaysTransactionsData?.data?.transactions?.reduce(
       (sum: number, t: any) => sum + t.amount,
@@ -90,15 +100,25 @@ export function CenterDashboard() {
   const centerName = user?.fullName || 'Acme Center'
 
   const metricsLoading =
-    appointmentsLoading || centerLoading || todaysTransactionsLoading
+    appointmentsLoading ||
+    centerLoading ||
+    todaysTransactionsLoading ||
+    patientsOverviewLoading
 
   const stats = [
+    {
+      title: 'Assigned Patients',
+      value: assignedPatientCount,
+      description: 'Auto-matched to center',
+      icon: peopleIcon,
+      color: 'bg-blue-100',
+    },
     {
       title: 'Total Staff',
       value: totalStaff,
       description: 'People',
       icon: peopleIcon,
-      color: 'bg-blue-100',
+      color: 'bg-indigo-100',
     },
     {
       title: 'Total Appointments Today',
@@ -182,6 +202,8 @@ export function CenterDashboard() {
 
         <WaitlistWidget />
       </div>
+
+      <AssignedPatientsWidget />
     </div>
   )
 }

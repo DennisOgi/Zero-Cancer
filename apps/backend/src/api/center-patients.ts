@@ -57,6 +57,16 @@ async function enrollPatientInWaitlist(
     include: { screening: true },
   });
 
+  const profile = await db.patientProfile.findUnique({
+    where: { userId: params.patientId },
+  });
+  if (profile && !profile.assignedCenterId) {
+    await db.patientProfile.update({
+      where: { userId: params.patientId },
+      data: { assignedCenterId: params.centerId },
+    });
+  }
+
   try {
     await triggerWaitlistMatching(c);
   } catch (error) {
@@ -191,6 +201,167 @@ centerPatientsApp.post(
     }
   }
 );
+
+// GET /api/center/patients/overview — assigned patients + waitlist summary for this center
+centerPatientsApp.get("/overview", async (c) => {
+  try {
+    const centerId = c.get("jwtPayload")?.id as string;
+    const supabase = getSupabaseClient(c);
+
+    const [
+      { data: assignedProfiles, error: profilesError },
+      { count: assignedPatientCount, error: assignedError },
+    ] = await Promise.all([
+      supabase
+        .from("PatientProfile")
+        .select("userId, city, state, assignedCenterId")
+        .eq("assignedCenterId", centerId)
+        .order("userId", { ascending: false })
+        .limit(8),
+      supabase
+        .from("PatientProfile")
+        .select("*", { count: "exact", head: true })
+        .eq("assignedCenterId", centerId),
+    ]);
+
+    if (assignedError) throw assignedError;
+    if (profilesError) throw profilesError;
+
+    const { data: allAssignedRows, error: allAssignedError } = await supabase
+      .from("PatientProfile")
+      .select("userId")
+      .eq("assignedCenterId", centerId);
+
+    if (allAssignedError) throw allAssignedError;
+
+    const allAssignedPatientIds = (allAssignedRows || []).map(
+      (row) => row.userId as string
+    );
+
+    let waitlists: Array<{
+      id: string;
+      status: string;
+      screeningTypeId: string;
+      patientId: string;
+      joinedAt: string;
+    }> = [];
+
+    const { data: centerWaitlists, error: waitlistError } = await supabase
+      .from("Waitlist")
+      .select("id, status, screeningTypeId, patientId, joinedAt")
+      .eq("enrolledByCenterId", centerId)
+      .in("status", ["PENDING", "MATCHED"]);
+
+    if (waitlistError) throw waitlistError;
+    waitlists = centerWaitlists || [];
+
+    if (allAssignedPatientIds.length > 0) {
+      const { data: assignedWaitlists, error: assignedWaitlistError } =
+        await supabase
+          .from("Waitlist")
+          .select("id, status, screeningTypeId, patientId, joinedAt")
+          .in("patientId", allAssignedPatientIds)
+          .in("status", ["PENDING", "MATCHED"]);
+
+      if (assignedWaitlistError) throw assignedWaitlistError;
+
+      const seen = new Set(waitlists.map((row) => row.id));
+      for (const row of assignedWaitlists || []) {
+        if (!seen.has(row.id as string)) {
+          waitlists.push(row as typeof waitlists[number]);
+        }
+      }
+    }
+
+    const screeningTypeIds = [
+      ...new Set((waitlists || []).map((row) => row.screeningTypeId as string)),
+    ];
+    const patientIds = [
+      ...new Set((assignedProfiles || []).map((row) => row.userId as string)),
+    ];
+
+    const [{ data: screeningTypes }, { data: users }] = await Promise.all([
+      screeningTypeIds.length
+        ? supabase.from("ScreeningType").select("id, name").in("id", screeningTypeIds)
+        : Promise.resolve({ data: [] }),
+      patientIds.length
+        ? supabase
+            .from("User")
+            .select("id, fullName, email, phone")
+            .in("id", patientIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const screeningNameById = new Map(
+      (screeningTypes || []).map((row) => [row.id as string, row.name as string])
+    );
+    const userById = new Map(
+      (users || []).map((row) => [row.id as string, row])
+    );
+
+    const waitlistByScreening = new Map<
+      string,
+      { screeningTypeId: string; name: string; pending: number; matched: number }
+    >();
+
+    for (const row of waitlists || []) {
+      const screeningTypeId = row.screeningTypeId as string;
+      const current = waitlistByScreening.get(screeningTypeId) || {
+        screeningTypeId,
+        name: screeningNameById.get(screeningTypeId) || "Unknown screening",
+        pending: 0,
+        matched: 0,
+      };
+      if (row.status === "MATCHED") current.matched += 1;
+      else current.pending += 1;
+      waitlistByScreening.set(screeningTypeId, current);
+    }
+
+    const waitlistSummary = [...waitlistByScreening.values()].sort(
+      (a, b) => b.pending + b.matched - (a.pending + a.matched)
+    );
+
+    const recentPatients = (assignedProfiles || []).map((profile) => {
+      const user = userById.get(profile.userId as string);
+      const patientWaitlists = (waitlists || []).filter(
+        (row) => row.patientId === profile.userId
+      );
+      return {
+        id: profile.userId as string,
+        fullName: user?.fullName || "Patient",
+        email: user?.email || "",
+        phone: user?.phone || "",
+        state: profile.state as string | null,
+        city: profile.city as string | null,
+        waitlistCount: patientWaitlists.length,
+        pendingCount: patientWaitlists.filter((row) => row.status === "PENDING").length,
+        matchedCount: patientWaitlists.filter((row) => row.status === "MATCHED").length,
+      };
+    });
+
+    return c.json({
+      ok: true,
+      data: {
+        assignedPatientCount: assignedPatientCount || 0,
+        totalWaitlistEntries: waitlists?.length || 0,
+        pendingWaitlistEntries: (waitlists || []).filter(
+          (row) => row.status === "PENDING"
+        ).length,
+        matchedWaitlistEntries: (waitlists || []).filter(
+          (row) => row.status === "MATCHED"
+        ).length,
+        waitlistSummary,
+        recentPatients,
+      },
+    });
+  } catch (error) {
+    console.error("Center patients overview error:", error);
+    return c.json<TErrorResponse>(
+      { ok: false, error: "Failed to load center patient overview" },
+      500
+    );
+  }
+});
 
 // GET /api/center/patients/search?q= — find existing patients to enroll on waitlist
 centerPatientsApp.get(
