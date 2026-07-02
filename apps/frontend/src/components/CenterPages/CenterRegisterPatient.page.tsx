@@ -56,10 +56,12 @@ export function CenterRegisterPatientPage() {
   const navigate = useNavigate()
   const authUserQuery = useQuery(useAuthUser())
   const centerName = authUserQuery.data?.data?.user?.fullName || 'Your screening center'
-  const { data: screeningTypesData } = useQuery(
+  const { data: screeningTypesData, isLoading: screeningTypesLoading } = useQuery(
     useScreeningTypes({ page: 1, pageSize: 100 }),
   )
-  const screeningTypes = screeningTypesData?.data?.screeningTypes || []
+  const screeningTypes = Array.isArray(screeningTypesData?.data)
+    ? screeningTypesData.data
+    : []
   const [selectedState, setSelectedState] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [registeredPatient, setRegisteredPatient] = useState<{
@@ -179,8 +181,8 @@ export function CenterRegisterPatientPage() {
             </div>
             <CardDescription className="text-green-700">
               {registeredPatient.isNewPatient
-                ? 'WhatsApp should open with login details — tap Send from your center WhatsApp. Credentials are also shown below as backup.'
-                : 'WhatsApp should open with a waitlist confirmation — tap Send from your center WhatsApp.'}
+                ? 'The patient has been registered and enrolled on the waitlist.'
+                : 'The patient has been enrolled on the waitlist under your center.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -202,9 +204,6 @@ export function CenterRegisterPatientPage() {
                 <p className="text-lg font-mono text-gray-900">
                   {registeredPatient.whatsappNumber}
                 </p>
-                <p className="text-xs text-green-700 mt-1">
-                  Message sends from your center&apos;s WhatsApp when you tap Send
-                </p>
               </div>
               {registeredPatient.isNewPatient && registeredPatient.tempPassword ? (
               <div>
@@ -214,29 +213,8 @@ export function CenterRegisterPatientPage() {
                 <p className="text-lg font-mono font-bold text-blue-600">
                   {registeredPatient.tempPassword}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Patient should change this password after first login
-                </p>
               </div>
               ) : null}
-            </div>
-
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-900 font-medium mb-2">
-                Next Steps:
-              </p>
-              <ul className="text-sm text-blue-800 space-y-1">
-                <li>• Tap &quot;Send on WhatsApp&quot; — message goes from your center number</li>
-                {registeredPatient.isNewPatient ? (
-                  <>
-                    <li>• Review the pre-filled login details, then tap Send in WhatsApp</li>
-                    <li>• Keep a printed copy if the patient has no WhatsApp</li>
-                  </>
-                ) : (
-                  <li>• Patient logs in with their existing account</li>
-                )}
-                <li>• Patient will be notified when donor funding is matched</li>
-              </ul>
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -423,16 +401,23 @@ export function CenterRegisterPatientPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {screeningTypes.map((type: any) => (
-                            <SelectItem key={type.id} value={type.id}>
-                              {type.name}
+                          {screeningTypesLoading ? (
+                            <SelectItem value="__loading" disabled>
+                              Loading services...
                             </SelectItem>
-                          ))}
+                          ) : screeningTypes.length === 0 ? (
+                            <SelectItem value="__empty" disabled>
+                              No screening services available
+                            </SelectItem>
+                          ) : (
+                            screeningTypes.map((type) => (
+                              <SelectItem key={type.id} value={type.id}>
+                                {type.name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
-                      <FormDescription>
-                        Patient will enter the platform-wide donor matching waitlist
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -508,31 +493,6 @@ export function CenterRegisterPatientPage() {
                     )}
                   />
                 </div>
-              </div>
-
-              {/* Info Box */}
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <p className="text-sm text-blue-900 font-medium mb-2">
-                  📋 Important Information:
-                </p>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>
-                    • A temporary password will be automatically generated
-                  </li>
-                  <li>
-                    • After registration, WhatsApp opens with a pre-filled message
-                  </li>
-                  <li>
-                    • You send from your center&apos;s WhatsApp — no extra subscription needed
-                  </li>
-                  <li>
-                    • Credentials stay on screen as backup if WhatsApp is unavailable
-                  </li>
-                  <li>
-                    • Patient should change their password after first login
-                  </li>
-                  <li>• All fields marked with * are required</li>
-                </ul>
               </div>
 
               {/* Submit Button */}

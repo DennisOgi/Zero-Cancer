@@ -33,10 +33,12 @@ type PatientResult = {
 }
 
 export function CenterEnrollExistingPatient() {
-  const { data: screeningTypesData } = useQuery(
+  const { data: screeningTypesData, isLoading: screeningTypesLoading } = useQuery(
     useScreeningTypes({ page: 1, pageSize: 100 }),
   )
-  const screeningTypes = screeningTypesData?.data?.screeningTypes || []
+  const screeningTypes = Array.isArray(screeningTypesData?.data)
+    ? screeningTypesData.data
+    : []
 
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -182,11 +184,21 @@ export function CenterEnrollExistingPatient() {
               <SelectValue placeholder="Select screening type" />
             </SelectTrigger>
             <SelectContent>
-              {screeningTypes.map((type: any) => (
-                <SelectItem key={type.id} value={type.id}>
-                  {type.name}
+              {screeningTypesLoading ? (
+                <SelectItem value="__loading" disabled>
+                  Loading services...
                 </SelectItem>
-              ))}
+              ) : screeningTypes.length === 0 ? (
+                <SelectItem value="__empty" disabled>
+                  No screening services available
+                </SelectItem>
+              ) : (
+                screeningTypes.map((type) => (
+                  <SelectItem key={type.id} value={type.id}>
+                    {type.name}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>
