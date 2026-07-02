@@ -5,13 +5,15 @@ import {
 } from "@zerocancer/shared/schemas/screening-report.schema";
 import type { TErrorResponse } from "@zerocancer/shared/types";
 import bcrypt from "bcryptjs";
+import { env } from "hono/adapter";
 import { Hono } from "hono";
 import { getDB } from "../lib/db";
 import { getSupabaseClient } from "../lib/supabase";
-import { THonoApp } from "../lib/types";
+import { THonoApp, TEnvs } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { isLikelyValidWhatsappNumber, normalizeWhatsappNumber } from "../lib/phone";
 import { getUserWithProfiles, triggerWaitlistMatching } from "../lib/utils";
+import { WhatsAppService } from "../lib/whatsapp";
 import { z } from "zod";
 
 export const centerPatientsApp = new Hono<THonoApp>();
@@ -114,6 +116,7 @@ centerPatientsApp.post(
       let fullName: string;
       let email: string;
       let whatsappNumber: string;
+      let isNewPatient = false;
 
       const { user: existingUser, profiles } = userResult;
 
@@ -140,6 +143,7 @@ centerPatientsApp.post(
           409
         );
       } else {
+        isNewPatient = true;
         const hashedPassword = await bcrypt.hash(data.password, 10);
         const patient = await db.user.create({
           data: {
@@ -176,6 +180,53 @@ centerPatientsApp.post(
         return c.json<TErrorResponse>({ ok: false, error: enrollment.error }, 404);
       }
 
+      const { FRONTEND_URL } = env<TEnvs>(c);
+      const center = await db.serviceCenter.findUnique({ where: { id: centerId } });
+      const centerName = center?.centerName || "Your screening center";
+      const loginUrl = `${FRONTEND_URL}/login`;
+      const screeningName =
+        (enrollment.waitlist as { screening?: { name?: string } } | undefined)
+          ?.screening?.name || undefined;
+
+      let whatsappNotification: {
+        sent: boolean;
+        mock?: boolean;
+        error?: string;
+      } = { sent: false };
+
+      try {
+        const whatsapp = new WhatsAppService(c);
+        const result = isNewPatient
+          ? await whatsapp.sendWalkInRegistration({
+              to: whatsappNumber,
+              patientName: fullName,
+              centerName,
+              email,
+              temporaryPassword: data.password,
+              loginUrl,
+              screeningName,
+            })
+          : await whatsapp.sendExistingPatientWaitlistEnrollment({
+              to: whatsappNumber,
+              patientName: fullName,
+              centerName,
+              loginUrl,
+              screeningName,
+            });
+
+        whatsappNotification = {
+          sent: result.success,
+          mock: result.mock,
+          error: result.error,
+        };
+      } catch (whatsappError) {
+        console.error("Walk-in registration WhatsApp notification failed:", whatsappError);
+        whatsappNotification = {
+          sent: false,
+          error: "Failed to send WhatsApp message",
+        };
+      }
+
       return c.json(
         {
           ok: true,
@@ -188,6 +239,8 @@ centerPatientsApp.post(
             },
             waitlist: enrollment.waitlist,
             waitlistCreated: enrollment.created,
+            isNewPatient,
+            whatsappNotification,
           },
         },
         201

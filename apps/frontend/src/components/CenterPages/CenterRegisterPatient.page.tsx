@@ -58,7 +58,11 @@ export function CenterRegisterPatientPage() {
   const [registeredPatient, setRegisteredPatient] = useState<{
     fullName: string
     email: string
-    tempPassword: string
+    tempPassword?: string
+    whatsappNumber: string
+    isNewPatient: boolean
+    whatsappSent: boolean
+    whatsappError?: string
   } | null>(null)
 
   const form = useForm<WalkInPatientFormData>({
@@ -95,15 +99,30 @@ export function CenterRegisterPatientPage() {
       })
 
       if (response.ok) {
+        const whatsappNotification = response.data?.whatsappNotification
         setRegisteredPatient({
           fullName: data.fullName,
           email: data.email,
-          tempPassword,
+          tempPassword: response.data?.isNewPatient ? tempPassword : undefined,
+          whatsappNumber: data.phone,
+          isNewPatient: Boolean(response.data?.isNewPatient),
+          whatsappSent: Boolean(whatsappNotification?.sent),
+          whatsappError: whatsappNotification?.error,
         })
         const waitlistMsg = response.data?.waitlistCreated
           ? 'Patient registered and added to the platform waitlist'
           : 'Patient registered — already on the waitlist for this screening'
-        toast.success(waitlistMsg)
+        toast.success(
+          whatsappNotification?.sent
+            ? `${waitlistMsg}. Login details sent on WhatsApp.`
+            : waitlistMsg,
+        )
+        if (whatsappNotification && !whatsappNotification.sent) {
+          toast.warning(
+            whatsappNotification.error ||
+              'Patient saved but WhatsApp could not be delivered. Share credentials manually.',
+          )
+        }
         form.reset()
       }
     } catch (error: any) {
@@ -135,7 +154,9 @@ export function CenterRegisterPatientPage() {
               </CardTitle>
             </div>
             <CardDescription className="text-green-700">
-              Share these credentials with the patient. They are now on the platform-wide donor matching waitlist.
+              {registeredPatient.isNewPatient
+                ? 'Share these credentials with the patient if WhatsApp delivery failed. They are on the platform-wide donor matching waitlist.'
+                : 'This patient already had an account. They were enrolled on the waitlist under your center.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -153,6 +174,27 @@ export function CenterRegisterPatientPage() {
                 </p>
               </div>
               <div>
+                <p className="text-sm font-medium text-gray-600">WhatsApp</p>
+                <p className="text-lg font-mono text-gray-900">
+                  {registeredPatient.whatsappNumber}
+                </p>
+                <p
+                  className={`text-xs mt-1 ${
+                    registeredPatient.whatsappSent
+                      ? 'text-green-700'
+                      : 'text-amber-700'
+                  }`}
+                >
+                  {registeredPatient.whatsappSent
+                    ? registeredPatient.isNewPatient
+                      ? 'Login details sent on WhatsApp'
+                      : 'Waitlist confirmation sent on WhatsApp'
+                    : registeredPatient.whatsappError ||
+                      'WhatsApp not delivered — share details manually'}
+                </p>
+              </div>
+              {registeredPatient.isNewPatient && registeredPatient.tempPassword ? (
+              <div>
                 <p className="text-sm font-medium text-gray-600">
                   Temporary Password
                 </p>
@@ -163,6 +205,7 @@ export function CenterRegisterPatientPage() {
                   Patient should change this password after first login
                 </p>
               </div>
+              ) : null}
             </div>
 
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
@@ -170,16 +213,24 @@ export function CenterRegisterPatientPage() {
                 Next Steps:
               </p>
               <ul className="text-sm text-blue-800 space-y-1">
-                <li>• Write down or print these credentials for the patient</li>
-                <li>
-                  • Patient can log in at the website using these credentials
-                </li>
-                <li>• Patient should change their password after first login</li>
-                <li>• Patient can now book appointments online</li>
+                <li>• Patient should receive a WhatsApp message with next steps</li>
+                {registeredPatient.isNewPatient ? (
+                  <>
+                    <li>• Write down or print credentials if WhatsApp fails</li>
+                    <li>
+                      • Patient can log in at the website using email and password
+                    </li>
+                    <li>• Patient should change their password after first login</li>
+                  </>
+                ) : (
+                  <li>• Patient can log in with their existing account</li>
+                )}
+                <li>• Patient can book appointments once funding is matched</li>
               </ul>
             </div>
 
             <div className="flex gap-3">
+              {registeredPatient.isNewPatient && registeredPatient.tempPassword ? (
               <Button
                 onClick={() => {
                   navigator.clipboard.writeText(
@@ -192,6 +243,7 @@ export function CenterRegisterPatientPage() {
               >
                 Copy Credentials
               </Button>
+              ) : null}
               <Button
                 onClick={() => window.print()}
                 variant="outline"
@@ -451,7 +503,10 @@ export function CenterRegisterPatientPage() {
                     • A temporary password will be automatically generated
                   </li>
                   <li>
-                    • You'll receive the credentials to share with the patient
+                    • Login details will be sent to the patient on WhatsApp
+                  </li>
+                  <li>
+                    • You'll still see credentials here as a backup for staff
                   </li>
                   <li>
                     • Patient should change their password after first login

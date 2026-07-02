@@ -125,6 +125,57 @@ export class WhatsAppService {
     const result = await this.sendMessage(to, message);
     return result.success;
   }
+
+  async sendWalkInRegistration(params: {
+    to: string;
+    patientName: string;
+    centerName: string;
+    email: string;
+    temporaryPassword: string;
+    loginUrl: string;
+    screeningName?: string;
+  }): Promise<WhatsAppSendResult> {
+    const screeningLine = params.screeningName
+      ? `\nScreening: ${params.screeningName}`
+      : "";
+
+    const message = `Hello ${params.patientName}!
+
+${params.centerName} has registered you on ZeroCancer and added you to the donor matching waitlist.${screeningLine}
+
+Your login details:
+Email: ${params.email}
+Password: ${params.temporaryPassword}
+
+Log in: ${params.loginUrl}
+Please change your password after your first login.
+
+You will be notified when funding covers your screening.`;
+
+    return this.sendMessage(params.to, message);
+  }
+
+  async sendExistingPatientWaitlistEnrollment(params: {
+    to: string;
+    patientName: string;
+    centerName: string;
+    loginUrl: string;
+    screeningName?: string;
+  }): Promise<WhatsAppSendResult> {
+    const screeningLine = params.screeningName
+      ? ` for ${params.screeningName}`
+      : "";
+
+    const message = `Hello ${params.patientName}!
+
+${params.centerName} has added you to the ZeroCancer waitlist${screeningLine}.
+
+Log in with your existing account: ${params.loginUrl}
+
+You will be notified when donor funding covers your screening.`;
+
+    return this.sendMessage(params.to, message);
+  }
 }
 
 export async function sendWhatsAppNotification(
