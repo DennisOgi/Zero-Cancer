@@ -1119,7 +1119,7 @@ export const getDB = (c: Context) => {
     
     // Waitlist operations
     waitlist: {
-      findFirst: async ({ where }: any = {}) => {
+      findFirst: async ({ where, include }: any = {}) => {
         let query = supabase.from("Waitlist").select("*");
 
         if (where?.patientId) query = query.eq("patientId", where.patientId);
@@ -1133,7 +1133,43 @@ export const getDB = (c: Context) => {
 
         const { data, error } = await query.limit(1).maybeSingle();
         if (error && error.code !== "PGRST116") throw error;
-        return data;
+        if (!data) return null;
+
+        const result: Record<string, unknown> = { ...data };
+
+        if (include?.screening) {
+          const { data: screening } = await supabase
+            .from("ScreeningType")
+            .select(
+              include.screening.select
+                ? Object.keys(include.screening.select).join(",")
+                : "id,name,description"
+            )
+            .eq("id", data.screeningTypeId)
+            .maybeSingle();
+          result.screening = screening;
+        }
+
+        if (include?.allocation) {
+          const { data: allocation } = await supabase
+            .from("DonationAllocation")
+            .select("id, claimedAt, campaignId")
+            .eq("waitlistId", data.id)
+            .maybeSingle();
+
+          if (allocation && include.allocation.select?.campaign) {
+            const { data: campaign } = await supabase
+              .from("DonationCampaign")
+              .select("title, purpose")
+              .eq("id", allocation.campaignId)
+              .maybeSingle();
+            result.allocation = { ...allocation, campaign };
+          } else {
+            result.allocation = allocation;
+          }
+        }
+
+        return result;
       },
 
       create: async ({ data, include }: any = {}) => {

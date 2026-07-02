@@ -94,9 +94,9 @@ function ScreeningCardUI({
                 >
                   {hasUsableDonation
                     ? 'Cancel'
-                    : isLeavingWaitlist
-                      ? 'Leaving...'
-                      : 'Leave Waitlist'}
+                      : isLeavingWaitlist
+                        ? 'Leaving...'
+                        : 'On Waitlist (Leave)'}
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -210,6 +210,8 @@ export default function ScreeningCard({
     })
   }
 
+  const isOnWaitlist = waitlistStatus?.data?.inWaitlist
+
   return (
     <ScreeningCardUI
       name={screeningType.name}
@@ -219,7 +221,7 @@ export default function ScreeningCard({
       onLeaveWaitlist={handleLeaveWaitlist}
       onBookWithDonation={() => handleBookWithDonation(screeningType.id)}
       hasUsableDonation={hasUsableDonation}
-      isWaitlisted={waitlistStatus?.data?.inWaitlist}
+      isWaitlisted={isOnWaitlist}
       isJoiningWaitlist={joinWaitlistMutation.isPending}
       isLeavingWaitlist={leaveWaitlistMutation.isPending}
       isBooking={isCheckingWaitlist}
