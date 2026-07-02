@@ -276,6 +276,29 @@ authApp.get(
       gender = patientProfile.gender;
     }
 
+    let assignedCenter: {
+      id: string;
+      centerName: string;
+      address: string;
+      state: string;
+      lga: string;
+    } | null = null;
+
+    if (jwtPayload.profile === "PATIENT" && patientProfile?.assignedCenterId) {
+      const center = await db.serviceCenter.findUnique({
+        where: { id: patientProfile.assignedCenterId },
+      });
+      if (center) {
+        assignedCenter = {
+          id: center.id,
+          centerName: center.centerName,
+          address: center.address,
+          state: center.state,
+          lga: center.lga,
+        };
+      }
+    }
+
     return c.json<TAuthMeResponse>({
       ok: true,
       data: {
@@ -295,6 +318,7 @@ authApp.get(
                 localGovernment: patientProfile?.city ?? "",
                 photoUrl: patientProfile?.photoUrl ?? null,
                 assignedCenterId: patientProfile?.assignedCenterId ?? null,
+                assignedCenter,
               }
             : {}),
         },

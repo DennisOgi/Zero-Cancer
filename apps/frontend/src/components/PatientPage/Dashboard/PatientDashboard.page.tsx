@@ -45,6 +45,7 @@ export function PatientDashboardPage() {
   }
 
   const userName = authData?.data?.user?.fullName?.split(' ')[0] || 'Patient'
+  const assignedCenter = authData?.data?.user?.assignedCenter ?? null
   const allAppointments = appointmentsData?.data?.appointments || []
   const today = new Date()
   today.setHours(0, 0, 0, 0) // Set to the beginning of the day
@@ -73,7 +74,10 @@ export function PatientDashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 py-4 lg:py-6">
         <div className="lg:col-span-2 space-y-6">
-          <StatusCard appointment={upcomingAppointment} />
+          <StatusCard
+            appointment={upcomingAppointment}
+            assignedCenter={assignedCenter}
+          />
 
           <div className="flex gap-4 w-full">
             <Link

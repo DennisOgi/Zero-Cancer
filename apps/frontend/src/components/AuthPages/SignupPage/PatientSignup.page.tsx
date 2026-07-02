@@ -25,6 +25,17 @@ export function PatientSignupPage() {
 
     const recommendedCenters = response.data?.recommendedCenters || []
     const assignedCenter = response.data?.assignedCenter || null
+
+    if (assignedCenter) {
+      toast.success(
+        `Account created! You've been assigned to ${assignedCenter.centerName} in ${assignedCenter.lga}, ${assignedCenter.state}.`,
+      )
+      navigate({ to: '/patient', replace: true })
+      return
+    }
+
+    toast.success('Account created successfully')
+
     const state = response.data?.state || _values.state
     const lga = response.data?.localGovernment || _values.localGovernment
 
@@ -32,16 +43,6 @@ export function PatientSignupPage() {
       'patientSignupCenters',
       JSON.stringify({ recommendedCenters, assignedCenter }),
     )
-
-    toast.success('Account created successfully')
-
-    if (assignedCenter) {
-      navigate({
-        to: '/sign-up/patient/centers',
-        search: { state, lga },
-      })
-      return
-    }
 
     if (recommendedCenters.length > 0) {
       navigate({
@@ -51,7 +52,7 @@ export function PatientSignupPage() {
       return
     }
 
-    navigate({ to: '/patient' })
+    navigate({ to: '/patient', replace: true })
   }
 
   return (

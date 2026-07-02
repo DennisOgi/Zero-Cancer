@@ -7,9 +7,17 @@ import { ArrowRight } from 'lucide-react'
 
 interface StatusCardProps {
   appointment: TPatientAppointment | null | undefined
+  assignedCenter?: {
+    centerName: string
+    lga?: string
+    state?: string
+  } | null
 }
 
-export default function StatusCard({ appointment }: StatusCardProps) {
+export default function StatusCard({
+  appointment,
+  assignedCenter,
+}: StatusCardProps) {
   const navigate = useNavigate()
 
   const handleBookScreening = () => {
@@ -37,6 +45,12 @@ export default function StatusCard({ appointment }: StatusCardProps) {
 
   const isScheduled = !!appointment
 
+  const locationLabel = isScheduled
+    ? `${appointment.center?.centerName || 'Screening center'}, ${formattedSchedule}`
+    : assignedCenter
+      ? `${assignedCenter.centerName} (${assignedCenter.lga}, ${assignedCenter.state})`
+      : 'No center assigned yet'
+
   return (
     <div
       className={`w-full rounded-2xl p-6 flex items-center justify-between transition-colors duration-300 ${
@@ -53,10 +67,7 @@ export default function StatusCard({ appointment }: StatusCardProps) {
           {isScheduled ? 'Screening Scheduled' : 'Not Screened'}
         </h2>
         <p className="text-gray-500">
-          <span className="font-semibold">Location:</span>{' '}
-          {isScheduled
-            ? `${appointment.center?.centerName || 'Screening center'}, ${formattedSchedule}`
-            : '-'}
+          <span className="font-semibold">Location:</span> {locationLabel}
         </p>
         <div className="pt-2">
           {isScheduled ? (

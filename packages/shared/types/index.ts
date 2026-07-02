@@ -106,6 +106,13 @@ export type TAuthMeResponse = TDataResponse<{
     localGovernment?: string;
     photoUrl?: string | null;
     assignedCenterId?: string | null;
+    assignedCenter?: {
+      id: string;
+      centerName: string;
+      address: string;
+      state: string;
+      lga: string;
+    } | null;
   };
 }>;
 
