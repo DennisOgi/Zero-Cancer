@@ -1,4 +1,5 @@
 import { getDB } from "./db";
+import { locationsMatch } from "./location-utils";
 import { triggerWaitlistMatching } from "./utils";
 
 export type RecommendedCenter = {
@@ -8,16 +9,12 @@ export type RecommendedCenter = {
   state: string;
   lga: string;
   services: Array<{ id: string; name: string }>;
-  distanceTier: "same_lga" | "same_state";
+  distanceTier: "same_lga" | "same_state" | "fallback";
 };
-
-function normalizeLocation(value: string) {
-  return value.trim().toLowerCase();
-}
 
 function formatRecommendedCenter(
   center: any,
-  distanceTier: "same_lga" | "same_state"
+  distanceTier: "same_lga" | "same_state" | "fallback"
 ): RecommendedCenter {
   return {
     id: center.id,
@@ -39,22 +36,18 @@ export async function findRecommendedCenters(
   localGovernment: string,
   limit = 5
 ): Promise<RecommendedCenter[]> {
-  const normalizedState = normalizeLocation(state);
-  const normalizedLga = normalizeLocation(localGovernment);
-
   const centers = await db.serviceCenter.findMany({
     where: { status: "ACTIVE" },
-    take: 200,
   });
 
-  return centers
+  const rankedCenters = centers
     .filter((center) => (center.services?.length || 0) > 0)
     .map((center) => {
-      const sameState = normalizeLocation(center.state || "") === normalizedState;
-      const sameLga = normalizeLocation(center.lga || "") === normalizedLga;
+      const sameState = locationsMatch(center.state, state);
+      const sameLga = locationsMatch(center.lga, localGovernment);
 
       let score = 0;
-      let distanceTier: "same_lga" | "same_state" | null = null;
+      let distanceTier: RecommendedCenter["distanceTier"] = "fallback";
 
       if (sameLga && sameState) {
         score = 100;
@@ -62,19 +55,21 @@ export async function findRecommendedCenters(
       } else if (sameState) {
         score = 50;
         distanceTier = "same_state";
+      } else {
+        score = 1;
+        distanceTier = "fallback";
       }
 
       return { center, score, distanceTier };
     })
-    .filter((item) => item.score > 0 && item.distanceTier)
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       return (b.center.services?.length || 0) - (a.center.services?.length || 0);
     })
     .slice(0, limit)
-    .map(({ center, distanceTier }) =>
-      formatRecommendedCenter(center, distanceTier!)
-    );
+    .map(({ center, distanceTier }) => formatRecommendedCenter(center, distanceTier));
+
+  return rankedCenters;
 }
 
 export function isCenterRecommendedForPatient(
@@ -197,13 +192,5 @@ export async function assignPatientToCenter(
 export function pickAutoAssignedCenter(
   recommendedCenters: RecommendedCenter[]
 ): RecommendedCenter | null {
-  const sameLgaCenters = recommendedCenters.filter(
-    (center) => center.distanceTier === "same_lga"
-  );
-
-  if (sameLgaCenters.length === 1) {
-    return sameLgaCenters[0];
-  }
-
-  return null;
+  return recommendedCenters[0] ?? null;
 }

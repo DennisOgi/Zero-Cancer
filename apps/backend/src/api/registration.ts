@@ -123,7 +123,13 @@ async function resolveCenterAssignment(
 
   if (selectedCenterId) {
     const assignment = await assignPatientToCenter(c, patientId, selectedCenterId);
-    if (!("error" in assignment)) {
+    if ("error" in assignment) {
+      console.error("[REGISTRATION] Center assignment failed:", {
+        patientId,
+        selectedCenterId,
+        error: assignment.error,
+      });
+    } else {
       assignedCenter = assignment.center;
     }
   }

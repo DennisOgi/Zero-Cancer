@@ -5,7 +5,7 @@ import { env } from "hono/adapter";
 import { getDB } from "./db";
 import { sendNotificationEmail } from "./email";
 import { TEnvs } from "./types";
-import { waitlistMatcherAlg } from "./waitlistMatchingAlg";
+import { runWaitlistMatching } from "./waitlist-matching.service";
 
 export function generateHexId(length: number = 6) {
   const bytes = new Uint8Array(length);
@@ -111,12 +111,12 @@ export async function triggerWaitlistMatching(
   c: any,
   customConfig?: TtriggerMatchingParams
 ) {
-  // Removed compute client integration on 2025-08-08
-  await waitlistMatcherAlg(c, customConfig);
+  const result = await runWaitlistMatching(c, customConfig);
 
   return {
     ok: true,
-    message: "Matching process triggered successfully",
+    message: result.message,
+    matched: result.matched,
   };
 }
 

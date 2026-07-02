@@ -45,6 +45,15 @@ export async function processSuccessfulPaystackCharge(
 
   if (paymentType === "anonymous_donation") {
     await addToGeneralDonorPool(amountNaira, c);
+
+    try {
+      await triggerWaitlistMatching(c);
+    } catch (error) {
+      console.error(
+        "[PAYSTACK] Waitlist matching failed after anonymous donation:",
+        error
+      );
+    }
   } else if (
     (paymentType === "campaign_creation" || paymentType === "campaign_funding") &&
     metadata.campaign_id

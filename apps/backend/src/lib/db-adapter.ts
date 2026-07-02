@@ -1166,6 +1166,26 @@ export const getDB = (c: Context) => {
         return created;
       },
 
+      update: async ({ where, data }: any = {}) => {
+        const updates: Record<string, unknown> = { ...data };
+        if (updates.claimedAt instanceof Date) {
+          updates.claimedAt = updates.claimedAt.toISOString();
+        }
+        if (updates.expiredAt instanceof Date) {
+          updates.expiredAt = updates.expiredAt.toISOString();
+        }
+
+        const { data: updated, error } = await supabase
+          .from("Waitlist")
+          .update(updates)
+          .eq("id", where.id)
+          .select("*")
+          .single();
+
+        if (error) throw error;
+        return updated;
+      },
+
       groupBy: async ({ where, orderBy }: any = {}) => {
         let query = supabase.from('Waitlist').select('id, screeningTypeId');
 
@@ -1390,6 +1410,51 @@ export const getDB = (c: Context) => {
     },
     
     // Notification operations
+    notification: {
+      create: async ({ data }: any = {}) => {
+        const notificationId = crypto.randomUUID();
+        const now = new Date().toISOString();
+
+        const { data: notification, error } = await supabase
+          .from("Notification")
+          .insert({
+            id: notificationId,
+            type: data.type,
+            title: data.title,
+            message: data.message,
+            data: data.data
+              ? typeof data.data === "string"
+                ? data.data
+                : JSON.stringify(data.data)
+              : null,
+            createdAt: now,
+          })
+          .select("*")
+          .single();
+
+        if (error) throw error;
+
+        if (data.recipients?.create?.length) {
+          const recipients = data.recipients.create.map(
+            (recipient: { userId: string }) => ({
+              id: crypto.randomUUID(),
+              notificationId,
+              userId: recipient.userId,
+              read: false,
+            })
+          );
+
+          const { error: recipientError } = await supabase
+            .from("NotificationRecipient")
+            .insert(recipients);
+
+          if (recipientError) throw recipientError;
+        }
+
+        return notification;
+      },
+    },
+
     notificationRecipient: {
       findMany: async ({ where, include, orderBy }: any = {}) => {
         let query = supabase.from('NotificationRecipient').select('*');
@@ -1814,6 +1879,57 @@ export const getDB = (c: Context) => {
     },
 
     donationAllocation: {
+      findFirst: async ({ where }: any = {}) => {
+        let query = supabase.from("DonationAllocation").select("*");
+
+        if (where?.waitlistId) query = query.eq("waitlistId", where.waitlistId);
+        if (where?.patientId) query = query.eq("patientId", where.patientId);
+        if (where?.campaignId) query = query.eq("campaignId", where.campaignId);
+        if (where?.id) query = query.eq("id", where.id);
+        if (where?.claimedAt === null) query = query.is("claimedAt", null);
+
+        const { data, error } = await query.limit(1).maybeSingle();
+        if (error && error.code !== "PGRST116") throw error;
+        return data;
+      },
+
+      count: async ({ where }: any = {}) => {
+        let query = supabase
+          .from("DonationAllocation")
+          .select("*", { count: "exact", head: true });
+
+        if (where?.patientId) query = query.eq("patientId", where.patientId);
+        if (where?.campaignId) query = query.eq("campaignId", where.campaignId);
+        if (where?.claimedAt === null) query = query.is("claimedAt", null);
+
+        const { count, error } = await query;
+        if (error) throw error;
+        return count || 0;
+      },
+
+      create: async ({ data }: any = {}) => {
+        const row = {
+          id: data.id || crypto.randomUUID(),
+          waitlistId: data.waitlistId,
+          patientId: data.patientId,
+          campaignId: data.campaignId,
+          appointmentId: data.appointmentId ?? null,
+          claimedAt: data.claimedAt ?? null,
+          matchingExecutionId: data.matchingExecutionId ?? null,
+          amountAllocated: data.amountAllocated ?? null,
+          createdViaMatching: data.createdViaMatching ?? false,
+        };
+
+        const { data: created, error } = await supabase
+          .from("DonationAllocation")
+          .insert(row)
+          .select("*")
+          .single();
+
+        if (error) throw error;
+        return created;
+      },
+
       updateMany: async ({ where, data }: any) => {
         let query = supabase.from("DonationAllocation").update(data);
         if (where?.id?.in?.length) query = query.in("id", where.id.in);

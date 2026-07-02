@@ -58,7 +58,7 @@ export type TRecommendedCenter = {
   state: string;
   lga: string;
   services: Array<{ id: string; name: string }>;
-  distanceTier: "same_lga" | "same_state";
+  distanceTier: "same_lga" | "same_state" | "fallback";
 };
 
 export type TAssignPatientCenterResponse = TDataResponse<{

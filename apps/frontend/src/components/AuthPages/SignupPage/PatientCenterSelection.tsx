@@ -202,12 +202,16 @@ function CenterCard({
             className={`rounded-full px-3 py-1 text-xs font-medium ${
               center.distanceTier === 'same_lga'
                 ? 'bg-emerald-100 text-emerald-800'
-                : 'bg-blue-100 text-blue-800'
+                : center.distanceTier === 'same_state'
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-amber-100 text-amber-800'
             }`}
           >
             {center.distanceTier === 'same_lga'
               ? 'In your LGA'
-              : 'In your state'}
+              : center.distanceTier === 'same_state'
+                ? 'In your state'
+                : 'Nearest available center'}
           </span>
         </div>
       </CardHeader>
