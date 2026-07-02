@@ -58,6 +58,54 @@ export function buildScreeningReportWhatsAppMessage(
     .join('\n')
 }
 
+export type WalkInRegistrationWhatsAppParams = {
+  patientName: string
+  centerName: string
+  email: string
+  temporaryPassword?: string
+  loginUrl: string
+  screeningName?: string
+}
+
+export function buildWalkInRegistrationWhatsAppMessage(
+  params: WalkInRegistrationWhatsAppParams,
+): string {
+  const screeningLine = params.screeningName
+    ? `\nScreening: ${params.screeningName}`
+    : ''
+
+  if (params.temporaryPassword) {
+    return [
+      `Hello ${params.patientName || 'there'},`,
+      '',
+      `${params.centerName} has registered you on ZeroCancer and added you to the donor matching waitlist.${screeningLine}`,
+      '',
+      'Your login details:',
+      `Email: ${params.email}`,
+      `Password: ${params.temporaryPassword}`,
+      '',
+      `Log in: ${params.loginUrl}`,
+      'Please change your password after your first login.',
+      '',
+      'You will be notified when funding covers your screening.',
+      '',
+      `— ${params.centerName} via ZeroCancer`,
+    ].join('\n')
+  }
+
+  return [
+    `Hello ${params.patientName || 'there'},`,
+    '',
+    `${params.centerName} has added you to the ZeroCancer waitlist${params.screeningName ? ` for ${params.screeningName}` : ''}.`,
+    '',
+    `Log in with your existing account: ${params.loginUrl}`,
+    '',
+    'You will be notified when donor funding covers your screening.',
+    '',
+    `— ${params.centerName} via ZeroCancer`,
+  ].join('\n')
+}
+
 export function buildWhatsAppShareUrl(phone: string, message: string): string | null {
   const waPhone = toWaMePhone(phone)
   if (!waPhone) return null

@@ -30,7 +30,7 @@ import { centerRegisterAndEnrollPatient } from '@/services/screening-report.serv
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { patientSchema } from '@zerocancer/shared/schemas/register.schema'
-import { Loader2, UserPlus, CheckCircle2 } from 'lucide-react'
+import { Loader2, UserPlus, CheckCircle2, MessageCircle } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -39,6 +39,11 @@ import * as RPNInput from 'react-phone-number-input'
 import PhoneInputComponent from '@/components/shared/ui/phone-input'
 import { CenterEnrollExistingPatient } from '@/components/CenterPages/CenterEnrollExistingPatient'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/shared/ui/tabs'
+import {
+  buildWalkInRegistrationWhatsAppMessage,
+  openWhatsAppShare,
+} from '@/lib/whatsapp-link'
+import { useAuthUser } from '@/services/providers/auth.provider'
 
 // Schema for walk-in patient (password is auto-generated)
 const walkInPatientSchema = patientSchema.omit({ password: true }).extend({
@@ -49,6 +54,8 @@ type WalkInPatientFormData = z.infer<typeof walkInPatientSchema>
 
 export function CenterRegisterPatientPage() {
   const navigate = useNavigate()
+  const authUserQuery = useQuery(useAuthUser())
+  const centerName = authUserQuery.data?.data?.user?.fullName || 'Your screening center'
   const { data: screeningTypesData } = useQuery(
     useScreeningTypes({ page: 1, pageSize: 100 }),
   )
@@ -61,9 +68,36 @@ export function CenterRegisterPatientPage() {
     tempPassword?: string
     whatsappNumber: string
     isNewPatient: boolean
-    whatsappSent: boolean
-    whatsappError?: string
+    screeningName?: string
   } | null>(null)
+
+  const loginUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/login`
+      : 'https://zerocancer.africa/login'
+
+  const openPatientWhatsApp = (patient: {
+    fullName: string
+    email: string
+    tempPassword?: string
+    whatsappNumber: string
+    isNewPatient: boolean
+    screeningName?: string
+  }) => {
+    const message = buildWalkInRegistrationWhatsAppMessage({
+      patientName: patient.fullName,
+      centerName,
+      email: patient.email,
+      temporaryPassword: patient.isNewPatient ? patient.tempPassword : undefined,
+      loginUrl,
+      screeningName: patient.screeningName,
+    })
+    const opened = openWhatsAppShare(patient.whatsappNumber, message)
+    if (!opened) {
+      toast.error('Could not open WhatsApp. Check the patient phone number.')
+    }
+    return opened
+  }
 
   const form = useForm<WalkInPatientFormData>({
     resolver: zodResolver(walkInPatientSchema),
@@ -99,30 +133,20 @@ export function CenterRegisterPatientPage() {
       })
 
       if (response.ok) {
-        const whatsappNotification = response.data?.whatsappNotification
-        setRegisteredPatient({
+        const patientRecord = {
           fullName: data.fullName,
           email: data.email,
           tempPassword: response.data?.isNewPatient ? tempPassword : undefined,
           whatsappNumber: data.phone,
           isNewPatient: Boolean(response.data?.isNewPatient),
-          whatsappSent: Boolean(whatsappNotification?.sent),
-          whatsappError: whatsappNotification?.error,
-        })
+          screeningName: response.data?.screeningName,
+        }
+        setRegisteredPatient(patientRecord)
         const waitlistMsg = response.data?.waitlistCreated
           ? 'Patient registered and added to the platform waitlist'
           : 'Patient registered — already on the waitlist for this screening'
-        toast.success(
-          whatsappNotification?.sent
-            ? `${waitlistMsg}. Login details sent on WhatsApp.`
-            : waitlistMsg,
-        )
-        if (whatsappNotification && !whatsappNotification.sent) {
-          toast.warning(
-            whatsappNotification.error ||
-              'Patient saved but WhatsApp could not be delivered. Share credentials manually.',
-          )
-        }
+        toast.success(waitlistMsg)
+        openPatientWhatsApp(patientRecord)
         form.reset()
       }
     } catch (error: any) {
@@ -155,8 +179,8 @@ export function CenterRegisterPatientPage() {
             </div>
             <CardDescription className="text-green-700">
               {registeredPatient.isNewPatient
-                ? 'Share these credentials with the patient if WhatsApp delivery failed. They are on the platform-wide donor matching waitlist.'
-                : 'This patient already had an account. They were enrolled on the waitlist under your center.'}
+                ? 'WhatsApp should open with login details — tap Send from your center WhatsApp. Credentials are also shown below as backup.'
+                : 'WhatsApp should open with a waitlist confirmation — tap Send from your center WhatsApp.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -174,23 +198,12 @@ export function CenterRegisterPatientPage() {
                 </p>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">WhatsApp</p>
+                <p className="text-sm font-medium text-gray-600">Patient WhatsApp</p>
                 <p className="text-lg font-mono text-gray-900">
                   {registeredPatient.whatsappNumber}
                 </p>
-                <p
-                  className={`text-xs mt-1 ${
-                    registeredPatient.whatsappSent
-                      ? 'text-green-700'
-                      : 'text-amber-700'
-                  }`}
-                >
-                  {registeredPatient.whatsappSent
-                    ? registeredPatient.isNewPatient
-                      ? 'Login details sent on WhatsApp'
-                      : 'Waitlist confirmation sent on WhatsApp'
-                    : registeredPatient.whatsappError ||
-                      'WhatsApp not delivered — share details manually'}
+                <p className="text-xs text-green-700 mt-1">
+                  Message sends from your center&apos;s WhatsApp when you tap Send
                 </p>
               </div>
               {registeredPatient.isNewPatient && registeredPatient.tempPassword ? (
@@ -213,23 +226,27 @@ export function CenterRegisterPatientPage() {
                 Next Steps:
               </p>
               <ul className="text-sm text-blue-800 space-y-1">
-                <li>• Patient should receive a WhatsApp message with next steps</li>
+                <li>• Tap &quot;Send on WhatsApp&quot; — message goes from your center number</li>
                 {registeredPatient.isNewPatient ? (
                   <>
-                    <li>• Write down or print credentials if WhatsApp fails</li>
-                    <li>
-                      • Patient can log in at the website using email and password
-                    </li>
-                    <li>• Patient should change their password after first login</li>
+                    <li>• Review the pre-filled login details, then tap Send in WhatsApp</li>
+                    <li>• Keep a printed copy if the patient has no WhatsApp</li>
                   </>
                 ) : (
-                  <li>• Patient can log in with their existing account</li>
+                  <li>• Patient logs in with their existing account</li>
                 )}
-                <li>• Patient can book appointments once funding is matched</li>
+                <li>• Patient will be notified when donor funding is matched</li>
               </ul>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={() => registeredPatient && openPatientWhatsApp(registeredPatient)}
+                className="flex-1"
+              >
+                <MessageCircle className="mr-2 h-4 w-4" />
+                Send on WhatsApp
+              </Button>
               {registeredPatient.isNewPatient && registeredPatient.tempPassword ? (
               <Button
                 onClick={() => {
@@ -503,10 +520,13 @@ export function CenterRegisterPatientPage() {
                     • A temporary password will be automatically generated
                   </li>
                   <li>
-                    • Login details will be sent to the patient on WhatsApp
+                    • After registration, WhatsApp opens with a pre-filled message
                   </li>
                   <li>
-                    • You'll still see credentials here as a backup for staff
+                    • You send from your center&apos;s WhatsApp — no extra subscription needed
+                  </li>
+                  <li>
+                    • Credentials stay on screen as backup if WhatsApp is unavailable
                   </li>
                   <li>
                     • Patient should change their password after first login
