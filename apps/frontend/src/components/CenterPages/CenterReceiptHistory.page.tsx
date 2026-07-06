@@ -14,12 +14,12 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import * as walletService from '@/services/wallet.service'
+import { CashoutHistoryTable } from './CashoutHistoryTable'
 import { FinancialSummary } from './FinancialSummary'
 import { PayoutTable } from './PayoutTable'
 import { TransactionTable } from './TransactionTable'
 import type { Transaction } from './TransactionTable'
-import * as walletService from '@/services/wallet.service'
-import { CashoutHistoryTable } from './CashoutHistoryTable'
 
 export function CenterReceiptHistoryPage() {
   const authUserQuery = useQuery(useAuthUser())

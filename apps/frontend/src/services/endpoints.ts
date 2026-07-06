@@ -260,6 +260,14 @@ export const centerEnrollWaitlist = () => `/api/center/patients/enroll-waitlist`
 export const centerSearchPatients = (q: string) =>
   `/api/center/patients/search${buildQuery({ q })}`
 export const centerPatientsOverview = () => `/api/center/patients/overview`
+export const centerEnrollmentRequests = (status = 'PENDING') =>
+  `/api/center/patients/enrollment-requests${buildQuery({ status })}`
+
+// PATIENT ENROLLMENT REQUESTS
+export const patientEnrollmentRequests = (status = 'PENDING') =>
+  `/api/patient/enrollment-requests${buildQuery({ status })}`
+export const respondPatientEnrollmentRequest = (id: string) =>
+  `/api/patient/enrollment-requests/${id}/respond`
 
 // PATIENT SCREENING REPORTS
 export const patientScreeningReports = () => `/api/patient/screening-reports`

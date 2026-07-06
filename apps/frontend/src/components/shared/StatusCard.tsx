@@ -4,6 +4,7 @@ import { Button } from '@/components/shared/ui/button'
 import { useNavigate } from '@tanstack/react-router'
 import type { TPatientAppointment } from '@zerocancer/shared/types'
 import { ArrowRight } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 
 interface StatusCardProps {
   appointment: TPatientAppointment | null | undefined
@@ -69,6 +70,26 @@ export default function StatusCard({
         <p className="text-gray-500">
           <span className="font-semibold">Location:</span> {locationLabel}
         </p>
+        {!isScheduled && !assignedCenter ? (
+          <p className="text-sm">
+            <Link
+              to="/patient/select-center"
+              className="text-pink-700 underline underline-offset-2 hover:text-pink-800"
+            >
+              Choose a center
+            </Link>
+          </p>
+        ) : null}
+        {!isScheduled && assignedCenter ? (
+          <p className="text-sm">
+            <Link
+              to="/patient/change-center"
+              className="text-pink-700 underline underline-offset-2 hover:text-pink-800"
+            >
+              Change center
+            </Link>
+          </p>
+        ) : null}
         <div className="pt-2">
           {isScheduled ? (
             <Button

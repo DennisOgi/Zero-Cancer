@@ -105,6 +105,11 @@ export function PatientNotificationsPage() {
       return
     }
 
+    if (notification.type === 'CENTER_ENROLLMENT_REQUEST') {
+      navigate({ to: '/patient' })
+      return
+    }
+
     if (notification.type === 'MATCHED' || notification.type === 'DONATION_ALLOCATED') {
       navigate({ to: '/patient/book' })
       return

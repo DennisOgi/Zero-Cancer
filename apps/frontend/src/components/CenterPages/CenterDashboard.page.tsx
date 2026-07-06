@@ -20,6 +20,7 @@ import { Link } from '@tanstack/react-router'
 import { AppointmentTable } from './AppointmentTable'
 import { AssignedPatientsWidget } from './AssignedPatientsWidget'
 import { DashboardStats } from './DashboardStats'
+import { PendingEnrollmentRequestsWidget } from './PendingEnrollmentRequestsWidget'
 import { QuickActions } from './QuickActions'
 import { WaitlistWidget } from './WaitlistWidget'
 
@@ -182,6 +183,8 @@ export function CenterDashboard() {
       <DashboardStats stats={stats} isLoading={metricsLoading} />
 
       <QuickActions actions={quickActions} />
+
+      <PendingEnrollmentRequestsWidget />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">

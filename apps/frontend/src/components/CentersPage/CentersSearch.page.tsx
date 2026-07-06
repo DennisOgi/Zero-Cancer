@@ -72,6 +72,12 @@ export default function CentersSearchPage() {
     })
   }
 
+  // Log for debugging state filtering
+  useEffect(() => {
+    console.log('Centers search filters:', { state, lga, serviceType })
+    console.log('Centers found:', centersData.length)
+  }, [state, lga, serviceType, centersData.length])
+
   useEffect(() => {
     if (error) {
       console.error('Centers search query failed', {

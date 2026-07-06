@@ -168,7 +168,10 @@ walletApp.get(
       const payload = c.get('jwtPayload')
 
       // Verify access: centers can only access their own wallet
-      if (payload?.role === 'center' && payload.id !== centerId) {
+      const profile = payload?.profile as string | undefined
+      const isCenterScopedUser =
+        profile === 'CENTER' || profile === 'CENTER_STAFF'
+      if (isCenterScopedUser && payload.id !== centerId) {
         return c.json<TErrorResponse>(
           { ok: false, error: 'Access denied' },
           403
@@ -210,7 +213,10 @@ walletApp.get(
       const payload = c.get('jwtPayload')
 
       // Verify access
-      if (payload?.role === 'center' && payload.id !== centerId) {
+      const profile = payload?.profile as string | undefined
+      const isCenterScopedUser =
+        profile === 'CENTER' || profile === 'CENTER_STAFF'
+      if (isCenterScopedUser && payload.id !== centerId) {
         return c.json<TErrorResponse>(
           { ok: false, error: 'Access denied' },
           403
@@ -269,7 +275,10 @@ walletApp.get(
       const payload = c.get('jwtPayload')
 
       // Verify access
-      if (payload?.role === 'center' && payload.id !== centerId) {
+      const profile = payload?.profile as string | undefined
+      const isCenterScopedUser =
+        profile === 'CENTER' || profile === 'CENTER_STAFF'
+      if (isCenterScopedUser && payload.id !== centerId) {
         return c.json<TErrorResponse>(
           { ok: false, error: 'Access denied' },
           403
@@ -382,7 +391,10 @@ walletApp.get(
       const payload = c.get('jwtPayload')
 
       // Verify access
-      if (payload?.role === 'center' && payload.id !== centerId) {
+      const profile = payload?.profile as string | undefined
+      const isCenterScopedUser =
+        profile === 'CENTER' || profile === 'CENTER_STAFF'
+      if (isCenterScopedUser && payload.id !== centerId) {
         return c.json<TErrorResponse>(
           { ok: false, error: 'Access denied' },
           403

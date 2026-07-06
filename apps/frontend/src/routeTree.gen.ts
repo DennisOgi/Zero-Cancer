@@ -24,6 +24,7 @@ import { Route as PatientSelectCenterRouteImport } from './routes/patient/select
 import { Route as PatientReportsRouteImport } from './routes/patient/reports'
 import { Route as PatientProfileRouteImport } from './routes/patient/profile'
 import { Route as PatientNotificationsRouteImport } from './routes/patient/notifications'
+import { Route as PatientChangeCenterRouteImport } from './routes/patient/change-center'
 import { Route as PatientAppointmentsRouteImport } from './routes/patient/appointments'
 import { Route as DonorFundRouteImport } from './routes/donor/fund'
 import { Route as CenterWalletRouteImport } from './routes/center/wallet'
@@ -159,6 +160,11 @@ const PatientProfileRoute = PatientProfileRouteImport.update({
 const PatientNotificationsRoute = PatientNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
+const PatientChangeCenterRoute = PatientChangeCenterRouteImport.update({
+  id: '/change-center',
+  path: '/change-center',
   getParentRoute: () => PatientRouteRoute,
 } as any)
 const PatientAppointmentsRoute = PatientAppointmentsRouteImport.update({
@@ -527,6 +533,7 @@ export interface FileRoutesByFullPath {
   '/center/wallet': typeof CenterWalletRoute
   '/donor/fund': typeof DonorFundRoute
   '/patient/appointments': typeof PatientAppointmentsRoute
+  '/patient/change-center': typeof PatientChangeCenterRoute
   '/patient/notifications': typeof PatientNotificationsRoute
   '/patient/profile': typeof PatientProfileRoute
   '/patient/reports': typeof PatientReportsRoute
@@ -601,6 +608,7 @@ export interface FileRoutesByTo {
   '/center/wallet': typeof CenterWalletRoute
   '/donor/fund': typeof DonorFundRoute
   '/patient/appointments': typeof PatientAppointmentsRoute
+  '/patient/change-center': typeof PatientChangeCenterRoute
   '/patient/notifications': typeof PatientNotificationsRoute
   '/patient/profile': typeof PatientProfileRoute
   '/patient/reports': typeof PatientReportsRoute
@@ -682,6 +690,7 @@ export interface FileRoutesById {
   '/center/wallet': typeof CenterWalletRoute
   '/donor/fund': typeof DonorFundRoute
   '/patient/appointments': typeof PatientAppointmentsRoute
+  '/patient/change-center': typeof PatientChangeCenterRoute
   '/patient/notifications': typeof PatientNotificationsRoute
   '/patient/profile': typeof PatientProfileRoute
   '/patient/reports': typeof PatientReportsRoute
@@ -762,6 +771,7 @@ export interface FileRouteTypes {
     | '/center/wallet'
     | '/donor/fund'
     | '/patient/appointments'
+    | '/patient/change-center'
     | '/patient/notifications'
     | '/patient/profile'
     | '/patient/reports'
@@ -836,6 +846,7 @@ export interface FileRouteTypes {
     | '/center/wallet'
     | '/donor/fund'
     | '/patient/appointments'
+    | '/patient/change-center'
     | '/patient/notifications'
     | '/patient/profile'
     | '/patient/reports'
@@ -916,6 +927,7 @@ export interface FileRouteTypes {
     | '/center/wallet'
     | '/donor/fund'
     | '/patient/appointments'
+    | '/patient/change-center'
     | '/patient/notifications'
     | '/patient/profile'
     | '/patient/reports'
@@ -1069,6 +1081,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/patient/notifications'
       preLoaderRoute: typeof PatientNotificationsRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/change-center': {
+      id: '/patient/change-center'
+      path: '/change-center'
+      fullPath: '/patient/change-center'
+      preLoaderRoute: typeof PatientChangeCenterRouteImport
       parentRoute: typeof PatientRouteRoute
     }
     '/patient/appointments': {
@@ -1717,6 +1736,7 @@ const DonorRouteRouteWithChildren = DonorRouteRoute._addFileChildren(
 
 interface PatientRouteRouteChildren {
   PatientAppointmentsRoute: typeof PatientAppointmentsRoute
+  PatientChangeCenterRoute: typeof PatientChangeCenterRoute
   PatientNotificationsRoute: typeof PatientNotificationsRoute
   PatientProfileRoute: typeof PatientProfileRoute
   PatientReportsRoute: typeof PatientReportsRoute
@@ -1732,6 +1752,7 @@ interface PatientRouteRouteChildren {
 
 const PatientRouteRouteChildren: PatientRouteRouteChildren = {
   PatientAppointmentsRoute: PatientAppointmentsRoute,
+  PatientChangeCenterRoute: PatientChangeCenterRoute,
   PatientNotificationsRoute: PatientNotificationsRoute,
   PatientProfileRoute: PatientProfileRoute,
   PatientReportsRoute: PatientReportsRoute,

@@ -42,6 +42,7 @@ model User {
   screeningReports ScreeningReport[] @relation("PatientScreeningReports")
   notifications    NotificationRecipient[]
   targetedCampaigns DonationCampaign[] @relation("TargetedIndividual")
+  enrollmentRequests CenterEnrollmentRequest[] @relation("PatientEnrollmentRequests")
 }
 
 model PatientProfile {
@@ -118,6 +119,7 @@ model ServiceCenter {
   enrolledWaitlists Waitlist[] @relation("CenterEnrolledWaitlists")
   assignedPatients  PatientProfile[] @relation("PatientAssignedCenter")
   screeningReports  ScreeningReport[] @relation("CenterScreeningReports")
+  enrollmentRequests CenterEnrollmentRequest[] @relation("CenterEnrollmentRequests")
 
   services      ScreeningType[]
   
@@ -169,6 +171,7 @@ model ScreeningType {
   inventoryAlerts        InventoryAlert[] @relation("AlertScreeningType")
   restockRequests        RestockRequest[] @relation("RestockScreeningType")
   targets                CenterTarget[] @relation("TargetScreeningType")
+  enrollmentRequests     CenterEnrollmentRequest[] @relation("EnrollmentRequestScreeningType")
 }
 
 model ScreeningTypeCategory {
@@ -197,6 +200,24 @@ model Waitlist {
   @@index([status, screeningTypeId, joinedAt])
   @@index([patientId, status])
   @@index([enrolledByCenterId])
+}
+
+model CenterEnrollmentRequest {
+  id              String    @id @default(uuid())
+  patientId       String
+  centerId        String
+  screeningTypeId String
+  status          String    @default("PENDING")
+  message         String?
+  requestedAt     DateTime  @default(now())
+  respondedAt     DateTime?
+
+  patient         User           @relation("PatientEnrollmentRequests", fields: [patientId], references: [id], onDelete: Cascade)
+  center          ServiceCenter  @relation("CenterEnrollmentRequests", fields: [centerId], references: [id], onDelete: Cascade)
+  screeningType   ScreeningType  @relation("EnrollmentRequestScreeningType", fields: [screeningTypeId], references: [id], onDelete: Restrict)
+
+  @@index([patientId, status])
+  @@index([centerId, status])
 }
 
 model DonationCampaign {

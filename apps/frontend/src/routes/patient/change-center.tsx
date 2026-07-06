@@ -1,11 +1,11 @@
+import { createFileRoute } from '@tanstack/react-router'
 import { PatientCenterSelection } from '@/components/AuthPages/SignupPage/PatientCenterSelection'
 import { getRecommendedCenters } from '@/services/auth.service'
-import { createFileRoute } from '@tanstack/react-router'
+import { useAuthUser } from '@/services/providers/auth.provider'
 import { useQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
-import { useAuthUser } from '@/services/providers/auth.provider'
 
-export const Route = createFileRoute('/patient/select-center')({
+export const Route = createFileRoute('/patient/change-center')({
   component: RouteComponent,
 })
 
@@ -29,8 +29,9 @@ function RouteComponent() {
 
   return (
     <PatientCenterSelection
+      mode="change"
       recommendedCenters={data?.data?.recommendedCenters || []}
-      assignedCenter={null}
+      assignedCenter={user?.assignedCenter || null}
       patientState={user?.state || ''}
       patientLga={user?.localGovernment || ''}
       loadError={isError}

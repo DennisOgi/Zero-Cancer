@@ -12,6 +12,7 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import type { TScreeningType } from '@zerocancer/shared/types'
 import NotificationsPanel from './NotificationsPanel'
 import UpcomingAppointmentsPanel from './UpcomingAppointmentsPanel'
+import { PatientEnrollmentRequests } from './PatientEnrollmentRequests'
 
 export function PatientDashboardPage() {
   const navigate = useNavigate()
@@ -74,6 +75,7 @@ export function PatientDashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 py-4 lg:py-6">
         <div className="lg:col-span-2 space-y-6">
+          <PatientEnrollmentRequests />
           <StatusCard
             appointment={upcomingAppointment}
             assignedCenter={assignedCenter}

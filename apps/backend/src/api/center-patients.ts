@@ -11,69 +11,22 @@ import { getSupabaseClient } from "../lib/supabase";
 import { THonoApp } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { isLikelyValidWhatsappNumber, normalizeWhatsappNumber } from "../lib/phone";
-import { getUserWithProfiles, triggerWaitlistMatching } from "../lib/utils";
+import { getUserWithProfiles } from "../lib/utils";
+import {
+  createCenterEnrollmentRequest,
+  enrollPatientInWaitlist,
+  expireStaleEnrollmentRequests,
+  formatEnrollmentRequestForApi,
+} from "../lib/center-enrollment-utils";
 import { z } from "zod";
 
 export const centerPatientsApp = new Hono<THonoApp>();
 
 centerPatientsApp.use("*", authMiddleware(["center", "center_staff"]));
 
-async function enrollPatientInWaitlist(
-  c: any,
-  params: {
-    patientId: string;
-    screeningTypeId: string;
-    centerId: string;
-  }
-) {
-  const db = getDB(c);
-
-  const screeningType = await db.screeningType.findUnique({
-    where: { id: params.screeningTypeId },
-  });
-  if (!screeningType) {
-    return { error: "Screening type not found" as const };
-  }
-
-  const existingWaitlist = await db.waitlist.findFirst({
-    where: {
-      patientId: params.patientId,
-      screeningTypeId: params.screeningTypeId,
-      status: { in: ["PENDING", "MATCHED"] },
-    },
-  });
-
-  if (existingWaitlist) {
-    return { waitlist: existingWaitlist, created: false };
-  }
-
-  const waitlist = await db.waitlist.create({
-    data: {
-      patientId: params.patientId,
-      screeningTypeId: params.screeningTypeId,
-      status: "PENDING",
-      enrolledByCenterId: params.centerId,
-    },
-    include: { screening: true },
-  });
-
-  const profile = await db.patientProfile.findUnique({
-    where: { userId: params.patientId },
-  });
-  if (profile && !profile.assignedCenterId) {
-    await db.patientProfile.update({
-      where: { userId: params.patientId },
-      data: { assignedCenterId: params.centerId },
-    });
-  }
-
-  try {
-    await triggerWaitlistMatching(c);
-  } catch (error) {
-    console.error("Waitlist matching trigger failed after center enrollment:", error);
-  }
-
-  return { waitlist, created: true };
+function isPhoneSearchTerm(term: string) {
+  const digits = term.replace(/\D/g, "");
+  return digits.length >= 4 && digits.length >= term.replace(/\s/g, "").length * 0.5;
 }
 
 // POST /api/center/patients/register-and-enroll
@@ -124,17 +77,50 @@ centerPatientsApp.post(
         email = existingUser.email;
         whatsappNumber = normalizedWhatsapp;
 
-        await db.user.update({
-          where: { id: existingUser.id },
-          data: { phone: normalizedWhatsapp },
-        });
-
         await db.patientProfile
           .update({
             where: { userId: existingUser.id },
             data: { emailVerified: new Date() },
           })
           .catch(() => undefined);
+
+        const enrollmentRequest = await createCenterEnrollmentRequest(c, {
+          patientId,
+          centerId,
+          screeningTypeId: data.screeningTypeId,
+          message: `${fullName} was registered at your center for screening.`,
+        });
+
+        if ("error" in enrollmentRequest && enrollmentRequest.error) {
+          return c.json<TErrorResponse>(
+            { ok: false, error: enrollmentRequest.error },
+            400
+          );
+        }
+
+        const screeningType = await db.screeningType.findUnique({
+          where: { id: data.screeningTypeId },
+        });
+
+        return c.json(
+          {
+            ok: true,
+            data: {
+              patient: {
+                id: patientId,
+                fullName,
+                email,
+                whatsappNumber,
+              },
+              pendingApproval: true,
+              requestId: enrollmentRequest.request.id,
+              requestCreated: enrollmentRequest.created,
+              isNewPatient: false,
+              screeningName: screeningType?.name,
+            },
+          },
+          201
+        );
       } else if (existingUser) {
         return c.json<TErrorResponse>(
           { ok: false, error: "Email already registered with another profile type" },
@@ -215,6 +201,13 @@ centerPatientsApp.get("/overview", async (c) => {
   try {
     const centerId = c.get("jwtPayload")?.id as string;
     const supabase = getSupabaseClient(c);
+    const db = getDB(c);
+
+    await expireStaleEnrollmentRequests(c, { centerId });
+
+    const pendingEnrollmentRequestCount = await db.centerEnrollmentRequest.count({
+      where: { centerId, status: "PENDING" },
+    });
 
     const [
       { data: assignedProfiles, error: profilesError },
@@ -360,6 +353,7 @@ centerPatientsApp.get("/overview", async (c) => {
         ).length,
         waitlistSummary,
         recentPatients,
+        pendingEnrollmentRequestCount,
       },
     });
   } catch (error) {
@@ -370,6 +364,29 @@ centerPatientsApp.get("/overview", async (c) => {
     );
   }
 });
+
+function buildPhoneSearchFilter(term: string) {
+  const digits = term.replace(/\D/g, "");
+  const normalized = normalizeWhatsappNumber(term);
+  const variants = new Set<string>();
+
+  if (digits) variants.add(digits);
+  if (normalized) {
+    variants.add(normalized);
+    variants.add(normalized.replace("+", ""));
+  }
+  if (digits.startsWith("234") && digits.length > 3) {
+    variants.add(`0${digits.slice(3)}`);
+  } else if (digits.startsWith("0")) {
+    variants.add(`234${digits.slice(1)}`);
+    variants.add(`+234${digits.slice(1)}`);
+  }
+
+  return [...variants]
+    .filter((value) => value.length >= 4)
+    .map((value) => `phone.ilike.%${value}%`)
+    .join(",");
+}
 
 // GET /api/center/patients/search?q= — find existing patients to enroll on waitlist
 centerPatientsApp.get(
@@ -383,11 +400,18 @@ centerPatientsApp.get(
     const supabase = getSupabaseClient(c);
     const term = q.trim();
 
-    const { data: users, error } = await supabase
-      .from("User")
-      .select("id, fullName, email, phone")
-      .or(`fullName.ilike.%${term}%,email.ilike.%${term}%`)
-      .limit(25);
+    const phoneFilter = buildPhoneSearchFilter(term);
+    const { data: users, error } = isPhoneSearchTerm(term) && phoneFilter
+      ? await supabase
+          .from("User")
+          .select("id, fullName, email, phone")
+          .or(phoneFilter)
+          .limit(25)
+      : await supabase
+          .from("User")
+          .select("id, fullName, email, phone")
+          .ilike("fullName", `%${term}%`)
+          .limit(25);
 
     if (error) {
       return c.json<TErrorResponse>(
@@ -424,6 +448,43 @@ centerPatientsApp.get(
   }
 );
 
+// GET /api/center/patients/enrollment-requests
+centerPatientsApp.get("/enrollment-requests", async (c) => {
+  try {
+    const db = getDB(c);
+    const centerId = c.get("jwtPayload")?.id as string;
+    const status = c.req.query("status") || "PENDING";
+
+    await expireStaleEnrollmentRequests(c, { centerId });
+
+    const requests = await db.centerEnrollmentRequest.findMany({
+      where: { centerId, status },
+      orderBy: { requestedAt: "desc" },
+      include: {
+        patient: {
+          select: { id: true, fullName: true, email: true, phone: true },
+        },
+        screeningType: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    return c.json({
+      ok: true,
+      data: {
+        requests: requests.map((request) => formatEnrollmentRequestForApi(request)),
+      },
+    });
+  } catch (error) {
+    console.error("Center enrollment requests error:", error);
+    return c.json<TErrorResponse>(
+      { ok: false, error: "Failed to load enrollment requests" },
+      500
+    );
+  }
+});
+
 // POST /api/center/patients/enroll-waitlist — enroll an existing patient
 centerPatientsApp.post(
   "/enroll-waitlist",
@@ -449,14 +510,17 @@ centerPatientsApp.post(
         );
       }
 
-      const enrollment = await enrollPatientInWaitlist(c, {
+      const enrollmentRequest = await createCenterEnrollmentRequest(c, {
         patientId,
-        screeningTypeId,
         centerId,
+        screeningTypeId,
       });
 
-      if ("error" in enrollment && enrollment.error) {
-        return c.json<TErrorResponse>({ ok: false, error: enrollment.error }, 404);
+      if ("error" in enrollmentRequest && enrollmentRequest.error) {
+        return c.json<TErrorResponse>(
+          { ok: false, error: enrollmentRequest.error },
+          400
+        );
       }
 
       return c.json({
@@ -468,8 +532,9 @@ centerPatientsApp.post(
             email: patient.email,
             phone: patient.phone,
           },
-          waitlist: enrollment.waitlist,
-          waitlistCreated: enrollment.created,
+          pendingApproval: true,
+          requestId: enrollmentRequest.request.id,
+          requestCreated: enrollmentRequest.created,
         },
       });
     } catch (error) {

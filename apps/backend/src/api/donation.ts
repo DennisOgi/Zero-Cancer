@@ -1109,6 +1109,7 @@ donationApp.get("/payment-config", async (c) => {
   try {
     const { publicKey, envMode } = getPaystackKeys(c);
     const { FRONTEND_URL } = env<TEnvs>(c);
+    const requestUrl = new URL(c.req.url);
 
     return c.json({
       ok: true,
@@ -1116,7 +1117,7 @@ donationApp.get("/payment-config", async (c) => {
         configured: true,
         mode: publicKey.startsWith("pk_live_") ? "live" : "test",
         envMode,
-        webhookUrl: `${FRONTEND_URL}/api/v1/donor/paystack-webhook`,
+        webhookUrl: `${requestUrl.origin}/api/v1/donor/paystack-webhook`,
         callbackBaseUrl: FRONTEND_URL,
       },
     });

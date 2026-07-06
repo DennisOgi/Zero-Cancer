@@ -20,6 +20,8 @@ type PatientCenterSelectionProps = {
   assignedCenter?: TRecommendedCenter | null
   patientState: string
   patientLga: string
+  mode?: 'select' | 'change'
+  loadError?: boolean
 }
 
 export function PatientCenterSelection({
@@ -27,11 +29,18 @@ export function PatientCenterSelection({
   assignedCenter,
   patientState,
   patientLga,
+  mode = 'select',
+  loadError = false,
 }: PatientCenterSelectionProps) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const selectableCenters =
+    mode === 'change' && assignedCenter
+      ? recommendedCenters.filter((center) => center.id !== assignedCenter.id)
+      : recommendedCenters
+
   const [selectedCenterId, setSelectedCenterId] = useState(
-    assignedCenter?.id || recommendedCenters[0]?.id || '',
+    selectableCenters[0]?.id || '',
   )
 
   const assignMutation = useMutation({
@@ -41,7 +50,9 @@ export function PatientCenterSelection({
       queryClient.invalidateQueries({ queryKey: ['authUser'] })
       toast.success(
         response.message ||
-          `Joined ${response.data?.center.centerName}. You can now access screening, vaccination, and treatment services.`,
+          (mode === 'change'
+            ? `Your center has been updated to ${response.data?.center.centerName}.`
+            : `Joined ${response.data?.center.centerName}. You can now access screening, vaccination, and treatment services.`),
       )
       navigate({ to: '/patient' })
     },
@@ -52,7 +63,7 @@ export function PatientCenterSelection({
     },
   })
 
-  if (assignedCenter) {
+  if (assignedCenter && mode !== 'change') {
     return (
       <div className="mx-auto max-w-2xl space-y-6">
         <Card className="border-green-200 bg-green-50">
@@ -78,6 +89,27 @@ export function PatientCenterSelection({
               }}
             >
               Continue to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6">
+        <Card className="border-red-200 bg-red-50">
+          <CardHeader>
+            <CardTitle className="text-red-900">Could not load centers</CardTitle>
+            <CardDescription className="text-red-800">
+              We couldn&apos;t fetch available centers right now. Please refresh
+              the page or try again in a few minutes.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full" onClick={() => window.location.reload()}>
+              Refresh
             </Button>
           </CardContent>
         </Card>
@@ -113,6 +145,37 @@ export function PatientCenterSelection({
     )
   }
 
+  if (mode === 'change' && selectableCenters.length === 0) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6">
+        {assignedCenter ? (
+          <Card className="border-blue-200 bg-blue-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base text-blue-900">Current center</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CenterCard center={assignedCenter} />
+            </CardContent>
+          </Card>
+        ) : null}
+        <Card>
+          <CardHeader>
+            <CardTitle>No other centers available</CardTitle>
+            <CardDescription>
+              There are no other active centers near {patientLga}, {patientState}{' '}
+              right now. You can stay with your current center or check again later.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full" onClick={() => navigate({ to: '/patient' })}>
+              Back to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   const handleContinue = () => {
     if (!selectedCenterId) {
       toast.error('Please select a center to continue')
@@ -132,15 +195,29 @@ export function PatientCenterSelection({
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="space-y-2 text-center">
-        <h1 className="text-2xl font-bold">Choose your nearest center</h1>
+        <h1 className="text-2xl font-bold">
+          {mode === 'change' ? 'Change your screening center' : 'Choose your nearest center'}
+        </h1>
         <p className="text-muted-foreground">
-          Select a center in or near {patientLga}, {patientState} to access
-          vaccination, screening, and treatment services.
+          {mode === 'change'
+            ? `Select a new center in or near ${patientLga}, ${patientState}. Your waitlists will be updated for the new center.`
+            : `Select a center in or near ${patientLga}, ${patientState} to access vaccination, screening, and treatment services.`}
         </p>
       </div>
 
+      {mode === 'change' && assignedCenter ? (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base text-blue-900">Current center</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CenterCard center={assignedCenter} />
+          </CardContent>
+        </Card>
+      ) : null}
+
       <div className="grid gap-4">
-        {recommendedCenters.map((center) => (
+        {selectableCenters.map((center) => (
           <button
             key={center.id}
             type="button"
@@ -163,8 +240,10 @@ export function PatientCenterSelection({
         {assignMutation.isPending ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Joining center...
+            {mode === 'change' ? 'Updating center...' : 'Joining center...'}
           </>
+        ) : mode === 'change' ? (
+          'Update Center'
         ) : (
           'Join Selected Center'
         )}
@@ -220,14 +299,20 @@ function CenterCard({
           Services offered
         </p>
         <div className="flex flex-wrap gap-2">
-          {center.services.map((service) => (
-            <span
-              key={service.id}
-              className="rounded-full bg-muted px-3 py-1 text-xs"
-            >
-              {service.name}
+          {(center.services ?? []).length > 0 ? (
+            (center.services ?? []).map((service) => (
+              <span
+                key={service.id}
+                className="rounded-full bg-muted px-3 py-1 text-xs"
+              >
+                {service.name}
+              </span>
+            ))
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              Contact center for available services
             </span>
-          ))}
+          )}
         </div>
       </CardContent>
     </Card>

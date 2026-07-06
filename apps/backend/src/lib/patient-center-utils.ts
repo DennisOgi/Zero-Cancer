@@ -79,6 +79,28 @@ export function isCenterRecommendedForPatient(
   return recommendedCenters.some((center) => center.id === centerId);
 }
 
+async function migratePendingWaitlistsToCenter(
+  db: ReturnType<typeof getDB>,
+  patientId: string,
+  newCenterId: string
+) {
+  const pendingWaitlists = await db.waitlist.findMany({
+    where: {
+      patientId,
+      status: { in: ["PENDING"] },
+    },
+  });
+
+  for (const waitlist of pendingWaitlists) {
+    if (waitlist.enrolledByCenterId !== newCenterId) {
+      await db.waitlist.update({
+        where: { id: waitlist.id },
+        data: { enrolledByCenterId: newCenterId },
+      });
+    }
+  }
+}
+
 export async function assignPatientToCenter(
   c: any,
   patientId: string,
@@ -146,6 +168,8 @@ export async function assignPatientToCenter(
     data: { assignedCenterId: centerId },
   });
 
+  await migratePendingWaitlistsToCenter(db, patientId, centerId);
+
   let enrolledCount = 0;
   for (const service of services) {
     const existing = await db.waitlist.findFirst({
@@ -166,6 +190,14 @@ export async function assignPatientToCenter(
         },
       });
       enrolledCount += 1;
+    } else if (
+      existing.status === "PENDING" &&
+      existing.enrolledByCenterId !== centerId
+    ) {
+      await db.waitlist.update({
+        where: { id: existing.id },
+        data: { enrolledByCenterId: centerId },
+      });
     }
   }
 

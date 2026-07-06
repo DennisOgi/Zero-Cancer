@@ -134,6 +134,12 @@ export const centerPatientsOverview = () =>
     queryFn: () => centerService.getCenterPatientsOverview(),
   })
 
+export const centerEnrollmentRequests = (status = 'PENDING') =>
+  queryOptions({
+    queryKey: [QueryKeys.centerEnrollmentRequests, status],
+    queryFn: () => centerService.getCenterEnrollmentRequests(status),
+  })
+
 // Get center appointments with infinite loading (paginated, filterable)
 export const centerAppointmentsInfinite = (params: {
   pageSize?: number

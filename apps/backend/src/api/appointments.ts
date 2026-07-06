@@ -609,6 +609,9 @@ appointmentApp.post(
     }
 
     try {
+      const uploadedBy =
+        payload.profile === "CENTER_STAFF" ? payload.id! : null;
+
       // Create or update screening result with files in a transaction
       const result = await db.$transaction(async (tx) => {
         // Create or update screening result
@@ -617,11 +620,11 @@ appointmentApp.post(
           create: {
             appointmentId: id,
             notes,
-            uploadedBy: payload.id!,
+            uploadedBy,
           },
           update: {
             notes,
-            uploadedBy: payload.id!,
+            uploadedBy,
             uploadedAt: new Date(),
           },
         });
@@ -650,7 +653,18 @@ appointmentApp.post(
         return screeningResult;
       });
 
-      // NOTE: No patient notification on upload - only when manually completed
+      try {
+        await createNotificationForUsers(c, {
+          type: "SCREENING_RESULT_UPLOADED",
+          title: "Screening results available",
+          message:
+            "Your screening results have been uploaded and are now available in your patient portal.",
+          userIds: [appointment.patientId],
+          data: { appointmentId: id, resultId: result.id },
+        });
+      } catch (notifyError) {
+        console.error("Failed to notify patient about uploaded results:", notifyError);
+      }
 
       return c.json<TUploadResultsResponse>({
         ok: true,
@@ -1839,7 +1853,7 @@ appointmentApp.get("/patient/:id", async (c) => {
       result: {
         include: {
           files: {
-            where: { deletedAt: null }, // Only get non-deleted files
+            where: { isDeleted: false },
             select: {
               id: true,
               fileName: true,

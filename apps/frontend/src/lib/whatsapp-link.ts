@@ -106,6 +106,33 @@ export function buildWalkInRegistrationWhatsAppMessage(
   ].join('\n')
 }
 
+export type EnrollmentRequestWhatsAppParams = {
+  patientName: string
+  centerName: string
+  screeningName: string
+  loginUrl: string
+  expiresInDays?: number
+}
+
+export function buildEnrollmentRequestWhatsAppMessage(
+  params: EnrollmentRequestWhatsAppParams,
+): string {
+  const days = params.expiresInDays ?? 7
+
+  return [
+    `Hello ${params.patientName || 'there'},`,
+    '',
+    `${params.centerName} has requested to enroll you for ${params.screeningName} on ZeroCancer.`,
+    '',
+    `Please log in within ${days} days to approve or decline:`,
+    params.loginUrl,
+    '',
+    'Only approve if you want this center to manage your screening.',
+    '',
+    `— ${params.centerName} via ZeroCancer`,
+  ].join('\n')
+}
+
 export function buildWhatsAppShareUrl(phone: string, message: string): string | null {
   const waPhone = toWaMePhone(phone)
   if (!waPhone) return null

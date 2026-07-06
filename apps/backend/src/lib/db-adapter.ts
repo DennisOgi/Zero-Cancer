@@ -1130,6 +1130,9 @@ export const getDB = (c: Context) => {
           else query = query.eq("status", where.status);
         }
         if (where?.id) query = query.eq("id", where.id);
+        if (where?.enrolledByCenterId) {
+          query = query.eq("enrolledByCenterId", where.enrolledByCenterId);
+        }
 
         const { data, error } = await query.limit(1).maybeSingle();
         if (error && error.code !== "PGRST116") throw error;
@@ -1251,9 +1254,15 @@ export const getDB = (c: Context) => {
         let query = supabase.from('Waitlist').select('*');
         
         if (where) {
-          if (where.status) query = query.eq('status', where.status);
-          if (where.screeningTypeId) query = query.eq('screeningTypeId', where.screeningTypeId);
-          if (where.patientId) query = query.eq('patientId', where.patientId);
+          if (where.status) {
+            if (where.status.in) query = query.in("status", where.status.in);
+            else query = query.eq("status", where.status);
+          }
+          if (where.screeningTypeId) query = query.eq("screeningTypeId", where.screeningTypeId);
+          if (where.patientId) query = query.eq("patientId", where.patientId);
+          if (where.enrolledByCenterId) {
+            query = query.eq("enrolledByCenterId", where.enrolledByCenterId);
+          }
         }
         
         if (orderBy) {
@@ -1312,7 +1321,51 @@ export const getDB = (c: Context) => {
         if (error) throw error;
 
         const rows = data || [];
-        if (!include?.patient && !include?.screeningType && !include?.center) {
+
+        let resultsByAppointmentId = new Map<string, Record<string, unknown>>();
+        if (include?.result && rows.length > 0) {
+          const appointmentIds = rows.map((row) => row.id);
+          const { data: screeningResults } = await supabase
+            .from("ScreeningResult")
+            .select("*")
+            .in("appointmentId", appointmentIds);
+
+          const resultIds = (screeningResults || []).map((row) => row.id);
+          let filesByResultId = new Map<string, Record<string, unknown>[]>();
+
+          if (resultIds.length > 0) {
+            const { data: files } = await supabase
+              .from("ScreeningResultFile")
+              .select("*")
+              .in("resultId", resultIds)
+              .eq("isDeleted", false);
+
+            for (const file of files || []) {
+              const list = filesByResultId.get(file.resultId) || [];
+              list.push({
+                ...file,
+                uploadedAt: new Date(String(file.uploadedAt)),
+              });
+              filesByResultId.set(file.resultId, list);
+            }
+          }
+
+          for (const screeningResult of screeningResults || []) {
+            resultsByAppointmentId.set(screeningResult.appointmentId, {
+              ...screeningResult,
+              uploadedAt: new Date(String(screeningResult.uploadedAt)),
+              files: filesByResultId.get(screeningResult.id) || [],
+            });
+          }
+        }
+
+        if (
+          !include?.patient &&
+          !include?.screeningType &&
+          !include?.center &&
+          !include?.result &&
+          !include?.transaction
+        ) {
           return rows.map((appointment) => ({
             ...appointment,
             appointmentDateTime: new Date(String(appointment.appointmentDateTime)),
@@ -1388,6 +1441,9 @@ export const getDB = (c: Context) => {
             : undefined,
           center: include?.center
             ? centersById.get(appointment.centerId) || null
+            : undefined,
+          result: include?.result
+            ? resultsByAppointmentId.get(appointment.id) || null
             : undefined,
           transaction: include?.transaction ? null : undefined,
         }));
@@ -1483,7 +1539,85 @@ export const getDB = (c: Context) => {
           result.verification = verification;
         }
 
+        if (include?.transaction && data.transactionId) {
+          const { data: transaction } = await supabase
+            .from("Transaction")
+            .select("*")
+            .eq("id", data.transactionId)
+            .maybeSingle();
+          result.transaction = transaction
+            ? {
+                ...transaction,
+                createdAt: new Date(String(transaction.createdAt)),
+              }
+            : null;
+        } else if (include?.transaction) {
+          result.transaction = null;
+        }
+
+        if (include?.result) {
+          const { data: screeningResult } = await supabase
+            .from("ScreeningResult")
+            .select("*")
+            .eq("appointmentId", data.id)
+            .maybeSingle();
+
+          if (!screeningResult) {
+            result.result = null;
+          } else {
+            const fileInclude = include.result.include?.files;
+            let files: Record<string, unknown>[] = [];
+
+            if (fileInclude) {
+              let fileQuery = supabase
+                .from("ScreeningResultFile")
+                .select(
+                  fileInclude.select
+                    ? Object.keys(fileInclude.select).join(",")
+                    : "*"
+                )
+                .eq("resultId", screeningResult.id);
+
+              const fileWhere = fileInclude.where;
+              if (fileWhere?.isDeleted === false || fileWhere?.deletedAt === null) {
+                fileQuery = fileQuery.eq("isDeleted", false);
+              }
+
+              const { data: fileRows } = await fileQuery;
+              files = (fileRows || []).map((file) => ({
+                ...file,
+                uploadedAt: new Date(String(file.uploadedAt)),
+              }));
+
+              if (fileInclude.orderBy?.filePath === "asc") {
+                files.sort((a, b) =>
+                  String(a.filePath).localeCompare(String(b.filePath))
+                );
+              }
+            }
+
+            result.result = {
+              ...screeningResult,
+              uploadedAt: new Date(String(screeningResult.uploadedAt)),
+              files,
+            };
+          }
+        }
+
         return result;
+      },
+
+      findFirst: async ({ where, select }: any = {}) => {
+        if (!where?.id) return null;
+
+        const { data, error } = await supabase
+          .from("Appointment")
+          .select(select ? Object.keys(select).join(",") : "*")
+          .eq("id", where.id)
+          .maybeSingle();
+
+        if (error && error.code !== "PGRST116") throw error;
+        return data || null;
       },
       
       update: async ({ where, data }: any) => {
@@ -1508,6 +1642,13 @@ export const getDB = (c: Context) => {
               : data.appointmentDateTime;
         }
         if (data.kitId !== undefined) updates.kitId = data.kitId;
+        if (data.checkInCode !== undefined) updates.checkInCode = data.checkInCode;
+        if (data.checkInCodeExpiresAt !== undefined) {
+          updates.checkInCodeExpiresAt =
+            data.checkInCodeExpiresAt instanceof Date
+              ? data.checkInCodeExpiresAt.toISOString()
+              : data.checkInCodeExpiresAt;
+        }
         
         const { data: appointment, error } = await supabase
           .from('Appointment')
@@ -2605,6 +2746,558 @@ export const getDB = (c: Context) => {
         const { count, error } = await query;
         if (error) throw error;
         return count || 0;
+      },
+    },
+
+    screeningResult: {
+      upsert: async ({ where, create, update }: any) => {
+        const appointmentId = where.appointmentId;
+        const { data: existing, error: existingError } = await supabase
+          .from("ScreeningResult")
+          .select("*")
+          .eq("appointmentId", appointmentId)
+          .maybeSingle();
+
+        if (existingError && existingError.code !== "PGRST116") {
+          throw existingError;
+        }
+
+        if (existing) {
+          const updatePayload: Record<string, unknown> = {};
+          if (update.notes !== undefined) updatePayload.notes = update.notes;
+          if (update.uploadedBy !== undefined) {
+            updatePayload.uploadedBy = update.uploadedBy;
+          }
+          if (update.uploadedAt !== undefined) {
+            updatePayload.uploadedAt =
+              update.uploadedAt instanceof Date
+                ? update.uploadedAt.toISOString()
+                : update.uploadedAt;
+          }
+
+          const { data: updated, error } = await supabase
+            .from("ScreeningResult")
+            .update(updatePayload)
+            .eq("id", existing.id)
+            .select()
+            .single();
+
+          if (error) throw error;
+          return {
+            ...updated,
+            uploadedAt: new Date(String(updated.uploadedAt)),
+          };
+        }
+
+        const { data: created, error } = await supabase
+          .from("ScreeningResult")
+          .insert({
+            id: crypto.randomUUID(),
+            appointmentId: create.appointmentId,
+            notes: create.notes ?? null,
+            uploadedBy: create.uploadedBy ?? null,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        return {
+          ...created,
+          uploadedAt: new Date(String(created.uploadedAt)),
+        };
+      },
+
+      findFirst: async ({ where, include }: any = {}) => {
+        let appointmentIds: string[] | null = null;
+
+        if (where?.appointmentId) {
+          appointmentIds = [where.appointmentId];
+        } else if (where?.id) {
+          const { data: row } = await supabase
+            .from("ScreeningResult")
+            .select("appointmentId")
+            .eq("id", where.id)
+            .maybeSingle();
+          if (!row) return null;
+          appointmentIds = [row.appointmentId];
+        } else if (where?.appointment?.patientId) {
+          const { data: appointments } = await supabase
+            .from("Appointment")
+            .select("id")
+            .eq("patientId", where.appointment.patientId);
+          appointmentIds = (appointments || []).map((row) => row.id);
+          if (appointmentIds.length === 0) return null;
+        }
+
+        let query = supabase.from("ScreeningResult").select("*");
+        if (where?.id) query = query.eq("id", where.id);
+        else if (where?.appointmentId) {
+          query = query.eq("appointmentId", where.appointmentId);
+        } else if (appointmentIds) {
+          query = query.in("appointmentId", appointmentIds);
+        }
+
+        const { data: screeningResult, error } = await query.limit(1).maybeSingle();
+        if (error && error.code !== "PGRST116") throw error;
+        if (!screeningResult) return null;
+
+        if (where?.appointment?.patientId) {
+          const { data: appointment } = await supabase
+            .from("Appointment")
+            .select("patientId")
+            .eq("id", screeningResult.appointmentId)
+            .maybeSingle();
+          if (appointment?.patientId !== where.appointment.patientId) {
+            return null;
+          }
+        }
+
+        const enriched: Record<string, unknown> = {
+          ...screeningResult,
+          uploadedAt: new Date(String(screeningResult.uploadedAt)),
+        };
+
+        if (include?.files) {
+          let fileQuery = supabase
+            .from("ScreeningResultFile")
+            .select("*")
+            .eq("resultId", screeningResult.id);
+
+          const fileWhere = include.files.where;
+          if (fileWhere?.isDeleted === false || fileWhere?.deletedAt === null) {
+            fileQuery = fileQuery.eq("isDeleted", false);
+          }
+
+          const { data: files } = await fileQuery;
+          let fileRows = (files || []).map((file) => ({
+            ...file,
+            uploadedAt: new Date(String(file.uploadedAt)),
+          }));
+
+          if (include.files.orderBy?.filePath === "asc") {
+            fileRows = fileRows.sort((a, b) =>
+              String(a.filePath).localeCompare(String(b.filePath))
+            );
+          }
+
+          enriched.files = fileRows;
+        }
+
+        if (include?.appointment) {
+          const { data: appointment } = await supabase
+            .from("Appointment")
+            .select(
+              include.appointment.select
+                ? Object.keys(include.appointment.select).join(",")
+                : "*"
+            )
+            .eq("id", screeningResult.appointmentId)
+            .maybeSingle();
+
+          const appointmentResult: Record<string, unknown> = appointment
+            ? {
+                ...appointment,
+                appointmentDateTime: new Date(
+                  String(appointment.appointmentDateTime)
+                ),
+              }
+            : null;
+
+          if (appointment && include.appointment.select?.screeningType) {
+            const { data: screeningType } = await supabase
+              .from("ScreeningType")
+              .select(
+                Object.keys(
+                  include.appointment.select.screeningType.select || {
+                    id: true,
+                    name: true,
+                  }
+                ).join(",")
+              )
+              .eq("id", appointment.screeningTypeId)
+              .maybeSingle();
+            appointmentResult!.screeningType = screeningType;
+          }
+
+          if (appointment && include.appointment.select?.center) {
+            const { data: center } = await supabase
+              .from("ServiceCenter")
+              .select(
+                Object.keys(
+                  include.appointment.select.center.select || {
+                    id: true,
+                    centerName: true,
+                  }
+                ).join(",")
+              )
+              .eq("id", appointment.centerId)
+              .maybeSingle();
+            appointmentResult!.center = center;
+          }
+
+          enriched.appointment = appointmentResult;
+        }
+
+        return enriched;
+      },
+
+      findMany: async ({ where, skip, take, orderBy, include }: any = {}) => {
+        let appointmentIds: string[] | null = null;
+
+        if (where?.appointment?.patientId) {
+          const { data: appointments } = await supabase
+            .from("Appointment")
+            .select("id")
+            .eq("patientId", where.appointment.patientId);
+          appointmentIds = (appointments || []).map((row) => row.id);
+          if (appointmentIds.length === 0) return [];
+        }
+
+        let query = supabase.from("ScreeningResult").select("*");
+        if (appointmentIds) query = query.in("appointmentId", appointmentIds);
+
+        if (orderBy?.uploadedAt === "desc") {
+          query = query.order("uploadedAt", { ascending: false });
+        } else if (orderBy?.uploadedAt === "asc") {
+          query = query.order("uploadedAt", { ascending: true });
+        }
+
+        if (skip !== undefined && take !== undefined) {
+          query = query.range(skip, skip + take - 1);
+        } else if (take !== undefined) {
+          query = query.limit(take);
+        }
+
+        const { data: results, error } = await query;
+        if (error) throw error;
+
+        return Promise.all(
+          (results || []).map(async (screeningResult) => {
+            const enriched: Record<string, unknown> = {
+              ...screeningResult,
+              uploadedAt: new Date(String(screeningResult.uploadedAt)),
+            };
+
+            if (include?.files) {
+              const { data: files } = await supabase
+                .from("ScreeningResultFile")
+                .select("*")
+                .eq("resultId", screeningResult.id)
+                .eq("isDeleted", false);
+
+              enriched.files = (files || []).map((file) => ({
+                ...file,
+                uploadedAt: new Date(String(file.uploadedAt)),
+              }));
+            }
+
+            if (include?.appointment) {
+              const { data: appointment } = await supabase
+                .from("Appointment")
+                .select("*")
+                .eq("id", screeningResult.appointmentId)
+                .maybeSingle();
+
+              const appointmentResult: Record<string, unknown> | null = appointment
+                ? {
+                    ...appointment,
+                    appointmentDateTime: new Date(
+                      String(appointment.appointmentDateTime)
+                    ),
+                  }
+                : null;
+
+              if (appointment && include.appointment.select?.screeningType) {
+                const { data: screeningType } = await supabase
+                  .from("ScreeningType")
+                  .select("id,name")
+                  .eq("id", appointment.screeningTypeId)
+                  .maybeSingle();
+                appointmentResult!.screeningType = screeningType;
+              }
+
+              if (appointment && include.appointment.select?.center) {
+                const { data: center } = await supabase
+                  .from("ServiceCenter")
+                  .select("id,centerName")
+                  .eq("id", appointment.centerId)
+                  .maybeSingle();
+                appointmentResult!.center = center;
+              }
+
+              enriched.appointment = appointmentResult;
+            }
+
+            return enriched;
+          })
+        );
+      },
+
+      count: async ({ where }: any = {}) => {
+        if (where?.appointment?.patientId) {
+          const { data: appointments } = await supabase
+            .from("Appointment")
+            .select("id")
+            .eq("patientId", where.appointment.patientId);
+          const appointmentIds = (appointments || []).map((row) => row.id);
+          if (appointmentIds.length === 0) return 0;
+
+          const { count, error } = await supabase
+            .from("ScreeningResult")
+            .select("*", { count: "exact", head: true })
+            .in("appointmentId", appointmentIds);
+          if (error) throw error;
+          return count || 0;
+        }
+
+        const { count, error } = await supabase
+          .from("ScreeningResult")
+          .select("*", { count: "exact", head: true });
+        if (error) throw error;
+        return count || 0;
+      },
+    },
+
+    screeningResultFile: {
+      createMany: async ({ data }: { data: Record<string, unknown>[] }) => {
+        if (!data.length) return { count: 0 };
+
+        const rows = data.map((file) => ({
+          id: crypto.randomUUID(),
+          resultId: file.resultId,
+          fileName: file.fileName,
+          filePath: file.filePath,
+          fileType: file.fileType,
+          fileSize: file.fileSize,
+          cloudinaryUrl: file.cloudinaryUrl,
+          cloudinaryId: file.cloudinaryId,
+        }));
+
+        const { data: created, error } = await supabase
+          .from("ScreeningResultFile")
+          .insert(rows)
+          .select("id");
+
+        if (error) throw error;
+        return { count: created?.length ?? 0 };
+      },
+    },
+
+    centerEnrollmentRequest: {
+      create: async ({ data, include }: any = {}) => {
+        const { data: request, error } = await supabase
+          .from("CenterEnrollmentRequest")
+          .insert({
+            id: crypto.randomUUID(),
+            patientId: data.patientId,
+            centerId: data.centerId,
+            screeningTypeId: data.screeningTypeId,
+            status: data.status ?? "PENDING",
+            message: data.message ?? null,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        const enriched: Record<string, unknown> = {
+          ...request,
+          requestedAt: new Date(String(request.requestedAt)),
+          respondedAt: request.respondedAt
+            ? new Date(String(request.respondedAt))
+            : null,
+        };
+
+        if (include?.center) {
+          const { data: center } = await supabase
+            .from("ServiceCenter")
+            .select(
+              include.center.select
+                ? Object.keys(include.center.select).join(",")
+                : "id,centerName"
+            )
+            .eq("id", request.centerId)
+            .maybeSingle();
+          enriched.center = center;
+        }
+
+        if (include?.screeningType) {
+          const { data: screeningType } = await supabase
+            .from("ScreeningType")
+            .select(
+              include.screeningType.select
+                ? Object.keys(include.screeningType.select).join(",")
+                : "id,name"
+            )
+            .eq("id", request.screeningTypeId)
+            .maybeSingle();
+          enriched.screeningType = screeningType;
+        }
+
+        return enriched;
+      },
+
+      findFirst: async ({ where, include }: any = {}) => {
+        let query = supabase.from("CenterEnrollmentRequest").select("*");
+        if (where?.id) query = query.eq("id", where.id);
+        if (where?.patientId) query = query.eq("patientId", where.patientId);
+        if (where?.centerId) query = query.eq("centerId", where.centerId);
+        if (where?.screeningTypeId) {
+          query = query.eq("screeningTypeId", where.screeningTypeId);
+        }
+        if (where?.status) query = query.eq("status", where.status);
+
+        const { data: request, error } = await query.limit(1).maybeSingle();
+        if (error && error.code !== "PGRST116") throw error;
+        if (!request) return null;
+
+        const enriched: Record<string, unknown> = {
+          ...request,
+          requestedAt: new Date(String(request.requestedAt)),
+          respondedAt: request.respondedAt
+            ? new Date(String(request.respondedAt))
+            : null,
+        };
+
+        if (include?.center) {
+          const { data: center } = await supabase
+            .from("ServiceCenter")
+            .select(
+              include.center.select
+                ? Object.keys(include.center.select).join(",")
+                : "id,centerName,address,state,lga"
+            )
+            .eq("id", request.centerId)
+            .maybeSingle();
+          enriched.center = center;
+        }
+
+        if (include?.screeningType) {
+          const { data: screeningType } = await supabase
+            .from("ScreeningType")
+            .select(
+              include.screeningType.select
+                ? Object.keys(include.screeningType.select).join(",")
+                : "id,name"
+            )
+            .eq("id", request.screeningTypeId)
+            .maybeSingle();
+          enriched.screeningType = screeningType;
+        }
+
+        return enriched;
+      },
+
+      findMany: async ({ where, orderBy, include }: any = {}) => {
+        let query = supabase.from("CenterEnrollmentRequest").select("*");
+        if (where?.patientId) query = query.eq("patientId", where.patientId);
+        if (where?.centerId) query = query.eq("centerId", where.centerId);
+        if (where?.status) query = query.eq("status", where.status);
+
+        if (orderBy?.requestedAt === "desc") {
+          query = query.order("requestedAt", { ascending: false });
+        } else if (orderBy?.requestedAt === "asc") {
+          query = query.order("requestedAt", { ascending: true });
+        }
+
+        const { data: requests, error } = await query;
+        if (error) throw error;
+
+        return Promise.all(
+          (requests || []).map(async (request) => {
+            const enriched: Record<string, unknown> = {
+              ...request,
+              requestedAt: new Date(String(request.requestedAt)),
+              respondedAt: request.respondedAt
+                ? new Date(String(request.respondedAt))
+                : null,
+            };
+
+            if (include?.center) {
+              const { data: center } = await supabase
+                .from("ServiceCenter")
+                .select(
+                  include.center.select
+                    ? Object.keys(include.center.select).join(",")
+                    : "id,centerName,address,state,lga"
+                )
+                .eq("id", request.centerId)
+                .maybeSingle();
+              enriched.center = center;
+            }
+
+            if (include?.screeningType) {
+              const { data: screeningType } = await supabase
+                .from("ScreeningType")
+                .select(
+                  include.screeningType.select
+                    ? Object.keys(include.screeningType.select).join(",")
+                    : "id,name"
+                )
+                .eq("id", request.screeningTypeId)
+                .maybeSingle();
+              enriched.screeningType = screeningType;
+            }
+
+            if (include?.patient) {
+              const { data: patient } = await supabase
+                .from("User")
+                .select(
+                  include.patient.select
+                    ? Object.keys(include.patient.select).join(",")
+                    : "id,fullName,email,phone"
+                )
+                .eq("id", request.patientId)
+                .maybeSingle();
+              enriched.patient = patient;
+            }
+
+            return enriched;
+          })
+        );
+      },
+
+      count: async ({ where }: any = {}) => {
+        let query = supabase
+          .from("CenterEnrollmentRequest")
+          .select("*", { count: "exact", head: true });
+        if (where?.patientId) query = query.eq("patientId", where.patientId);
+        if (where?.centerId) query = query.eq("centerId", where.centerId);
+        if (where?.status) query = query.eq("status", where.status);
+        const { count, error } = await query;
+        if (error) throw error;
+        return count || 0;
+      },
+
+      update: async ({ where, data }: any) => {
+        const updates: Record<string, unknown> = {};
+        if (data.status !== undefined) updates.status = data.status;
+        if (data.respondedAt !== undefined) {
+          updates.respondedAt =
+            data.respondedAt instanceof Date
+              ? data.respondedAt.toISOString()
+              : data.respondedAt;
+        }
+
+        let updateQuery = supabase
+          .from("CenterEnrollmentRequest")
+          .update(updates)
+          .eq("id", where.id);
+        if (where.status) {
+          updateQuery = updateQuery.eq("status", where.status);
+        }
+
+        const { data: request, error } = await updateQuery.select().maybeSingle();
+
+        if (error) throw error;
+        if (!request) return null;
+        return {
+          ...request,
+          requestedAt: new Date(String(request.requestedAt)),
+          respondedAt: request.respondedAt
+            ? new Date(String(request.respondedAt))
+            : null,
+        };
       },
     },
 

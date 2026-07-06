@@ -33,6 +33,10 @@ const notificationTypes: {
     icon: notificationIcon,
     defaultTitle: 'Appointment Reminder',
   },
+  CENTER_ENROLLMENT_REQUEST: {
+    icon: notificationIcon,
+    defaultTitle: 'Center Enrollment Request',
+  },
   // Add other types as needed
   DEFAULT: {
     icon: notificationIcon, // A default icon
@@ -58,6 +62,11 @@ const NotificationItem = ({
 
     if (notification.notification.type === 'RESULTS_AVAILABLE') {
       navigate({ to: '/patient/reports' })
+      return
+    }
+
+    if (notification.notification.type === 'CENTER_ENROLLMENT_REQUEST') {
+      navigate({ to: '/patient' })
       return
     }
 
@@ -89,6 +98,8 @@ const NotificationItem = ({
         return 'Book Screening'
       case 'APPOINTMENT_REMINDER':
         return 'View Appointment'
+      case 'CENTER_ENROLLMENT_REQUEST':
+        return 'Review Request'
       default:
         return 'View Details'
     }

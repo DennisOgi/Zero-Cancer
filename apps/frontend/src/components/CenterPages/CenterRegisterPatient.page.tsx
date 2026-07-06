@@ -25,9 +25,10 @@ import {
 } from '@/components/shared/ui/select'
 import { NIGERIA_STATES_LGAS as nigeriaStates } from '@/data/nigeria-locations'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useScreeningTypes } from '@/services/providers/screeningType.provider'
+import { getCenterMyServices } from '@/services/center.service'
+import { QueryKeys } from '@/services/keys'
 import { centerRegisterAndEnrollPatient } from '@/services/screening-report.service'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { patientSchema } from '@zerocancer/shared/schemas/register.schema'
 import { Loader2, UserPlus, CheckCircle2, MessageCircle } from 'lucide-react'
@@ -40,6 +41,7 @@ import PhoneInputComponent from '@/components/shared/ui/phone-input'
 import { CenterEnrollExistingPatient } from '@/components/CenterPages/CenterEnrollExistingPatient'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/shared/ui/tabs'
 import {
+  buildEnrollmentRequestWhatsAppMessage,
   buildWalkInRegistrationWhatsAppMessage,
   openWhatsAppShare,
 } from '@/lib/whatsapp-link'
@@ -54,14 +56,17 @@ type WalkInPatientFormData = z.infer<typeof walkInPatientSchema>
 
 export function CenterRegisterPatientPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const authUserQuery = useQuery(useAuthUser())
   const centerName = authUserQuery.data?.data?.user?.fullName || 'Your screening center'
-  const { data: screeningTypesData, isLoading: screeningTypesLoading } = useQuery(
-    useScreeningTypes({ page: 1, pageSize: 100 }),
-  )
-  const screeningTypes = Array.isArray(screeningTypesData?.data)
-    ? screeningTypesData.data
-    : []
+  const { data: servicesData, isLoading: screeningTypesLoading } = useQuery({
+    queryKey: ['centerMyServices'],
+    queryFn: getCenterMyServices,
+  })
+  const screeningTypes = (servicesData?.data?.services || []).map((service) => ({
+    id: service.screeningTypeId,
+    name: service.name,
+  }))
   const [selectedState, setSelectedState] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [registeredPatient, setRegisteredPatient] = useState<{
@@ -70,6 +75,7 @@ export function CenterRegisterPatientPage() {
     tempPassword?: string
     whatsappNumber: string
     isNewPatient: boolean
+    pendingApproval?: boolean
     screeningName?: string
   } | null>(null)
 
@@ -84,16 +90,25 @@ export function CenterRegisterPatientPage() {
     tempPassword?: string
     whatsappNumber: string
     isNewPatient: boolean
+    pendingApproval?: boolean
     screeningName?: string
   }) => {
-    const message = buildWalkInRegistrationWhatsAppMessage({
-      patientName: patient.fullName,
-      centerName,
-      email: patient.email,
-      temporaryPassword: patient.isNewPatient ? patient.tempPassword : undefined,
-      loginUrl,
-      screeningName: patient.screeningName,
-    })
+    const message = patient.pendingApproval
+      ? buildEnrollmentRequestWhatsAppMessage({
+          patientName: patient.fullName,
+          centerName,
+          screeningName: patient.screeningName || 'screening',
+          loginUrl,
+          expiresInDays: 7,
+        })
+      : buildWalkInRegistrationWhatsAppMessage({
+          patientName: patient.fullName,
+          centerName,
+          email: patient.email,
+          temporaryPassword: patient.isNewPatient ? patient.tempPassword : undefined,
+          loginUrl,
+          screeningName: patient.screeningName,
+        })
     const opened = openWhatsAppShare(patient.whatsappNumber, message)
     if (!opened) {
       toast.error('Could not open WhatsApp. Check the patient phone number.')
@@ -141,13 +156,18 @@ export function CenterRegisterPatientPage() {
           tempPassword: response.data?.isNewPatient ? tempPassword : undefined,
           whatsappNumber: data.phone,
           isNewPatient: Boolean(response.data?.isNewPatient),
+          pendingApproval: Boolean(response.data?.pendingApproval),
           screeningName: response.data?.screeningName,
         }
         setRegisteredPatient(patientRecord)
-        const waitlistMsg = response.data?.waitlistCreated
-          ? 'Patient registered and added to the platform waitlist'
-          : 'Patient registered — already on the waitlist for this screening'
+        const waitlistMsg = response.data?.pendingApproval
+          ? 'Existing patient found. An enrollment request was sent for their approval.'
+          : response.data?.waitlistCreated
+            ? 'Patient registered and added to the platform waitlist'
+            : 'Patient registered — already on the waitlist for this screening'
         toast.success(waitlistMsg)
+        queryClient.invalidateQueries({ queryKey: [QueryKeys.centerEnrollmentRequests] })
+        queryClient.invalidateQueries({ queryKey: [QueryKeys.centerPatientsOverview] })
         openPatientWhatsApp(patientRecord)
         form.reset()
       }
@@ -171,18 +191,46 @@ export function CenterRegisterPatientPage() {
           </Button>
         </div>
 
-        <Card className="border-green-200 bg-green-50">
+        <Card
+          className={
+            registeredPatient.pendingApproval
+              ? 'border-amber-200 bg-amber-50'
+              : 'border-green-200 bg-green-50'
+          }
+        >
           <CardHeader>
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-6 w-6 text-green-600" />
-              <CardTitle className="text-green-900">
-                Patient Registered & Enrolled on Waitlist
+              <CheckCircle2
+                className={`h-6 w-6 ${
+                  registeredPatient.pendingApproval
+                    ? 'text-amber-600'
+                    : 'text-green-600'
+                }`}
+              />
+              <CardTitle
+                className={
+                  registeredPatient.pendingApproval
+                    ? 'text-amber-900'
+                    : 'text-green-900'
+                }
+              >
+                {registeredPatient.pendingApproval
+                  ? 'Enrollment Request Sent'
+                  : 'Patient Registered & Enrolled on Waitlist'}
               </CardTitle>
             </div>
-            <CardDescription className="text-green-700">
-              {registeredPatient.isNewPatient
-                ? 'The patient has been registered and enrolled on the waitlist.'
-                : 'The patient has been enrolled on the waitlist under your center.'}
+            <CardDescription
+              className={
+                registeredPatient.pendingApproval
+                  ? 'text-amber-700'
+                  : 'text-green-700'
+              }
+            >
+              {registeredPatient.pendingApproval
+                ? 'This patient already has an account. They were notified in the app — use WhatsApp to ask them to log in and approve.'
+                : registeredPatient.isNewPatient
+                  ? 'The patient has been registered and enrolled on the waitlist.'
+                  : 'The patient has been enrolled on the waitlist under your center.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -219,7 +267,9 @@ export function CenterRegisterPatientPage() {
 
             <div className="flex flex-wrap gap-3">
               <Button
-                onClick={() => registeredPatient && openPatientWhatsApp(registeredPatient)}
+                onClick={() =>
+                  registeredPatient && openPatientWhatsApp(registeredPatient)
+                }
                 className="flex-1"
               >
                 <MessageCircle className="mr-2 h-4 w-4" />

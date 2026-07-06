@@ -178,9 +178,9 @@ export function CenterUploadResultsPage() {
 
           <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
-              <strong>Note:</strong> Once uploaded, results will be
-              automatically made available to patients through their patient
-              portal. Ensure accuracy before submission.
+              <strong>Note:</strong> Once uploaded, results appear in the
+              patient&apos;s portal and the patient is notified. Ensure accuracy
+              before submission.
             </p>
           </div>
         </CardContent>

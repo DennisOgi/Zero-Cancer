@@ -296,10 +296,15 @@ export type TCenterPatientsOverview = {
       pendingCount: number
       matchedCount: number
     }>
+    pendingEnrollmentRequestCount?: number
   }
 }
 
 export const getCenterPatientsOverview = async (): Promise<TCenterPatientsOverview> => {
   const res = await request.get(endpoints.centerPatientsOverview())
   return res as TCenterPatientsOverview
+}
+
+export const getCenterEnrollmentRequests = async (status = 'PENDING') => {
+  return request.get(endpoints.centerEnrollmentRequests(status))
 }

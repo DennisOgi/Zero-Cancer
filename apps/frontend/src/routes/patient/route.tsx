@@ -34,9 +34,11 @@ export const Route = createFileRoute('/patient')({
 
     const auth = await context.queryClient.ensureQueryData(useAuthUser())
     const assignedCenterId = auth?.data?.user?.assignedCenterId
-    const isSelectCenterRoute = location.pathname === '/patient/select-center'
+    const isCenterRoute =
+      location.pathname === '/patient/select-center' ||
+      location.pathname === '/patient/change-center'
 
-    if (!assignedCenterId && !isSelectCenterRoute) {
+    if (!assignedCenterId && !isCenterRoute) {
       try {
         const centersResponse = await context.queryClient.fetchQuery({
           queryKey: ['recommendedCenters', auth?.data?.user?.id],
