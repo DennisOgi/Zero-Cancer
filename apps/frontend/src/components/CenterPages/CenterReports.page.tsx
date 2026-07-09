@@ -83,16 +83,20 @@ export default function CenterReportsPage() {
     retry: 1,
   })
 
-  const { data: appointmentsData, isLoading: appointmentsLoading } = useQuery({
-    queryKey: ['eligibleReportAppointments', debouncedPatientSearch],
-    queryFn: () => fetchEligibleReportAppointments(debouncedPatientSearch || undefined),
-    enabled: Boolean(categoryId && testTypeId),
+  const {
+    data: appointmentsData,
+    isLoading: appointmentsLoading,
+    isError: appointmentsError,
+    refetch: refetchEligiblePatients,
+  } = useQuery({
+    queryKey: ['eligibleReportAppointments'],
+    queryFn: () => fetchEligibleReportAppointments(),
   })
 
   useEffect(() => {
     const timer = setTimeout(
-      () => setDebouncedPatientSearch(patientSearch.trim()),
-      350,
+      () => setDebouncedPatientSearch(patientSearch.trim().toLowerCase()),
+      200,
     )
     return () => clearTimeout(timer)
   }, [patientSearch])
@@ -116,10 +120,23 @@ export default function CenterReportsPage() {
   const taxonomy = (taxonomyData?.data?.taxonomy || []) as TaxonomyCategory[]
   const selectedCategory = taxonomy.find((item) => item.id === categoryId)
   const selectedTest = selectedCategory?.tests.find((item) => item.id === testTypeId)
-  const eligiblePatients =
+  const allEligiblePatients =
     appointmentsData?.data?.patients ||
     appointmentsData?.data?.appointments ||
     []
+  const eligiblePatients = useMemo(() => {
+    if (!debouncedPatientSearch) return allEligiblePatients
+    return allEligiblePatients.filter((row: any) => {
+      const name = String(
+        row.patientName || row.patient?.fullName || '',
+      ).toLowerCase()
+      const phone = String(row.phone || row.patient?.phone || '').toLowerCase()
+      return (
+        name.includes(debouncedPatientSearch) ||
+        phone.includes(debouncedPatientSearch)
+      )
+    })
+  }, [allEligiblePatients, debouncedPatientSearch])
   const staff = staffData?.data?.staff || []
 
   const selectedAppointment = useMemo(
@@ -416,10 +433,17 @@ export default function CenterReportsPage() {
                   <Input
                     id="patient-search"
                     className="mt-1"
-                    placeholder="Filter by patient name..."
+                    placeholder="Filter by name or phone..."
                     value={patientSearch}
-                    onChange={(e) => setPatientSearch(e.target.value)}
+                    onChange={(e) => {
+                      setPatientSearch(e.target.value)
+                      setAppointmentId('')
+                    }}
                   />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Only patients with a completed screening (kit recorded) appear
+                    here.
+                  </p>
                 </div>
 
                 <div>
@@ -433,9 +457,15 @@ export default function CenterReportsPage() {
                         <SelectItem value="loading" disabled>
                           Loading patients...
                         </SelectItem>
+                      ) : appointmentsError ? (
+                        <SelectItem value="error" disabled>
+                          Failed to load patients — refresh and try again
+                        </SelectItem>
                       ) : eligiblePatients.length === 0 ? (
                         <SelectItem value="none" disabled>
-                          No eligible completed patients
+                          {debouncedPatientSearch
+                            ? 'No matching patients'
+                            : 'No eligible completed patients'}
                         </SelectItem>
                       ) : (
                         eligiblePatients.map((row: any) => {
@@ -444,10 +474,12 @@ export default function CenterReportsPage() {
                             row.patientName ||
                             row.patient?.fullName ||
                             'Patient'
+                          const phone = row.phone || row.patient?.phone
                           const date = row.appointmentDateTime
                           return (
                             <SelectItem key={id} value={id}>
                               {name}
+                              {phone ? ` — ${phone}` : ''}
                               {date
                                 ? ` — ${new Date(date).toLocaleDateString()}`
                                 : ''}
@@ -457,6 +489,25 @@ export default function CenterReportsPage() {
                       )}
                     </SelectContent>
                   </Select>
+                  {appointmentsError ? (
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="mt-1 h-auto p-0 text-xs"
+                      onClick={() => refetchEligiblePatients()}
+                    >
+                      Retry loading patients
+                    </Button>
+                  ) : null}
+                  {!appointmentsLoading &&
+                  !appointmentsError &&
+                  allEligiblePatients.length === 0 ? (
+                    <p className="mt-2 text-xs text-amber-700">
+                      Complete a patient visit first: verify check-in → upload
+                      results → complete with kit serial. Then they will show up
+                      here for reporting.
+                    </p>
+                  ) : null}
                 </div>
 
                 <div>
