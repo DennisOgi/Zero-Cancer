@@ -40,7 +40,23 @@ async function buildReportResponse(c: any, report: any) {
 
   const html = buildReportHtml({
     centerName: center?.centerName || "Screening Center",
-    centerAddress: `${center?.address || ""}, ${center?.lga || ""}, ${center?.state || ""}`,
+    centerAddress: [
+      center?.address,
+      center?.lga &&
+      !(center?.address || "")
+        .toLowerCase()
+        .includes((center?.lga || "").toLowerCase())
+        ? center.lga
+        : null,
+      center?.state &&
+      !(center?.address || "")
+        .toLowerCase()
+        .includes((center?.state || "").toLowerCase())
+        ? center.state
+        : null,
+    ]
+      .filter(Boolean)
+      .join(", "),
     centerPhone: center?.phone,
     centerWhatsapp: center?.whatsappNumber || center?.phone,
     logoUrl: center?.logoUrl,

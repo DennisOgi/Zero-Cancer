@@ -1,6 +1,8 @@
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 
+const CLOUDINARY_MAX_BYTES = 10 * 1024 * 1024 // 10MB unsigned upload limit
+
 export async function generatePdfBlobFromHtml(html: string): Promise<Blob> {
   const iframe = document.createElement('iframe')
   iframe.style.position = 'fixed'
@@ -21,33 +23,67 @@ export async function generatePdfBlobFromHtml(html: string): Promise<Blob> {
 
     await new Promise<void>((resolve) => {
       iframe.onload = () => resolve()
-      setTimeout(resolve, 300)
+      setTimeout(resolve, 400)
     })
 
+    // Wait for letterhead images (center logo) so they render before capture
+    const images = Array.from(doc.images)
+    await Promise.all(
+      images.map(
+        (img) =>
+          img.complete
+            ? Promise.resolve()
+            : new Promise<void>((resolve) => {
+                img.onload = () => resolve()
+                img.onerror = () => resolve()
+                setTimeout(resolve, 1500)
+              }),
+      ),
+    )
+
+    // scale 1.5 + JPEG keeps typical reports well under Cloudinary's 10MB limit
     const canvas = await html2canvas(doc.body, {
-      scale: 2,
+      scale: 1.5,
       useCORS: true,
+      allowTaint: false,
       backgroundColor: '#ffffff',
+      logging: false,
     })
 
-    const imgData = canvas.toDataURL('image/png')
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
-    const pageWidth = pdf.internal.pageSize.getWidth()
-    const pageHeight = pdf.internal.pageSize.getHeight()
+    const pageWidth = 595.28 // A4 width in pt
+    const pageHeight = 841.89
     const imgWidth = pageWidth
     const imgHeight = (canvas.height * imgWidth) / canvas.width
 
-    let offsetY = 0
-    pdf.addImage(imgData, 'PNG', 0, offsetY, imgWidth, imgHeight)
-    offsetY += pageHeight
+    const qualities = [0.82, 0.7, 0.58, 0.48]
+    let blob: Blob | null = null
 
-    while (offsetY < imgHeight) {
-      pdf.addPage()
-      pdf.addImage(imgData, 'PNG', 0, -offsetY, imgWidth, imgHeight)
+    for (const quality of qualities) {
+      const imgData = canvas.toDataURL('image/jpeg', quality)
+      const attempt = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: 'a4',
+        compress: true,
+      })
+
+      let offsetY = 0
+      attempt.addImage(imgData, 'JPEG', 0, offsetY, imgWidth, imgHeight)
       offsetY += pageHeight
+
+      while (offsetY < imgHeight) {
+        attempt.addPage()
+        attempt.addImage(imgData, 'JPEG', 0, -offsetY, imgWidth, imgHeight)
+        offsetY += pageHeight
+      }
+
+      const candidate = attempt.output('blob')
+      blob = candidate
+      if (candidate.size <= CLOUDINARY_MAX_BYTES - 50_000) break
     }
 
-    return pdf.output('blob')
+    if (!blob) throw new Error('Could not generate PDF')
+    return blob
   } finally {
     document.body.removeChild(iframe)
   }
@@ -62,6 +98,12 @@ export async function uploadReportPdfBlob(
 
   if (!cloudName || !uploadPreset) {
     throw new Error('Cloudinary upload is not configured')
+  }
+
+  if (blob.size > CLOUDINARY_MAX_BYTES) {
+    throw new Error(
+      `Report PDF is too large to upload (${Math.round(blob.size / 1024 / 1024)}MB). Try again or contact support.`,
+    )
   }
 
   const file = new File([blob], `screening-report-${reportId}.pdf`, {

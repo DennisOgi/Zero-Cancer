@@ -134,6 +134,23 @@ async function loadReportContext(
   };
 }
 
+function formatCenterAddress(center?: {
+  address?: string | null;
+  lga?: string | null;
+  state?: string | null;
+} | null): string {
+  const address = (center?.address || "").trim();
+  const lga = (center?.lga || "").trim();
+  const state = (center?.state || "").trim();
+  const parts: string[] = [];
+  if (address) parts.push(address);
+  if (lga && !address.toLowerCase().includes(lga.toLowerCase())) parts.push(lga);
+  if (state && !address.toLowerCase().includes(state.toLowerCase())) {
+    parts.push(state);
+  }
+  return parts.join(", ");
+}
+
 function buildReportHtmlForCenter(
   loaded: {
     center?: any;
@@ -166,7 +183,7 @@ function buildReportHtmlForCenter(
 
   return buildReportHtml({
     centerName: loaded.center?.centerName || "Screening Center",
-    centerAddress: `${loaded.center?.address || ""}, ${loaded.center?.lga || ""}, ${loaded.center?.state || ""}`,
+    centerAddress: formatCenterAddress(loaded.center),
     centerPhone: loaded.center?.phone,
     centerWhatsapp: loaded.center?.whatsappNumber || loaded.center?.phone,
     logoUrl: loaded.center?.logoUrl,
