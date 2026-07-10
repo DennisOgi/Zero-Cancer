@@ -150,6 +150,24 @@ export const centerEnrollmentRequests = (status = 'PENDING') =>
     queryFn: () => centerService.getCenterEnrollmentRequests(status),
   })
 
+export const centerProfile = () =>
+  queryOptions({
+    queryKey: [QueryKeys.centerProfile],
+    queryFn: () => centerService.getCenterProfile(),
+  })
+
+export const useUpdateCenterProfile = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: [MutationKeys.updateCenterProfile],
+    mutationFn: centerService.updateCenterProfile,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.centerProfile] })
+      queryClient.invalidateQueries({ queryKey: ['authUser'] })
+    },
+  })
+}
+
 // Get center appointments with infinite loading (paginated, filterable)
 export const centerAppointmentsInfinite = (params: {
   pageSize?: number

@@ -330,3 +330,32 @@ export const getCenterPatients = async (params: {
 export const getCenterEnrollmentRequests = async (status = 'PENDING') => {
   return request.get(endpoints.centerEnrollmentRequests(status))
 }
+
+export type TCenterProfile = {
+  ok: boolean
+  data: {
+    id: string
+    centerName: string
+    email: string
+    phone: string | null
+    whatsappNumber: string | null
+    address: string
+    state: string
+    lga: string
+    status: string
+  }
+}
+
+export const getCenterProfile = async (): Promise<TCenterProfile> => {
+  const res = await request.get(endpoints.getCenterProfile())
+  return res as TCenterProfile
+}
+
+export const updateCenterProfile = async (data: {
+  whatsappNumber: string
+  phone?: string
+  address?: string
+}): Promise<TCenterProfile> => {
+  const res = await request.patch(endpoints.updateCenterProfile(), data)
+  return res as TCenterProfile
+}

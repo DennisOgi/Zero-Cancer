@@ -37,11 +37,15 @@ export function CenterLayout() {
   ]
 
   const adminNavLinks = [
+    { to: '/center/profile', label: 'Profile', icon: people },
     { to: '/center/receipt-history', label: 'Payouts', icon: health },
     { to: '/center/staff', label: 'Staff', icon: people },
   ]
 
-  const navLinks = isAdmin ? [...baseNavLinks, ...adminNavLinks] : baseNavLinks
+  // Staff can view profile (read-only WhatsApp); admins can edit
+  const navLinks = isAdmin
+    ? [...baseNavLinks, ...adminNavLinks]
+    : [...baseNavLinks, { to: '/center/profile', label: 'Profile', icon: people }]
 
   return (
     <div className="min-h-screen w-full">

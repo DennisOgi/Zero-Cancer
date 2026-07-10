@@ -81,6 +81,7 @@ export enum QueryKeys {
   centerPatientsOverview = 'centerPatientsOverview',
   centerPatientsList = 'centerPatientsList',
   centerEnrollmentRequests = 'centerEnrollmentRequests',
+  centerProfile = 'centerProfile',
 }
 
 export enum MutationKeys {
@@ -147,6 +148,7 @@ export enum MutationKeys {
   triggerWaitlistMatching = 'trigger-waitlist-matching',
   cancelAppointment = 'cancelAppointment',
   updatePatientProfile = 'updatePatientProfile',
+  updateCenterProfile = 'updateCenterProfile',
 
   // Waitlist Matching System
   triggerMatching = 'triggerMatching',

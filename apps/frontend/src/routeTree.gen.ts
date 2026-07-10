@@ -38,6 +38,7 @@ import { Route as CenterRegisterPatientRouteImport } from './routes/center/regis
 import { Route as CenterReferPatientRouteImport } from './routes/center/refer-patient'
 import { Route as CenterReceiptHistoryRouteImport } from './routes/center/receipt-history'
 import { Route as CenterPatientsRouteImport } from './routes/center/patients'
+import { Route as CenterProfileRouteImport } from './routes/center/profile'
 import { Route as CenterNotificationsRouteImport } from './routes/center/notifications'
 import { Route as CenterAppointmentsRouteImport } from './routes/center/appointments'
 import { Route as AdminWaitlistRouteImport } from './routes/admin/waitlist'
@@ -207,6 +208,11 @@ const CenterStaffRoute = CenterStaffRouteImport.update({
 const CenterServicesRoute = CenterServicesRouteImport.update({
   id: '/services',
   path: '/services',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterProfileRoute = CenterProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => CenterRouteRoute,
 } as any)
 const CenterReportsRoute = CenterReportsRouteImport.update({
@@ -535,6 +541,7 @@ export interface FileRoutesByFullPath {
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/notifications': typeof CenterNotificationsRoute
   '/center/patients': typeof CenterPatientsRoute
+  '/center/profile': typeof CenterProfileRoute
   '/center/receipt-history': typeof CenterReceiptHistoryRoute
   '/center/refer-patient': typeof CenterReferPatientRoute
   '/center/register-patient': typeof CenterRegisterPatientRoute
@@ -612,6 +619,7 @@ export interface FileRoutesByTo {
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/notifications': typeof CenterNotificationsRoute
   '/center/patients': typeof CenterPatientsRoute
+  '/center/profile': typeof CenterProfileRoute
   '/center/receipt-history': typeof CenterReceiptHistoryRoute
   '/center/refer-patient': typeof CenterReferPatientRoute
   '/center/register-patient': typeof CenterRegisterPatientRoute
@@ -696,6 +704,7 @@ export interface FileRoutesById {
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/notifications': typeof CenterNotificationsRoute
   '/center/patients': typeof CenterPatientsRoute
+  '/center/profile': typeof CenterProfileRoute
   '/center/receipt-history': typeof CenterReceiptHistoryRoute
   '/center/refer-patient': typeof CenterReferPatientRoute
   '/center/register-patient': typeof CenterRegisterPatientRoute
@@ -779,6 +788,7 @@ export interface FileRouteTypes {
     | '/center/appointments'
     | '/center/notifications'
     | '/center/patients'
+    | '/center/profile'
     | '/center/receipt-history'
     | '/center/refer-patient'
     | '/center/register-patient'
@@ -856,6 +866,7 @@ export interface FileRouteTypes {
     | '/center/appointments'
     | '/center/notifications'
     | '/center/patients'
+    | '/center/profile'
     | '/center/receipt-history'
     | '/center/refer-patient'
     | '/center/register-patient'
@@ -939,6 +950,7 @@ export interface FileRouteTypes {
     | '/center/appointments'
     | '/center/notifications'
     | '/center/patients'
+    | '/center/profile'
     | '/center/receipt-history'
     | '/center/refer-patient'
     | '/center/register-patient'
@@ -1196,6 +1208,13 @@ declare module '@tanstack/react-router' {
       path: '/receipt-history'
       fullPath: '/center/receipt-history'
       preLoaderRoute: typeof CenterReceiptHistoryRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/profile': {
+      id: '/center/profile'
+      path: '/profile'
+      fullPath: '/center/profile'
+      preLoaderRoute: typeof CenterProfileRouteImport
       parentRoute: typeof CenterRouteRoute
     }
     '/center/patients': {
@@ -1703,6 +1722,7 @@ interface CenterRouteRouteChildren {
   CenterAppointmentsRoute: typeof CenterAppointmentsRoute
   CenterNotificationsRoute: typeof CenterNotificationsRoute
   CenterPatientsRoute: typeof CenterPatientsRoute
+  CenterProfileRoute: typeof CenterProfileRoute
   CenterReceiptHistoryRoute: typeof CenterReceiptHistoryRoute
   CenterReferPatientRoute: typeof CenterReferPatientRoute
   CenterRegisterPatientRoute: typeof CenterRegisterPatientRoute
@@ -1720,6 +1740,7 @@ const CenterRouteRouteChildren: CenterRouteRouteChildren = {
   CenterAppointmentsRoute: CenterAppointmentsRoute,
   CenterNotificationsRoute: CenterNotificationsRoute,
   CenterPatientsRoute: CenterPatientsRoute,
+  CenterProfileRoute: CenterProfileRoute,
   CenterReceiptHistoryRoute: CenterReceiptHistoryRoute,
   CenterReferPatientRoute: CenterReferPatientRoute,
   CenterRegisterPatientRoute: CenterRegisterPatientRoute,

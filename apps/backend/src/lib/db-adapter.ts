@@ -366,6 +366,28 @@ export const getDB = (c: Context) => {
         
         return center;
       },
+
+      update: async ({ where, data }: any) => {
+        const updates: Record<string, unknown> = {};
+        if (data.centerName !== undefined) updates.centerName = data.centerName;
+        if (data.phone !== undefined) updates.phone = data.phone;
+        if (data.whatsappNumber !== undefined) {
+          updates.whatsappNumber = data.whatsappNumber;
+        }
+        if (data.address !== undefined) updates.address = data.address;
+        if (data.state !== undefined) updates.state = data.state;
+        if (data.lga !== undefined) updates.lga = data.lga;
+
+        const { data: updated, error } = await supabase
+          .from("ServiceCenter")
+          .update(updates)
+          .eq("id", where.id)
+          .select("*")
+          .single();
+
+        if (error) throw error;
+        return updated;
+      },
     },
     
     // User operations

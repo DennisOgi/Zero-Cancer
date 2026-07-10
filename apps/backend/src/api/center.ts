@@ -7,6 +7,7 @@ import {
   getCenterByIdSchema,
   getCentersQuerySchema,
   inviteStaffSchema,
+  updateCenterProfileSchema,
   validateStaffInviteSchema,
 } from "@zerocancer/shared";
 import type {
@@ -27,6 +28,10 @@ import { setCookie } from "hono/cookie";
 import { sign, verify } from "hono/jwt";
 import { getDB } from "../lib/db";
 import { sendEmail } from "../lib/email";
+import {
+  isLikelyValidWhatsappNumber,
+  normalizeWhatsappNumber,
+} from "../lib/phone";
 import type { ServiceTypeKey } from "../lib/service-type-utils";
 import { getSupabaseClient } from "../lib/supabase";
 import { TEnvs, THonoApp } from "../lib/types";
@@ -34,6 +39,117 @@ import { comparePassword, hashPassword } from "../lib/utils";
 import { authMiddleware } from "../middleware/auth.middleware";
 
 export const centerApp = new Hono<THonoApp>();
+
+// GET /api/center/profile - Logged-in center profile (for settings)
+centerApp.get(
+  "/profile",
+  authMiddleware(["center", "center_staff"]),
+  async (c) => {
+    try {
+      const db = getDB(c);
+      const payload = c.get("jwtPayload");
+      const centerId = payload?.id as string;
+
+      const center = await db.serviceCenter.findUnique({
+        where: { id: centerId },
+      });
+
+      if (!center) {
+        return c.json<TErrorResponse>(
+          { ok: false, error: "Center not found" },
+          404
+        );
+      }
+
+      return c.json({
+        ok: true,
+        data: {
+          id: center.id,
+          centerName: center.centerName,
+          email: center.email,
+          phone: center.phone || null,
+          whatsappNumber: center.whatsappNumber || center.phone || null,
+          address: center.address,
+          state: center.state,
+          lga: center.lga,
+          status: center.status,
+        },
+      });
+    } catch (error) {
+      console.error("Get center profile error:", error);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to load center profile" },
+        500
+      );
+    }
+  }
+);
+
+// PATCH /api/center/profile - Update WhatsApp / contact details (center admin only)
+centerApp.patch(
+  "/profile",
+  authMiddleware(["center"]),
+  zValidator("json", updateCenterProfileSchema, (result, c) => {
+    if (!result.success) {
+      return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
+    }
+  }),
+  async (c) => {
+    try {
+      const db = getDB(c);
+      const payload = c.get("jwtPayload");
+      const centerId = payload?.id as string;
+      const body = c.req.valid("json");
+
+      if (!isLikelyValidWhatsappNumber(body.whatsappNumber)) {
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            error:
+              "Enter a valid WhatsApp number in international format, e.g. +2348012345678",
+          },
+          400
+        );
+      }
+
+      const normalizedWhatsapp = normalizeWhatsappNumber(body.whatsappNumber);
+      const normalizedPhone = body.phone
+        ? normalizeWhatsappNumber(body.phone)
+        : normalizedWhatsapp;
+
+      const updated = await db.serviceCenter.update({
+        where: { id: centerId },
+        data: {
+          whatsappNumber: normalizedWhatsapp,
+          phone: normalizedPhone,
+          ...(body.address ? { address: body.address.trim() } : {}),
+        },
+      });
+
+      return c.json({
+        ok: true,
+        message: "Center profile updated",
+        data: {
+          id: updated.id,
+          centerName: updated.centerName,
+          email: updated.email,
+          phone: updated.phone || null,
+          whatsappNumber: updated.whatsappNumber || updated.phone || null,
+          address: updated.address,
+          state: updated.state,
+          lga: updated.lga,
+          status: updated.status,
+        },
+      });
+    } catch (error) {
+      console.error("Update center profile error:", error);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to update center profile" },
+        500
+      );
+    }
+  }
+);
 
 // GET /api/center - List centers (paginated, filtered, searched)
 centerApp.get("/", async (c) => {

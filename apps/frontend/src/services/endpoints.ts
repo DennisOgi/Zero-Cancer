@@ -196,6 +196,8 @@ export const getCenters = (params: {
 }
 
 export const getCenterById = (id: string) => `/api/center/${id}`
+export const getCenterProfile = () => '/api/center/profile'
+export const updateCenterProfile = () => '/api/center/profile'
 export const getCenterMyServices = () => '/api/center/my-services'
 export const addCenterMyServices = () => '/api/center/my-services'
 export const removeCenterMyService = (screeningTypeId: string) =>

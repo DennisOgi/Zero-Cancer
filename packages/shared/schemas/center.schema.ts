@@ -18,3 +18,19 @@ export const getCentersQuerySchema = z.object({
 export const getCenterByIdSchema = z.object({
   id: z.string().uuid({ message: "Invalid center id" }),
 });
+
+export const updateCenterProfileSchema = z.object({
+  whatsappNumber: z
+    .string()
+    .min(7, { message: "Please enter a valid WhatsApp number." }),
+  phone: z
+    .string()
+    .min(7, { message: "Please enter a valid phone number." })
+    .optional(),
+  address: z
+    .string()
+    .min(5, { message: "Please enter a valid address." })
+    .optional(),
+});
+
+export type TUpdateCenterProfile = z.infer<typeof updateCenterProfileSchema>;
