@@ -343,6 +343,9 @@ export type TCenterProfile = {
     state: string
     lga: string
     status: string
+    logoUrl?: string | null
+    reportFooterText?: string | null
+    brandColor?: string | null
   }
 }
 
@@ -355,6 +358,9 @@ export const updateCenterProfile = async (data: {
   whatsappNumber: string
   phone?: string
   address?: string
+  logoUrl?: string
+  reportFooterText?: string
+  brandColor?: string
 }): Promise<TCenterProfile> => {
   const res = await request.patch(endpoints.updateCenterProfile(), data)
   return res as TCenterProfile

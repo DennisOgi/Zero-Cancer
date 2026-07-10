@@ -73,6 +73,9 @@ centerApp.get(
           state: center.state,
           lga: center.lga,
           status: center.status,
+          logoUrl: center.logoUrl || null,
+          reportFooterText: center.reportFooterText || null,
+          brandColor: center.brandColor || null,
         },
       });
     } catch (error) {
@@ -123,6 +126,15 @@ centerApp.patch(
           whatsappNumber: normalizedWhatsapp,
           phone: normalizedPhone,
           ...(body.address ? { address: body.address.trim() } : {}),
+          ...(body.logoUrl !== undefined
+            ? { logoUrl: body.logoUrl.trim() || null }
+            : {}),
+          ...(body.reportFooterText !== undefined
+            ? { reportFooterText: body.reportFooterText.trim() || null }
+            : {}),
+          ...(body.brandColor !== undefined
+            ? { brandColor: body.brandColor.trim() || null }
+            : {}),
         },
       });
 
@@ -139,6 +151,9 @@ centerApp.patch(
           state: updated.state,
           lga: updated.lga,
           status: updated.status,
+          logoUrl: updated.logoUrl || null,
+          reportFooterText: updated.reportFooterText || null,
+          brandColor: updated.brandColor || null,
         },
       });
     } catch (error) {

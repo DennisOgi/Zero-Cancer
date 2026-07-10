@@ -377,6 +377,13 @@ export const getDB = (c: Context) => {
         if (data.address !== undefined) updates.address = data.address;
         if (data.state !== undefined) updates.state = data.state;
         if (data.lga !== undefined) updates.lga = data.lga;
+        if (data.logoUrl !== undefined) updates.logoUrl = data.logoUrl || null;
+        if (data.reportFooterText !== undefined) {
+          updates.reportFooterText = data.reportFooterText || null;
+        }
+        if (data.brandColor !== undefined) {
+          updates.brandColor = data.brandColor || null;
+        }
 
         const { data: updated, error } = await supabase
           .from("ServiceCenter")

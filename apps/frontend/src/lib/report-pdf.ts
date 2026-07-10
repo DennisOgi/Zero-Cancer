@@ -73,13 +73,21 @@ export async function uploadReportPdfBlob(
   formData.append('upload_preset', uploadPreset)
   formData.append('public_id', `screening-reports/${reportId}`)
 
+  // PDFs upload as image/auto on Cloudinary (not raw) with a standard unsigned preset
   const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`,
+    `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
     { method: 'POST', body: formData },
   )
 
   if (!response.ok) {
-    throw new Error('Failed to upload report PDF')
+    let detail = ''
+    try {
+      const err = await response.json()
+      detail = err?.error?.message ? `: ${err.error.message}` : ''
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`Failed to upload report PDF${detail}`)
   }
 
   return response.json()

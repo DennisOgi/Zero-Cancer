@@ -18,7 +18,9 @@ async function buildReportResponse(c: any, report: any) {
   const [{ data: center }, { data: patient }] = await Promise.all([
     supabase
       .from("ServiceCenter")
-      .select("id, centerName, address, phone, whatsappNumber, state, lga")
+      .select(
+        "id, centerName, address, phone, whatsappNumber, state, lga, logoUrl, reportFooterText, brandColor"
+      )
       .eq("id", report.centerId)
       .single(),
     supabase
@@ -41,6 +43,9 @@ async function buildReportResponse(c: any, report: any) {
     centerAddress: `${center?.address || ""}, ${center?.lga || ""}, ${center?.state || ""}`,
     centerPhone: center?.phone,
     centerWhatsapp: center?.whatsappNumber || center?.phone,
+    logoUrl: center?.logoUrl,
+    reportFooterText: center?.reportFooterText,
+    brandColor: center?.brandColor,
     patientName: patient?.fullName || "Patient",
     signedByName,
     reportDate: new Date(report.createdAt).toLocaleDateString("en-NG", {

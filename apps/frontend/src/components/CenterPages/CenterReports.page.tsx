@@ -222,9 +222,11 @@ export default function CenterReportsPage() {
     let uploaded: { secure_url: string; public_id: string }
     try {
       uploaded = await uploadReportPdfBlob(blob, reportId)
-    } catch {
+    } catch (err) {
       throw new Error(
-        'Could not upload PDF. Check Cloudinary config and ensure the upload preset allows raw/PDF files.',
+        err instanceof Error
+          ? err.message
+          : 'Could not upload PDF. Check Cloudinary config (cloud name + unsigned upload preset).',
       )
     }
 

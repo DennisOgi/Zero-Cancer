@@ -109,6 +109,12 @@ model ServiceCenter {
   address       String
   state         String
   lga           String
+  /** Center brand logo URL for screening report letterheads */
+  logoUrl       String?
+  /** Custom branded footer line on screening reports */
+  reportFooterText String?
+  /** Optional hex accent color for report letterhead/footer (e.g. #1f5b8c) */
+  brandColor    String?
   bankAccount   String?
   bankName      String?
   bankCode      String?

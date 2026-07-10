@@ -33,7 +33,9 @@ async function loadCenterForReport(c: any, centerId: string) {
   const supabase = getSupabaseClient(c);
   const { data: center } = await supabase
     .from("ServiceCenter")
-    .select("id, centerName, address, phone, whatsappNumber, state, lga")
+    .select(
+      "id, centerName, address, phone, whatsappNumber, state, lga, logoUrl, reportFooterText, brandColor"
+    )
     .eq("id", centerId)
     .single();
   return center;
@@ -70,7 +72,9 @@ async function loadAppointmentForReport(c: any, appointmentId: string, centerId:
         .single(),
       supabase
         .from("ServiceCenter")
-        .select("id, centerName, address, phone, whatsappNumber, state, lga")
+        .select(
+          "id, centerName, address, phone, whatsappNumber, state, lga, logoUrl, reportFooterText, brandColor"
+        )
         .eq("id", centerId)
         .single(),
       supabase
@@ -165,6 +169,9 @@ function buildReportHtmlForCenter(
     centerAddress: `${loaded.center?.address || ""}, ${loaded.center?.lga || ""}, ${loaded.center?.state || ""}`,
     centerPhone: loaded.center?.phone,
     centerWhatsapp: loaded.center?.whatsappNumber || loaded.center?.phone,
+    logoUrl: loaded.center?.logoUrl,
+    reportFooterText: loaded.center?.reportFooterText,
+    brandColor: loaded.center?.brandColor,
     patientName: loaded.patient?.fullName || "Patient",
     signedByName: reportFields.signedByName || "Authorized staff",
     reportDate,

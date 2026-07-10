@@ -31,6 +31,20 @@ export const updateCenterProfileSchema = z.object({
     .string()
     .min(5, { message: "Please enter a valid address." })
     .optional(),
+  logoUrl: z.union([
+    z.string().url({ message: "Please provide a valid logo URL." }),
+    z.literal(""),
+  ]).optional(),
+  reportFooterText: z
+    .string()
+    .max(300, { message: "Footer text must be 300 characters or less." })
+    .optional(),
+  brandColor: z.union([
+    z.string().regex(/^#[0-9A-Fa-f]{6}$/, {
+      message: "Brand color must be a hex value like #1f5b8c",
+    }),
+    z.literal(""),
+  ]).optional(),
 });
 
 export type TUpdateCenterProfile = z.infer<typeof updateCenterProfileSchema>;
