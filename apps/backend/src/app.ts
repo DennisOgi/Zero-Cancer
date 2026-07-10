@@ -74,6 +74,8 @@ apiApp.route("/debug", debugApp);
 // ROUTES
 apiApp.route("/auth", authApp);
 apiApp.route("/register", registerApp);
+// Mount /center/patients BEFORE /center so "patients" is not captured by /center/:id
+apiApp.route("/center/patients", centerPatientsApp);
 apiApp.route("/center", centerApp);
 apiApp.route("/appointment", appointmentApp);
 apiApp.route("/screening-types", screeningTypesApp);
@@ -87,7 +89,6 @@ apiApp.route("/payouts", payoutsApp);
 apiApp.route("/community", communityApp);
 apiApp.route("/kit", kitApp);
 apiApp.route("/screening-reports", screeningReportsApp);
-apiApp.route("/center/patients", centerPatientsApp);
 apiApp.route("/patient/enrollment-requests", patientEnrollmentApp);
 apiApp.route("/patient/screening-reports", patientScreeningReportsApp);
 apiApp.route("/public/screening-reports", publicScreeningReportsApp);

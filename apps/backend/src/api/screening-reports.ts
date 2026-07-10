@@ -331,88 +331,105 @@ screeningReportsApp.post(
   "/",
   zValidator("json", createScreeningReportSchema),
   async (c) => {
-    const db = getDB(c);
-    const centerId = await getCenterId(c);
-    const body = c.req.valid("json");
+    try {
+      const db = getDB(c);
+      const centerId = await getCenterId(c);
+      const body = c.req.valid("json");
 
-    const loaded = await loadReportContext(c, centerId, {
-      patientId: body.patientId,
-      appointmentId: body.appointmentId,
-    });
-    if (!loaded?.patient) {
-      return c.json<TErrorResponse>(
-        { ok: false, error: "Patient not found" },
-        404
-      );
-    }
-
-    if (body.appointmentId && loaded.existingReport) {
-      return c.json<TErrorResponse>(
-        { ok: false, error: "A report already exists for this appointment" },
-        409
-      );
-    }
-
-    const patientId = loaded.patient.id as string;
-
-    let signedByName: string | null = body.signedByName?.trim() || null;
-    if (body.signedByStaffId) {
-      const staff = await db.centerStaff.findUnique({
-        where: { id: body.signedByStaffId },
+      const loaded = await loadReportContext(c, centerId, {
+        patientId: body.patientId,
+        appointmentId: body.appointmentId,
       });
-      if (!staff || staff.centerId !== centerId) {
+      if (!loaded?.patient) {
         return c.json<TErrorResponse>(
-          { ok: false, error: "Invalid signatory selected" },
+          { ok: false, error: "Patient not found or not linked to your center" },
+          404
+        );
+      }
+
+      if (body.appointmentId && loaded.existingReport) {
+        return c.json<TErrorResponse>(
+          { ok: false, error: "A report already exists for this appointment" },
+          409
+        );
+      }
+
+      const patientId = loaded.patient.id as string;
+
+      let signedByName: string | null = body.signedByName?.trim() || null;
+      if (body.signedByStaffId) {
+        const staff = await db.centerStaff.findUnique({
+          where: { id: body.signedByStaffId },
+        });
+        if (!staff || staff.centerId !== centerId) {
+          return c.json<TErrorResponse>(
+            { ok: false, error: "Invalid signatory selected" },
+            400
+          );
+        }
+        if (!signedByName) {
+          signedByName = resolveSignedByName({ signedByStaffEmail: staff.email });
+        }
+      }
+
+      if (!signedByName) {
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            error: "Enter the name of the person who performed the test",
+          },
           400
         );
       }
-      if (!signedByName) {
-        signedByName = resolveSignedByName({ signedByStaffEmail: staff.email });
-      }
-    }
 
-    if (!signedByName) {
+      const reportAccess = generateReportAccessToken();
+
+      const report = await db.screeningReport.create({
+        data: {
+          appointmentId: body.appointmentId || null,
+          centerId,
+          patientId,
+          signedByStaffId: body.signedByStaffId || null,
+          signedByName,
+          reportCategory: body.reportCategory,
+          reportTestType: body.reportTestType,
+          reportSubTest: body.reportSubTest || null,
+          resultOutcome: body.resultOutcome,
+          title: body.title,
+          sampleType: body.sampleType,
+          resultText: body.resultText,
+          interpretation: body.interpretation,
+          advise: body.advise,
+          conclusion: body.conclusion || null,
+          remarks: body.remarks,
+          disclaimer: body.disclaimer,
+          accessToken: reportAccess.accessToken,
+          accessTokenExpiresAt: reportAccess.accessTokenExpiresAt,
+        },
+      });
+
+      const html = buildReportHtmlForCenter(loaded, {
+        ...body,
+        signedByName,
+      });
+
+      return c.json({
+        ok: true,
+        data: { report, html, signedByName },
+      });
+    } catch (error) {
+      console.error("Create screening report error:", error);
       return c.json<TErrorResponse>(
-        { ok: false, error: "Enter the name of the person who performed the test" },
-        400
+        {
+          ok: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to save screening report",
+        },
+        500
       );
     }
-
-    const reportAccess = generateReportAccessToken();
-
-    const report = await db.screeningReport.create({
-      data: {
-        appointmentId: body.appointmentId || null,
-        centerId,
-        patientId,
-        signedByStaffId: body.signedByStaffId || null,
-        signedByName,
-        reportCategory: body.reportCategory,
-        reportTestType: body.reportTestType,
-        reportSubTest: body.reportSubTest || null,
-        resultOutcome: body.resultOutcome,
-        title: body.title,
-        sampleType: body.sampleType,
-        resultText: body.resultText,
-        interpretation: body.interpretation,
-        advise: body.advise,
-        conclusion: body.conclusion || null,
-        remarks: body.remarks,
-        disclaimer: body.disclaimer,
-        accessToken: reportAccess.accessToken,
-        accessTokenExpiresAt: reportAccess.accessTokenExpiresAt,
-      },
-    });
-
-    const html = buildReportHtmlForCenter(loaded, {
-      ...body,
-      signedByName,
-    });
-
-    return c.json({
-      ok: true,
-      data: { report, html, signedByName },
-    });
   }
 );
 

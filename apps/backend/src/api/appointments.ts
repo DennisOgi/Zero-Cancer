@@ -426,30 +426,15 @@ appointmentApp.post(
       });
     }
 
-    // Check if appointment is scheduled for today (within reasonable time window)
-    const today = new Date();
-    const appointmentDateTime = new Date(appointment.appointmentDateTime);
-    const isToday =
-      appointmentDateTime.getDate() === today.getDate() &&
-      appointmentDateTime.getMonth() === today.getMonth() &&
-      appointmentDateTime.getFullYear() === today.getFullYear();
-
-    console.log(
-      appointmentDateTime.getDate(),
-      today.getDate(),
-      appointmentDateTime.getMonth(),
-      today.getMonth(),
-      appointmentDateTime.getFullYear(),
-      today.getFullYear()
-    );
-
-    if (!isToday) {
+    // Check-in is allowed any day while the code is still valid (not expired)
+    // and the appointment is still scheduled.
+    if (!["SCHEDULED", "IN_PROGRESS"].includes(appointment.status || "")) {
       return c.json<TVerifyCheckInCodeResponse>({
         ok: true,
         data: {
           valid: false,
           appointmentId: appointment.id,
-          message: "Appointment is not scheduled for today",
+          message: `Appointment cannot be checked in (status: ${appointment.status})`,
         },
       });
     }

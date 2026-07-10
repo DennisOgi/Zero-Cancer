@@ -130,15 +130,16 @@ export default function CenterReportsPage() {
     []
   const eligiblePatients = useMemo(() => {
     if (!debouncedPatientSearch) return allEligiblePatients
+    const searchDigits = debouncedPatientSearch.replace(/\D/g, '')
     return allEligiblePatients.filter((row: any) => {
       const name = String(
         row.patientName || row.patient?.fullName || '',
       ).toLowerCase()
-      const phone = String(row.phone || row.patient?.phone || '').toLowerCase()
-      return (
-        name.includes(debouncedPatientSearch) ||
-        phone.includes(debouncedPatientSearch)
-      )
+      const phone = String(row.phone || row.patient?.phone || '')
+      const phoneDigits = phone.replace(/\D/g, '')
+      const phoneMatch =
+        searchDigits.length >= 4 && phoneDigits.includes(searchDigits)
+      return name.includes(debouncedPatientSearch) || phoneMatch
     })
   }, [allEligiblePatients, debouncedPatientSearch])
   const staff = staffData?.data?.staff || []
@@ -457,6 +458,38 @@ export default function CenterReportsPage() {
                       setAppointmentId('')
                     }}
                   />
+                  {debouncedPatientSearch && eligiblePatients.length > 0 ? (
+                    <div className="mt-2 max-h-40 overflow-y-auto rounded-md border bg-white">
+                      {eligiblePatients.slice(0, 8).map((row: any) => {
+                        const id =
+                          row.patientId ||
+                          row.patient?.id ||
+                          row.appointmentId ||
+                          row.id
+                        const name =
+                          row.patientName || row.patient?.fullName || 'Patient'
+                        const phone = row.phone || row.patient?.phone
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            className="flex w-full flex-col items-start border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted/60"
+                            onClick={() => {
+                              handleSelectPatient(id)
+                              setPatientSearch(name)
+                            }}
+                          >
+                            <span className="font-medium">{name}</span>
+                            {phone ? (
+                              <span className="text-xs text-muted-foreground">
+                                {phone}
+                              </span>
+                            ) : null}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : null}
                   <div className="mt-2">
                     <Button
                       type="button"

@@ -35,7 +35,7 @@ const ONCOPROTEINS_POSITIVE: ReportTemplateContent = {
   interpretation:
     "Patient has been exposed to high risk oncogenic Human Papilloma Virus with expression of oncoproteins E6/E7",
   advise:
-    "1. Refer for colposcopy and treatment if findings indicate\n2. Repeat HPV test after one year",
+    "1. Refer for colposcopy and treatment\n2. Repeat HPV test after one year",
   remarks:
     "Mobilab Rapid Test kits detects biomarkers of oncogenic high risk HPV in form of Oncoproteins E6/E7 through lateral flow chromatography of embedded immunofluorescent antibodies which react with oncoproteins to indicate presence of HPV.",
   disclaimer:

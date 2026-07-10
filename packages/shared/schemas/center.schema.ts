@@ -16,5 +16,5 @@ export const getCentersQuerySchema = z.object({
 });
 
 export const getCenterByIdSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().uuid({ message: "Invalid center id" }),
 });
