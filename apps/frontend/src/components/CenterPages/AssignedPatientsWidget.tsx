@@ -42,7 +42,7 @@ export function AssignedPatientsWidget() {
           Assigned Patients
         </CardTitle>
         <Button variant="link" size="sm" asChild>
-          <Link to="/center/register-patient">Enroll</Link>
+          <Link to="/center/patients">View all</Link>
         </Button>
       </CardHeader>
       <CardContent>
@@ -69,22 +69,22 @@ export function AssignedPatientsWidget() {
                     </p>
                   )}
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-xs font-medium text-blue-700">
-                    {patient.waitlistCount} waitlist
-                    {patient.waitlistCount !== 1 ? 's' : ''}
-                  </p>
-                  {patient.pendingCount > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      {patient.pendingCount} pending
+                  <div className="text-right shrink-0">
+                    <p className="text-xs font-medium text-blue-700">
+                      {patient.waitlistCount} waitlist
+                      {patient.waitlistCount !== 1 ? 's' : ''}
                     </p>
-                  )}
-                  {patient.matchedCount > 0 && (
-                    <p className="text-xs text-green-700">
-                      {patient.matchedCount} matched
-                    </p>
-                  )}
-                </div>
+                    {patient.pendingCount > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {patient.pendingCount} pending funding
+                      </p>
+                    )}
+                    {patient.matchedCount > 0 && (
+                      <p className="text-xs text-green-700">
+                        {patient.matchedCount} matched
+                      </p>
+                    )}
+                  </div>
               </div>
             ))}
           </div>

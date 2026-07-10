@@ -203,7 +203,7 @@ export const getDB = (c: Context) => {
       findUnique: async ({ where }: { where: { email?: string; id?: string } }) => {
         let query = supabase.from('ServiceCenter').select('*');
         
-        if (where.email) query = query.eq('email', where.email);
+        if (where.email) query = query.ilike('email', String(where.email).trim());
         if (where.id) query = query.eq('id', where.id);
         
         const { data, error } = await query.single();
@@ -383,7 +383,9 @@ export const getDB = (c: Context) => {
         
         let query = supabase.from('User').select(selectQuery);
         
-        if (where.email) query = query.eq('email', where.email);
+        if (where.email) {
+          query = query.ilike('email', where.email.trim());
+        }
         if (where.id) query = query.eq('id', where.id);
         
         const { data, error } = await query.single();
@@ -406,7 +408,7 @@ export const getDB = (c: Context) => {
         let query = supabase.from("User").select("*");
 
         if (where?.phone) query = query.eq("phone", where.phone);
-        if (where?.email) query = query.eq("email", where.email);
+        if (where?.email) query = query.ilike("email", String(where.email).trim());
         if (where?.id) query = query.eq("id", where.id);
 
         const { data, error } = await query.limit(1).maybeSingle();
@@ -434,7 +436,7 @@ export const getDB = (c: Context) => {
           .from('User')
           .insert({
             fullName: data.fullName,
-            email: data.email,
+            email: typeof data.email === "string" ? data.email.trim().toLowerCase() : data.email,
             phone: data.phone,
             passwordHash: data.passwordHash,
           })
@@ -460,6 +462,8 @@ export const getDB = (c: Context) => {
               groupId: data.patientProfile.create.groupId || null,
               photoUrl: data.patientProfile.create.photoUrl || null,
               assignedCenterId: data.patientProfile.create.assignedCenterId || null,
+              mustChangePassword:
+                data.patientProfile.create.mustChangePassword === true,
               emailVerified: data.patientProfile.create.emailVerified
                 ? data.patientProfile.create.emailVerified instanceof Date
                   ? data.patientProfile.create.emailVerified.toISOString()
@@ -526,6 +530,8 @@ export const getDB = (c: Context) => {
               groupId: data.patientProfile.create.groupId || null,
               photoUrl: data.patientProfile.create.photoUrl || null,
               assignedCenterId: data.patientProfile.create.assignedCenterId || null,
+              mustChangePassword:
+                data.patientProfile.create.mustChangePassword === true,
               emailVerified: data.patientProfile.create.emailVerified
                 ? data.patientProfile.create.emailVerified instanceof Date
                   ? data.patientProfile.create.emailVerified.toISOString()
@@ -600,6 +606,9 @@ export const getDB = (c: Context) => {
         const updates = { ...data };
         if (updates.emailVerified instanceof Date) {
           updates.emailVerified = updates.emailVerified.toISOString();
+        }
+        if (updates.mustChangePassword !== undefined) {
+          updates.mustChangePassword = Boolean(updates.mustChangePassword);
         }
         const { data: updated, error } = await supabase
           .from('PatientProfile')
@@ -970,6 +979,7 @@ export const getDB = (c: Context) => {
         const row = {
           id: data.id || crypto.randomUUID(),
           ...data,
+          appointmentId: data.appointmentId ?? null,
           createdAt: now,
           updatedAt: now,
         };

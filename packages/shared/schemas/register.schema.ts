@@ -1,7 +1,10 @@
 import { z } from "zod";
 
 export const patientSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address." }),
+  email: z
+    .string()
+    .email({ message: "Please enter a valid email address." })
+    .transform((value) => value.trim().toLowerCase()),
   password: z
     .string()
     .min(6, { message: "Password must be at least 6 characters." }),
@@ -22,7 +25,10 @@ export const patientSchema = z.object({
 });
 
 export const donorSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address." }),
+  email: z
+    .string()
+    .email({ message: "Please enter a valid email address." })
+    .transform((value) => value.trim().toLowerCase()),
   password: z
     .string()
     .min(6, { message: "Password must be at least 6 characters." }),
@@ -38,7 +44,10 @@ export const centerSchema = z.object({
   centerName: z
     .string()
     .min(2, { message: "Center name must be at least 2 characters." }),
-  email: z.string().email({ message: "Please enter a valid email address." }),
+  email: z
+    .string()
+    .email({ message: "Please enter a valid email address." })
+    .transform((value) => value.trim().toLowerCase()),
   password: z
     .string()
     .min(6, { message: "Password must be at least 6 characters." }),
@@ -106,6 +115,7 @@ export const updatePatientProfileSchema = z.object({
   localGovernment: z
     .string()
     .min(1, { message: "Please select a local government." }),
+  gender: z.enum(["MALE", "FEMALE"]).optional(),
   photoUrl: z.string().url().optional(),
 });
 

@@ -113,6 +113,7 @@ export type TAuthMeResponse = TDataResponse<{
       state: string;
       lga: string;
     } | null;
+    mustChangePassword?: boolean;
   };
 }>;
 

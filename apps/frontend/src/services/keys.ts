@@ -79,6 +79,7 @@ export enum QueryKeys {
   centerServices = 'centerServices',
   centerPriceHistory = 'centerPriceHistory',
   centerPatientsOverview = 'centerPatientsOverview',
+  centerPatientsList = 'centerPatientsList',
   centerEnrollmentRequests = 'centerEnrollmentRequests',
 }
 
@@ -88,6 +89,7 @@ export enum MutationKeys {
   registerCenter = 'registerCenter',
   forgotPassword = 'forgotPassword',
   resetPassword = 'resetPassword',
+  changePassword = 'changePassword',
   verifyEmail = 'verifyEmail',
   loginUser = 'loginUser',
   authUser = 'authUser',

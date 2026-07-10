@@ -1,6 +1,9 @@
 import request from '@/lib/request'
 import * as endpoints from '@/services/endpoints'
-import { loginSchema } from '@zerocancer/shared/schemas/auth.schema'
+import {
+  changePasswordSchema,
+  loginSchema,
+} from '@zerocancer/shared/schemas/auth.schema'
 import { updatePatientProfileSchema } from '@zerocancer/shared/schemas/register.schema'
 import type {
   TActors,
@@ -79,6 +82,13 @@ export const resetPassword = async (
   password: string,
 ): Promise<TResetPasswordResponse> => {
   return await request.post(endpoints.resetPassword(), { token, password })
+}
+
+// Change password (authenticated)
+export const changePassword = async (
+  data: z.infer<typeof changePasswordSchema>,
+): Promise<{ ok: boolean; message?: string; data?: { mustChangePassword: boolean } }> => {
+  return await request.post(endpoints.changePassword(), data)
 }
 
 // Verify email

@@ -128,6 +128,17 @@ export const useResetPassword = () => {
   })
 }
 
+export const useChangePassword = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: [MutationKeys.changePassword],
+    mutationFn: authService.changePassword,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['authUser'] })
+    },
+  })
+}
+
 // --- Email Verification Mutations ---
 
 export const useVerifyEmail = () => {

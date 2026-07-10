@@ -34,11 +34,18 @@ export const Route = createFileRoute('/patient')({
 
     const auth = await context.queryClient.ensureQueryData(useAuthUser())
     const assignedCenterId = auth?.data?.user?.assignedCenterId
+    const mustChangePassword = Boolean(auth?.data?.user?.mustChangePassword)
     const isCenterRoute =
       location.pathname === '/patient/select-center' ||
       location.pathname === '/patient/change-center'
+    const isChangePasswordRoute =
+      location.pathname === '/patient/change-password'
 
-    if (!assignedCenterId && !isCenterRoute) {
+    if (mustChangePassword && !isChangePasswordRoute) {
+      throw redirect({ to: '/patient/change-password' })
+    }
+
+    if (!assignedCenterId && !isCenterRoute && !isChangePasswordRoute) {
       try {
         const centersResponse = await context.queryClient.fetchQuery({
           queryKey: ['recommendedCenters', auth?.data?.user?.id],

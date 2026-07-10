@@ -63,10 +63,19 @@ export default function LoginForm() {
           toast.success('Login successful')
 
           queryClient.fetchQuery(useAuthUser()).then((data) => {
-            const userProfile = data?.data?.user?.profile.toLowerCase()
+            const user = data?.data?.user
+            const userProfile = user?.profile.toLowerCase()
 
             if (search.redirect) {
               window.location.href = search.redirect
+              return
+            }
+
+            if (
+              userProfile === 'patient' &&
+              user?.mustChangePassword
+            ) {
+              navigate({ to: '/patient/change-password' })
               return
             }
 

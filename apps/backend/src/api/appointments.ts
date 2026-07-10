@@ -234,6 +234,7 @@ appointmentApp.get(
   async (c) => {
     const db = getDB(c);
     const { id } = c.req.valid("param");
+    const payload = c.get("jwtPayload");
     const appointment = await db.appointment.findUnique({
       where: { id },
       include: {
@@ -243,7 +244,7 @@ appointmentApp.get(
         verification: { select: { id: true } },
       },
     });
-    if (!appointment) {
+    if (!appointment || appointment.centerId !== payload?.id) {
       return c.json<TErrorResponse>(
         { ok: false, error: "Appointment not found." },
         404
@@ -279,8 +280,9 @@ appointmentApp.post(
     const db = getDB(c);
     const id = c.req.param("id");
     const { reason } = c.req.valid("json");
+    const payload = c.get("jwtPayload");
     const appointment = await db.appointment.findUnique({ where: { id } });
-    if (!appointment) {
+    if (!appointment || appointment.centerId !== payload?.id) {
       return c.json<TErrorResponse>(
         { ok: false, error: "Appointment not found." },
         404
@@ -323,8 +325,9 @@ appointmentApp.post(
     const db = getDB(c);
     const id = c.req.param("id");
     const { newDateTime, reason } = c.req.valid("json");
+    const payload = c.get("jwtPayload");
     const appointment = await db.appointment.findUnique({ where: { id } });
-    if (!appointment) {
+    if (!appointment || appointment.centerId !== payload?.id) {
       return c.json<TErrorResponse>(
         { ok: false, error: "Appointment not found." },
         404
@@ -609,8 +612,16 @@ appointmentApp.post(
     }
 
     try {
-      const uploadedBy =
-        payload.profile === "CENTER_STAFF" ? payload.id! : null;
+      let uploadedBy: string | null = null;
+      if (payload.profile === "CENTER_STAFF" && payload.email) {
+        const staff = await db.centerStaff.findFirst({
+          where: {
+            email: payload.email,
+            centerId: payload.id,
+          },
+        });
+        uploadedBy = staff?.id || null;
+      }
 
       // Create or update screening result with files in a transaction
       const result = await db.$transaction(async (tx) => {

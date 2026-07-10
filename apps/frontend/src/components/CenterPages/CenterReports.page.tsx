@@ -30,8 +30,9 @@ import {
 } from '@/lib/whatsapp-link'
 import { useAuthUser } from '@/services/providers/auth.provider'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { FileText, Loader2, MessageCircle, Printer } from 'lucide-react'
+import { FileText, Loader2, MessageCircle, Printer, UserPlus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { toast } from 'sonner'
 
 type TaxonomyCategory = {
@@ -52,6 +53,7 @@ export default function CenterReportsPage() {
   const [testTypeId, setTestTypeId] = useState('')
   const [subTestId, setSubTestId] = useState('')
   const [appointmentId, setAppointmentId] = useState('')
+  const [patientId, setPatientId] = useState('')
   const [outcome, setOutcome] = useState<'POSITIVE' | 'NEGATIVE' | ''>('')
   const [signedByStaffId, setSignedByStaffId] = useState('')
   const [signedByName, setSignedByName] = useState('')
@@ -104,11 +106,13 @@ export default function CenterReportsPage() {
   useEffect(() => {
     setTestTypeId('')
     setSubTestId('')
+    setPatientId('')
     setAppointmentId('')
   }, [categoryId])
 
   useEffect(() => {
     setSubTestId('')
+    setPatientId('')
     setAppointmentId('')
   }, [testTypeId])
 
@@ -139,18 +143,29 @@ export default function CenterReportsPage() {
   }, [allEligiblePatients, debouncedPatientSearch])
   const staff = staffData?.data?.staff || []
 
-  const selectedAppointment = useMemo(
+  const selectedPatient = useMemo(
     () =>
       eligiblePatients.find(
-        (item: any) => (item.appointmentId || item.id) === appointmentId,
+        (item: any) =>
+          (item.patientId || item.patient?.id) === patientId ||
+          (item.appointmentId || item.id) === appointmentId,
       ),
-    [eligiblePatients, appointmentId],
+    [eligiblePatients, patientId, appointmentId],
   )
   const selectedPatientName =
-    selectedAppointment?.patientName ||
-    selectedAppointment?.patient?.fullName
+    selectedPatient?.patientName || selectedPatient?.patient?.fullName
   const selectedPatientPhone =
-    selectedAppointment?.phone || selectedAppointment?.patient?.phone
+    selectedPatient?.phone || selectedPatient?.patient?.phone
+
+  const handleSelectPatient = (value: string) => {
+    const row = eligiblePatients.find(
+      (item: any) =>
+        (item.patientId || item.patient?.id || item.appointmentId || item.id) ===
+        value,
+    )
+    setPatientId(row?.patientId || row?.patient?.id || value)
+    setAppointmentId(row?.appointmentId || '')
+  }
 
   const canLoadTemplate =
     categoryId && testTypeId && outcome && (!selectedTest?.subTests?.length || subTestId)
@@ -307,7 +322,7 @@ export default function CenterReportsPage() {
       return
     }
 
-    if (!appointmentId || !outcome) {
+    if (!patientId || !outcome) {
       toast.error('Select a patient and result outcome')
       return
     }
@@ -318,7 +333,8 @@ export default function CenterReportsPage() {
     }
 
     createMutation.mutate({
-      appointmentId,
+      patientId,
+      appointmentId: appointmentId || undefined,
       reportCategory: categoryId as any,
       reportTestType: testTypeId as any,
       reportSubTest: subTestId ? (subTestId as any) : undefined,
@@ -341,7 +357,7 @@ export default function CenterReportsPage() {
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Screening Reports</h1>
         <p className="mt-1 text-muted-foreground">
-          Create structured Mobilab HPV reports for completed appointments with kit usage.
+          Create structured Mobilab HPV reports for patients at your center.
         </p>
       </div>
 
@@ -437,18 +453,35 @@ export default function CenterReportsPage() {
                     value={patientSearch}
                     onChange={(e) => {
                       setPatientSearch(e.target.value)
+                      setPatientId('')
                       setAppointmentId('')
                     }}
                   />
+                  <div className="mt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      asChild
+                    >
+                      <Link to="/center/register-patient">
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Register / enroll patient
+                      </Link>
+                    </Button>
+                  </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Only patients with a completed screening (kit recorded) appear
-                    here.
+                    Shows patients assigned to your center or with visits here.
                   </p>
                 </div>
 
                 <div>
                   <Label>Patient name</Label>
-                  <Select value={appointmentId} onValueChange={setAppointmentId}>
+                  <Select
+                    value={patientId}
+                    onValueChange={handleSelectPatient}
+                  >
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder="Select patient" />
                     </SelectTrigger>
@@ -465,24 +498,24 @@ export default function CenterReportsPage() {
                         <SelectItem value="none" disabled>
                           {debouncedPatientSearch
                             ? 'No matching patients'
-                            : 'No eligible completed patients'}
+                            : 'No patients at your center yet'}
                         </SelectItem>
                       ) : (
                         eligiblePatients.map((row: any) => {
-                          const id = row.appointmentId || row.id
+                          const id =
+                            row.patientId ||
+                            row.patient?.id ||
+                            row.appointmentId ||
+                            row.id
                           const name =
                             row.patientName ||
                             row.patient?.fullName ||
                             'Patient'
                           const phone = row.phone || row.patient?.phone
-                          const date = row.appointmentDateTime
                           return (
                             <SelectItem key={id} value={id}>
                               {name}
                               {phone ? ` — ${phone}` : ''}
-                              {date
-                                ? ` — ${new Date(date).toLocaleDateString()}`
-                                : ''}
                             </SelectItem>
                           )
                         })
@@ -503,9 +536,8 @@ export default function CenterReportsPage() {
                   !appointmentsError &&
                   allEligiblePatients.length === 0 ? (
                     <p className="mt-2 text-xs text-amber-700">
-                      Complete a patient visit first: verify check-in → upload
-                      results → complete with kit serial. Then they will show up
-                      here for reporting.
+                      Register or enroll a patient first, then return here to
+                      create their report.
                     </p>
                   ) : null}
                 </div>

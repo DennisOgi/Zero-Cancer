@@ -29,8 +29,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
 import statesData from '@zerocancer/shared/constants/states.json'
 import { updatePatientProfileSchema } from '@zerocancer/shared/schemas/register.schema'
+import { Link } from '@tanstack/react-router'
 import { format } from 'date-fns'
-import { Loader2, User } from 'lucide-react'
+import { KeyRound, Loader2, User } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -54,6 +55,7 @@ export function PatientProfilePage() {
       phone: '',
       state: '',
       localGovernment: '',
+      gender: undefined,
     },
   })
 
@@ -63,6 +65,7 @@ export function PatientProfilePage() {
       phone: user.phone || '',
       state: user.state || '',
       localGovernment: user.localGovernment || '',
+      gender: user.gender || undefined,
     })
     if (user.state) {
       const stateData = statesData.find((item) => item.state.name === user.state)
@@ -173,6 +176,30 @@ export function PatientProfilePage() {
               >
                 <FormField
                   control={form.control}
+                  name="gender"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gender</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="FEMALE">Female</SelectItem>
+                          <SelectItem value="MALE">Male</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
@@ -255,6 +282,7 @@ export function PatientProfilePage() {
                         phone: user.phone || '',
                         state: user.state || '',
                         localGovernment: user.localGovernment || '',
+                        gender: user.gender || undefined,
                       })
                     }}
                   >
@@ -286,6 +314,23 @@ export function PatientProfilePage() {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <KeyRound className="h-5 w-5" />
+            Security
+          </CardTitle>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/patient/change-password">Change password</Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Update the password you use to sign in to your patient account.
+          </p>
         </CardContent>
       </Card>
     </div>

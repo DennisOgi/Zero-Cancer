@@ -134,6 +134,16 @@ export const centerPatientsOverview = () =>
     queryFn: () => centerService.getCenterPatientsOverview(),
   })
 
+export const centerPatientsList = (params: {
+  page?: number
+  pageSize?: number
+  search?: string
+}) =>
+  queryOptions({
+    queryKey: [QueryKeys.centerPatientsList, params],
+    queryFn: () => centerService.getCenterPatients(params),
+  })
+
 export const centerEnrollmentRequests = (status = 'PENDING') =>
   queryOptions({
     queryKey: [QueryKeys.centerEnrollmentRequests, status],

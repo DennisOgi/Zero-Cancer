@@ -20,23 +20,29 @@ export const reportSubTestSchema = z.enum(["DNA", "RNA", "ONCOPROTEINS"]);
 
 export const reportResultOutcomeSchema = z.enum(["POSITIVE", "NEGATIVE"]);
 
-export const createScreeningReportSchema = z.object({
-  appointmentId: z.string().uuid(),
-  reportCategory: reportCategorySchema,
-  reportTestType: reportTestTypeSchema,
-  reportSubTest: reportSubTestSchema.optional(),
-  resultOutcome: reportResultOutcomeSchema,
-  title: z.string().min(1),
-  sampleType: z.string().min(1),
-  resultText: z.string().min(1),
-  interpretation: z.string().min(1),
-  advise: z.string().min(1),
-  conclusion: z.string().optional(),
-  remarks: z.string().min(1),
-  disclaimer: z.string().min(1),
-  signedByStaffId: z.string().uuid().optional(),
-  signedByName: z.string().min(2).optional(),
-});
+export const createScreeningReportSchema = z
+  .object({
+    patientId: z.string().uuid().optional(),
+    appointmentId: z.string().uuid().optional(),
+    reportCategory: reportCategorySchema,
+    reportTestType: reportTestTypeSchema,
+    reportSubTest: reportSubTestSchema.optional(),
+    resultOutcome: reportResultOutcomeSchema,
+    title: z.string().min(1),
+    sampleType: z.string().min(1),
+    resultText: z.string().min(1),
+    interpretation: z.string().min(1),
+    advise: z.string().min(1),
+    conclusion: z.string().optional(),
+    remarks: z.string().min(1),
+    disclaimer: z.string().min(1),
+    signedByStaffId: z.string().uuid().optional(),
+    signedByName: z.string().min(2).optional(),
+  })
+  .refine((data) => Boolean(data.patientId || data.appointmentId), {
+    message: "Select a patient",
+    path: ["patientId"],
+  });
 
 export const sendScreeningReportSchema = z.object({
   pdfUrl: z.string().url().optional(),
@@ -54,7 +60,10 @@ export const centerEnrollWaitlistSchema = z.object({
 
 export const centerRegisterPatientSchema = z.object({
   fullName: z.string().min(2),
-  email: z.string().email(),
+  email: z
+    .string()
+    .email()
+    .transform((value) => value.trim().toLowerCase()),
   whatsappNumber: z.string().min(7),
   password: z.string().min(6),
   dateOfBirth: z.string(),

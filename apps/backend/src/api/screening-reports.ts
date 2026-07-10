@@ -29,6 +29,26 @@ async function getCenterId(c: any) {
   return c.get("jwtPayload")?.id as string;
 }
 
+async function loadCenterForReport(c: any, centerId: string) {
+  const supabase = getSupabaseClient(c);
+  const { data: center } = await supabase
+    .from("ServiceCenter")
+    .select("id, centerName, address, phone, whatsappNumber, state, lga")
+    .eq("id", centerId)
+    .single();
+  return center;
+}
+
+async function loadPatientForReport(c: any, patientId: string) {
+  const supabase = getSupabaseClient(c);
+  const { data: patient } = await supabase
+    .from("User")
+    .select("id, fullName, phone")
+    .eq("id", patientId)
+    .single();
+  return patient;
+}
+
 async function loadAppointmentForReport(c: any, appointmentId: string, centerId: string) {
   const supabase = getSupabaseClient(c);
 
@@ -63,14 +83,51 @@ async function loadAppointmentForReport(c: any, appointmentId: string, centerId:
   return { appointment, patient, center, existingReport };
 }
 
-function assertReportEligible(appointment: any) {
-  if (appointment.status !== "COMPLETED") {
-    return "Reports can only be created for completed appointments";
+async function loadReportContext(
+  c: any,
+  centerId: string,
+  params: { patientId?: string; appointmentId?: string }
+) {
+  if (params.appointmentId) {
+    return loadAppointmentForReport(c, params.appointmentId, centerId);
   }
-  if (!appointment.kitId) {
-    return "Reports require a completed appointment with kit usage recorded";
+
+  if (!params.patientId) return null;
+
+  const supabase = getSupabaseClient(c);
+  const [patient, center, profile, appointmentAtCenter] = await Promise.all([
+    loadPatientForReport(c, params.patientId),
+    loadCenterForReport(c, centerId),
+    supabase
+      .from("PatientProfile")
+      .select("userId, assignedCenterId")
+      .eq("userId", params.patientId)
+      .maybeSingle()
+      .then((r) => r.data),
+    supabase
+      .from("Appointment")
+      .select("id")
+      .eq("patientId", params.patientId)
+      .eq("centerId", centerId)
+      .limit(1)
+      .maybeSingle()
+      .then((r) => r.data),
+  ]);
+
+  if (!patient) return null;
+
+  const isAssigned = profile?.assignedCenterId === centerId;
+  const hasAppointment = Boolean(appointmentAtCenter?.id);
+  if (!isAssigned && !hasAppointment) {
+    return null;
   }
-  return null;
+
+  return {
+    appointment: null,
+    patient,
+    center,
+    existingReport: null,
+  };
 }
 
 function buildReportHtmlForCenter(
@@ -152,68 +209,75 @@ screeningReportsApp.get("/template", async (c) => {
 });
 
 // GET /api/screening-reports/eligible-appointments
+// Returns patients the center can create reports for:
+// - patients assigned to this center
+// - patients with any appointment at this center
+// - optional search by name/phone
 screeningReportsApp.get("/eligible-appointments", async (c) => {
   const centerId = await getCenterId(c);
   const supabase = getSupabaseClient(c);
   const search = (c.req.query("search") || "").trim().toLowerCase();
 
-  const { data: appointments, error } = await supabase
-    .from("Appointment")
-    .select("id, patientId, screeningTypeId, status, kitId, appointmentDateTime")
-    .eq("centerId", centerId)
-    .eq("status", "COMPLETED")
-    .not("kitId", "is", null)
-    .order("appointmentDateTime", { ascending: false })
-    .limit(200);
+  const [{ data: assignedProfiles }, { data: appointments }] = await Promise.all([
+    supabase
+      .from("PatientProfile")
+      .select("userId")
+      .eq("assignedCenterId", centerId)
+      .limit(200),
+    supabase
+      .from("Appointment")
+      .select("id, patientId, screeningTypeId, status, kitId, appointmentDateTime")
+      .eq("centerId", centerId)
+      .order("appointmentDateTime", { ascending: false })
+      .limit(200),
+  ]);
 
-  if (error) {
-    return c.json<TErrorResponse>(
-      { ok: false, error: "Failed to load appointments" },
-      500
-    );
+  const patientIds = [
+    ...new Set([
+      ...(assignedProfiles || []).map((p) => p.userId),
+      ...(appointments || []).map((a) => a.patientId),
+    ]),
+  ];
+
+  if (patientIds.length === 0) {
+    return c.json({ ok: true, data: { patients: [], appointments: [] } });
   }
 
-  const patientIds = [...new Set((appointments || []).map((a) => a.patientId))];
-  const { data: patients } = patientIds.length
-    ? await supabase.from("User").select("id, fullName, phone").in("id", patientIds)
-    : { data: [] };
+  const { data: patients } = await supabase
+    .from("User")
+    .select("id, fullName, phone")
+    .in("id", patientIds);
 
   const patientMap = new Map((patients || []).map((p) => [p.id, p]));
 
-  const appointmentIds = (appointments || []).map((a) => a.id);
-  const { data: reports } = appointmentIds.length
-    ? await supabase
-        .from("ScreeningReport")
-        .select("appointmentId")
-        .in("appointmentId", appointmentIds)
-    : { data: [] };
-
-  const reported = new Set((reports || []).map((r) => r.appointmentId));
-
-  const latestByPatient = new Map<string, any>();
+  const latestAppointmentByPatient = new Map<string, any>();
   for (const appointment of appointments || []) {
-    if (reported.has(appointment.id)) continue;
-    const existing = latestByPatient.get(appointment.patientId);
+    const existing = latestAppointmentByPatient.get(appointment.patientId);
     if (
       !existing ||
       new Date(appointment.appointmentDateTime) >
         new Date(existing.appointmentDateTime)
     ) {
-      latestByPatient.set(appointment.patientId, appointment);
+      latestAppointmentByPatient.set(appointment.patientId, appointment);
     }
   }
 
-  let eligible = [...latestByPatient.values()].map((a) => {
-    const patient = patientMap.get(a.patientId);
-    return {
-      appointmentId: a.id,
-      patientId: a.patientId,
-      appointmentDateTime: a.appointmentDateTime,
-      patient: patient || null,
-      patientName: patient?.fullName || "Patient",
-      phone: patient?.phone || null,
-    };
-  });
+  let eligible = patientIds
+    .map((patientId) => {
+      const patient = patientMap.get(patientId);
+      if (!patient) return null;
+      const appointment = latestAppointmentByPatient.get(patientId) || null;
+      return {
+        patientId,
+        appointmentId: appointment?.id || null,
+        appointmentDateTime: appointment?.appointmentDateTime || null,
+        appointmentStatus: appointment?.status || null,
+        patient,
+        patientName: patient.fullName || "Patient",
+        phone: patient.phone || null,
+      };
+    })
+    .filter(Boolean) as Array<Record<string, any>>;
 
   if (search) {
     eligible = eligible.filter((row) => {
@@ -223,13 +287,17 @@ screeningReportsApp.get("/eligible-appointments", async (c) => {
     });
   }
 
+  eligible.sort((a, b) =>
+    String(a.patientName).localeCompare(String(b.patientName))
+  );
+
   return c.json({
     ok: true,
     data: {
       patients: eligible,
       // Backward-compatible alias
       appointments: eligible.map((row) => ({
-        id: row.appointmentId,
+        id: row.appointmentId || row.patientId,
         appointmentDateTime: row.appointmentDateTime,
         patient: row.patient,
       })),
@@ -267,25 +335,25 @@ screeningReportsApp.post(
     const centerId = await getCenterId(c);
     const body = c.req.valid("json");
 
-    const loaded = await loadAppointmentForReport(c, body.appointmentId, centerId);
-    if (!loaded) {
+    const loaded = await loadReportContext(c, centerId, {
+      patientId: body.patientId,
+      appointmentId: body.appointmentId,
+    });
+    if (!loaded?.patient) {
       return c.json<TErrorResponse>(
-        { ok: false, error: "Appointment not found" },
+        { ok: false, error: "Patient not found" },
         404
       );
     }
 
-    const eligibilityError = assertReportEligible(loaded.appointment);
-    if (eligibilityError) {
-      return c.json<TErrorResponse>({ ok: false, error: eligibilityError }, 400);
-    }
-
-    if (loaded.existingReport) {
+    if (body.appointmentId && loaded.existingReport) {
       return c.json<TErrorResponse>(
         { ok: false, error: "A report already exists for this appointment" },
         409
       );
     }
+
+    const patientId = loaded.patient.id as string;
 
     let signedByName: string | null = body.signedByName?.trim() || null;
     if (body.signedByStaffId) {
@@ -314,9 +382,9 @@ screeningReportsApp.post(
 
     const report = await db.screeningReport.create({
       data: {
-        appointmentId: body.appointmentId,
+        appointmentId: body.appointmentId || null,
         centerId,
-        patientId: loaded.appointment.patientId,
+        patientId,
         signedByStaffId: body.signedByStaffId || null,
         signedByName,
         reportCategory: body.reportCategory,
@@ -386,7 +454,10 @@ screeningReportsApp.get("/:id", async (c) => {
     return c.json<TErrorResponse>({ ok: false, error: "Report not found" }, 404);
   }
 
-  const loaded = await loadAppointmentForReport(c, report.appointmentId, centerId);
+  const loaded = await loadReportContext(c, centerId, {
+    patientId: report.patientId,
+    appointmentId: report.appointmentId || undefined,
+  });
   let signedByName = report.signedByName || null;
   if (!signedByName && report.signedByStaffId) {
     const staff = await db.centerStaff.findUnique({
@@ -428,7 +499,10 @@ screeningReportsApp.post(
       return c.json<TErrorResponse>({ ok: false, error: "Report not found" }, 404);
     }
 
-    const loaded = await loadAppointmentForReport(c, report.appointmentId, centerId);
+    const loaded = await loadReportContext(c, centerId, {
+      patientId: report.patientId,
+      appointmentId: report.appointmentId || undefined,
+    });
     const patientPhone = loaded?.patient?.phone;
     if (!patientPhone) {
       return c.json<TErrorResponse>(

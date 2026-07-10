@@ -272,6 +272,18 @@ export const completeAppointment = async (
   return res as TCompleteAppointmentResponse
 }
 
+export type TCenterPatient = {
+  id: string
+  fullName: string
+  email: string
+  phone: string
+  state: string | null
+  city: string | null
+  waitlistCount: number
+  pendingCount: number
+  matchedCount: number
+}
+
 export type TCenterPatientsOverview = {
   ok: boolean
   data: {
@@ -285,24 +297,34 @@ export type TCenterPatientsOverview = {
       pending: number
       matched: number
     }>
-    recentPatients: Array<{
-      id: string
-      fullName: string
-      email: string
-      phone: string
-      state: string | null
-      city: string | null
-      waitlistCount: number
-      pendingCount: number
-      matchedCount: number
-    }>
+    recentPatients: TCenterPatient[]
     pendingEnrollmentRequestCount?: number
+  }
+}
+
+export type TCenterPatientsList = {
+  ok: boolean
+  data: {
+    patients: TCenterPatient[]
+    total: number
+    page: number
+    pageSize: number
+    totalPages: number
   }
 }
 
 export const getCenterPatientsOverview = async (): Promise<TCenterPatientsOverview> => {
   const res = await request.get(endpoints.centerPatientsOverview())
   return res as TCenterPatientsOverview
+}
+
+export const getCenterPatients = async (params: {
+  page?: number
+  pageSize?: number
+  search?: string
+}): Promise<TCenterPatientsList> => {
+  const res = await request.get(endpoints.centerPatientsList(params))
+  return res as TCenterPatientsList
 }
 
 export const getCenterEnrollmentRequests = async (status = 'PENDING') => {

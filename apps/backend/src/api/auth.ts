@@ -1,5 +1,11 @@
 import { zValidator } from "@hono/zod-validator";
-import { actorSchema, loginSchema, updatePatientProfileSchema, assignPatientCenterSchema } from "@zerocancer/shared";
+import {
+  actorSchema,
+  changePasswordSchema,
+  loginSchema,
+  updatePatientProfileSchema,
+  assignPatientCenterSchema,
+} from "@zerocancer/shared";
 import type {
   TAssignPatientCenterResponse,
   TAuthMeResponse,
@@ -22,6 +28,7 @@ import { getCookie, setCookie } from "hono/cookie";
 import { jwt, sign, verify } from "hono/jwt";
 import { getDB } from "../lib/db";
 import { sendEmail } from "../lib/email";
+import { normalizeEmail } from "../lib/email-normalize";
 import { assignPatientToCenter, findRecommendedCenters } from "../lib/patient-center-utils";
 import { isAllowedPatientPhotoUrl } from "../lib/cloudinary-signed-upload";
 import { TEnvs, THonoApp } from "../lib/types";
@@ -63,19 +70,22 @@ authApp.post(
 
       const { email, password } = c.req.valid("json");
       const { actor } = c.req.valid("query");
+      const normalizedEmail = normalizeEmail(email!);
 
       let user: any = null;
       let passwordHash = "";
       let id = "";
 
       if (actor === "center") {
-        user = await db.serviceCenter.findUnique({ where: { email: email! } });
+        user = await db.serviceCenter.findUnique({
+          where: { email: normalizedEmail },
+        });
         passwordHash = user?.passwordHash!;
         id = user?.id!;
       } else {
         let { user: justUser, profiles: userProfiles } =
           await getUserWithProfiles(c, {
-            email: email!,
+            email: normalizedEmail,
           });
 
         user = { ...justUser, profiles: userProfiles };
@@ -319,6 +329,7 @@ authApp.get(
                 photoUrl: patientProfile?.photoUrl ?? null,
                 assignedCenterId: patientProfile?.assignedCenterId ?? null,
                 assignedCenter,
+                mustChangePassword: Boolean(patientProfile?.mustChangePassword),
               }
             : {}),
         },
@@ -370,6 +381,7 @@ authApp.patch(
       data: {
         state: data.state,
         city: data.localGovernment,
+        ...(data.gender ? { gender: data.gender } : {}),
         ...(data.photoUrl !== undefined ? { photoUrl: data.photoUrl || null } : {}),
       },
     });
@@ -382,6 +394,85 @@ authApp.patch(
         localGovernment: data.localGovernment,
       },
     });
+  }
+);
+
+// POST /api/auth/change-password — authenticated password update
+authApp.post(
+  "/change-password",
+  (c, next) => {
+    const { JWT_TOKEN_SECRET } = env<TEnvs>(c);
+    const jwtMiddleware = jwt({ secret: JWT_TOKEN_SECRET });
+    return jwtMiddleware(c, next);
+  },
+  zValidator("json", changePasswordSchema, (result, c) => {
+    if (!result.success) {
+      return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
+    }
+  }),
+  async (c) => {
+    try {
+      const jwtPayload = c.get("jwtPayload");
+      if (!jwtPayload?.id) {
+        return c.json<TErrorResponse>({ ok: false, error: "Unauthorized" }, 403);
+      }
+
+      if (
+        jwtPayload.profile !== "PATIENT" &&
+        jwtPayload.profile !== "DONOR"
+      ) {
+        return c.json<TErrorResponse>(
+          { ok: false, error: "Password change is only available for patient and donor accounts" },
+          403
+        );
+      }
+
+      const db = getDB(c);
+      const { currentPassword, newPassword } = c.req.valid("json");
+      const user = await db.user.findUnique({ where: { id: jwtPayload.id } });
+
+      if (!user?.passwordHash) {
+        return c.json<TErrorResponse>(
+          { ok: false, error: "User not found" },
+          404
+        );
+      }
+
+      const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!valid) {
+        return c.json<TErrorResponse>(
+          { ok: false, error: "Current password is incorrect" },
+          400
+        );
+      }
+
+      const hash = await bcrypt.hash(newPassword, 10);
+      await db.user.update({
+        where: { id: user.id },
+        data: { passwordHash: hash },
+      });
+
+      if (jwtPayload.profile === "PATIENT") {
+        await db.patientProfile
+          .update({
+            where: { userId: user.id },
+            data: { mustChangePassword: false },
+          })
+          .catch(() => undefined);
+      }
+
+      return c.json({
+        ok: true,
+        message: "Password updated successfully",
+        data: { mustChangePassword: false },
+      });
+    } catch (error) {
+      console.error("Change password error:", error);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to change password" },
+        500
+      );
+    }
   }
 );
 
@@ -569,7 +660,8 @@ authApp.post("/logout", async (c) => {
 // Accepts { email } and sends a reset link if user exists
 authApp.post("/forgot-password", async (c) => {
   const db = getDB(c);
-  const { email } = await c.req.json();
+  const body = await c.req.json();
+  const email = normalizeEmail(String(body.email || ""));
   // Find user by email
   const user = await db.user.findUnique({ where: { email } });
   if (!user) {
@@ -611,6 +703,12 @@ authApp.post("/reset-password", async (c) => {
     where: { id: reset.userId! },
     data: { passwordHash: hash },
   });
+  await db.patientProfile
+    .update({
+      where: { userId: reset.userId! },
+      data: { mustChangePassword: false },
+    })
+    .catch(() => undefined);
   await db.passwordResetToken.delete({ where: { token } });
   return c.json<TResetPasswordResponse>({ ok: true, data: {} });
 });

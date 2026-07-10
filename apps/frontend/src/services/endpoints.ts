@@ -35,6 +35,7 @@ export const refreshToken = (retry?: boolean) =>
   `/api/auth/refresh${retry === true ? '?retry=true' : ''}`
 export const forgotPassword = () => '/api/auth/forgot-password'
 export const resetPassword = () => '/api/auth/reset-password'
+export const changePassword = () => '/api/auth/change-password'
 export const verifyEmail = () => '/api/auth/verify-email'
 export const resendVerification = () => '/api/auth/resend-verification'
 
@@ -260,6 +261,16 @@ export const centerEnrollWaitlist = () => `/api/center/patients/enroll-waitlist`
 export const centerSearchPatients = (q: string) =>
   `/api/center/patients/search${buildQuery({ q })}`
 export const centerPatientsOverview = () => `/api/center/patients/overview`
+export const centerPatientsList = (params: {
+  page?: number
+  pageSize?: number
+  search?: string
+}) =>
+  `/api/center/patients${buildQuery({
+    page: params.page ?? 1,
+    pageSize: params.pageSize ?? 20,
+    search: params.search || undefined,
+  })}`
 export const centerEnrollmentRequests = (status = 'PENDING') =>
   `/api/center/patients/enrollment-requests${buildQuery({ status })}`
 

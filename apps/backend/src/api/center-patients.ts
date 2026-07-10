@@ -142,6 +142,7 @@ centerPatientsApp.post(
                 city: data.localGovernment,
                 state: data.state,
                 emailVerified: new Date(),
+                mustChangePassword: true,
               },
             },
           },
@@ -190,6 +191,128 @@ centerPatientsApp.post(
       console.error("Center register-and-enroll error:", error);
       return c.json<TErrorResponse>(
         { ok: false, error: "Failed to register patient and enroll in waitlist" },
+        500
+      );
+    }
+  }
+);
+
+// GET /api/center/patients — paginated list of patients assigned to this center
+centerPatientsApp.get(
+  "/",
+  zValidator(
+    "query",
+    z.object({
+      page: z.coerce.number().int().min(1).default(1),
+      pageSize: z.coerce.number().int().min(1).max(100).default(20),
+      search: z.string().optional(),
+    })
+  ),
+  async (c) => {
+    try {
+      const centerId = c.get("jwtPayload")?.id as string;
+      const { page, pageSize, search } = c.req.valid("query");
+      const supabase = getSupabaseClient(c);
+
+      const { data: assignedRows, error: assignedError } = await supabase
+        .from("PatientProfile")
+        .select("userId, city, state")
+        .eq("assignedCenterId", centerId);
+
+      if (assignedError) throw assignedError;
+
+      const assignedIds = (assignedRows || []).map((row) => row.userId as string);
+      if (assignedIds.length === 0) {
+        return c.json({
+          ok: true,
+          data: {
+            patients: [],
+            total: 0,
+            page,
+            pageSize,
+            totalPages: 0,
+          },
+        });
+      }
+
+      let usersQuery = supabase
+        .from("User")
+        .select("id, fullName, email, phone")
+        .in("id", assignedIds);
+
+      const term = search?.trim();
+      if (term) {
+        const phoneFilter = buildPhoneSearchFilter(term);
+        if (isPhoneSearchTerm(term) && phoneFilter) {
+          usersQuery = usersQuery.or(phoneFilter);
+        } else {
+          usersQuery = usersQuery.ilike("fullName", `%${term}%`);
+        }
+      }
+
+      const { data: users, error: usersError } = await usersQuery;
+      if (usersError) throw usersError;
+
+      const profileByUserId = new Map(
+        (assignedRows || []).map((row) => [row.userId as string, row])
+      );
+
+      const matchedUsers = (users || []).filter((user) =>
+        profileByUserId.has(user.id as string)
+      );
+
+      const patientIds = matchedUsers.map((user) => user.id as string);
+
+      const { data: waitlists, error: waitlistError } = patientIds.length
+        ? await supabase
+            .from("Waitlist")
+            .select("id, status, patientId, screeningTypeId")
+            .in("patientId", patientIds)
+            .in("status", ["PENDING", "MATCHED"])
+        : { data: [], error: null };
+
+      if (waitlistError) throw waitlistError;
+
+      const patients = matchedUsers
+        .map((user) => {
+          const profile = profileByUserId.get(user.id as string);
+          const patientWaitlists = (waitlists || []).filter(
+            (row) => row.patientId === user.id
+          );
+          return {
+            id: user.id as string,
+            fullName: (user.fullName as string) || "Patient",
+            email: (user.email as string) || "",
+            phone: (user.phone as string) || "",
+            state: (profile?.state as string | null) || null,
+            city: (profile?.city as string | null) || null,
+            waitlistCount: patientWaitlists.length,
+            pendingCount: patientWaitlists.filter((row) => row.status === "PENDING")
+              .length,
+            matchedCount: patientWaitlists.filter((row) => row.status === "MATCHED")
+              .length,
+          };
+        })
+        .sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+      const total = patients.length;
+      const start = (page - 1) * pageSize;
+      const paged = patients.slice(start, start + pageSize);
+
+      return c.json({
+        ok: true,
+        data: {
+          patients: paged,
+          total,
+          page,
+          pageSize,
+          totalPages: Math.ceil(total / pageSize) || 0,
+        },
+      });
+    } catch (error) {
+      console.error("Center patients list error:", error);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to load center patients" },
         500
       );
     }
@@ -401,17 +524,31 @@ centerPatientsApp.get(
     const term = q.trim();
 
     const phoneFilter = buildPhoneSearchFilter(term);
-    const { data: users, error } = isPhoneSearchTerm(term) && phoneFilter
-      ? await supabase
-          .from("User")
-          .select("id, fullName, email, phone")
-          .or(phoneFilter)
-          .limit(25)
-      : await supabase
-          .from("User")
-          .select("id, fullName, email, phone")
-          .ilike("fullName", `%${term}%`)
-          .limit(25);
+    const looksLikeEmail = term.includes("@");
+    let usersQuery;
+
+    if (isPhoneSearchTerm(term) && phoneFilter) {
+      usersQuery = supabase
+        .from("User")
+        .select("id, fullName, email, phone")
+        .or(phoneFilter)
+        .limit(25);
+    } else if (looksLikeEmail) {
+      usersQuery = supabase
+        .from("User")
+        .select("id, fullName, email, phone")
+        .ilike("email", term.trim().toLowerCase())
+        .limit(10);
+    } else {
+      // Name search is intentionally limited to reduce cross-center PII exposure
+      usersQuery = supabase
+        .from("User")
+        .select("id, fullName, email, phone")
+        .ilike("fullName", `%${term}%`)
+        .limit(10);
+    }
+
+    const { data: users, error } = await usersQuery;
 
     if (error) {
       return c.json<TErrorResponse>(

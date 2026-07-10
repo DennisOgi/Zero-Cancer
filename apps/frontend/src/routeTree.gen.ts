@@ -24,6 +24,7 @@ import { Route as PatientSelectCenterRouteImport } from './routes/patient/select
 import { Route as PatientReportsRouteImport } from './routes/patient/reports'
 import { Route as PatientProfileRouteImport } from './routes/patient/profile'
 import { Route as PatientNotificationsRouteImport } from './routes/patient/notifications'
+import { Route as PatientChangePasswordRouteImport } from './routes/patient/change-password'
 import { Route as PatientChangeCenterRouteImport } from './routes/patient/change-center'
 import { Route as PatientAppointmentsRouteImport } from './routes/patient/appointments'
 import { Route as DonorFundRouteImport } from './routes/donor/fund'
@@ -36,6 +37,7 @@ import { Route as CenterReportsRouteImport } from './routes/center/reports'
 import { Route as CenterRegisterPatientRouteImport } from './routes/center/register-patient'
 import { Route as CenterReferPatientRouteImport } from './routes/center/refer-patient'
 import { Route as CenterReceiptHistoryRouteImport } from './routes/center/receipt-history'
+import { Route as CenterPatientsRouteImport } from './routes/center/patients'
 import { Route as CenterNotificationsRouteImport } from './routes/center/notifications'
 import { Route as CenterAppointmentsRouteImport } from './routes/center/appointments'
 import { Route as AdminWaitlistRouteImport } from './routes/admin/waitlist'
@@ -162,6 +164,11 @@ const PatientNotificationsRoute = PatientNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => PatientRouteRoute,
 } as any)
+const PatientChangePasswordRoute = PatientChangePasswordRouteImport.update({
+  id: '/change-password',
+  path: '/change-password',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
 const PatientChangeCenterRoute = PatientChangeCenterRouteImport.update({
   id: '/change-center',
   path: '/change-center',
@@ -220,6 +227,11 @@ const CenterReferPatientRoute = CenterReferPatientRouteImport.update({
 const CenterReceiptHistoryRoute = CenterReceiptHistoryRouteImport.update({
   id: '/receipt-history',
   path: '/receipt-history',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterPatientsRoute = CenterPatientsRouteImport.update({
+  id: '/patients',
+  path: '/patients',
   getParentRoute: () => CenterRouteRoute,
 } as any)
 const CenterNotificationsRoute = CenterNotificationsRouteImport.update({
@@ -522,6 +534,7 @@ export interface FileRoutesByFullPath {
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/notifications': typeof CenterNotificationsRoute
+  '/center/patients': typeof CenterPatientsRoute
   '/center/receipt-history': typeof CenterReceiptHistoryRoute
   '/center/refer-patient': typeof CenterReferPatientRoute
   '/center/register-patient': typeof CenterRegisterPatientRoute
@@ -534,6 +547,7 @@ export interface FileRoutesByFullPath {
   '/donor/fund': typeof DonorFundRoute
   '/patient/appointments': typeof PatientAppointmentsRoute
   '/patient/change-center': typeof PatientChangeCenterRoute
+  '/patient/change-password': typeof PatientChangePasswordRoute
   '/patient/notifications': typeof PatientNotificationsRoute
   '/patient/profile': typeof PatientProfileRoute
   '/patient/reports': typeof PatientReportsRoute
@@ -597,6 +611,7 @@ export interface FileRoutesByTo {
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/notifications': typeof CenterNotificationsRoute
+  '/center/patients': typeof CenterPatientsRoute
   '/center/receipt-history': typeof CenterReceiptHistoryRoute
   '/center/refer-patient': typeof CenterReferPatientRoute
   '/center/register-patient': typeof CenterRegisterPatientRoute
@@ -609,6 +624,7 @@ export interface FileRoutesByTo {
   '/donor/fund': typeof DonorFundRoute
   '/patient/appointments': typeof PatientAppointmentsRoute
   '/patient/change-center': typeof PatientChangeCenterRoute
+  '/patient/change-password': typeof PatientChangePasswordRoute
   '/patient/notifications': typeof PatientNotificationsRoute
   '/patient/profile': typeof PatientProfileRoute
   '/patient/reports': typeof PatientReportsRoute
@@ -679,6 +695,7 @@ export interface FileRoutesById {
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/notifications': typeof CenterNotificationsRoute
+  '/center/patients': typeof CenterPatientsRoute
   '/center/receipt-history': typeof CenterReceiptHistoryRoute
   '/center/refer-patient': typeof CenterReferPatientRoute
   '/center/register-patient': typeof CenterRegisterPatientRoute
@@ -691,6 +708,7 @@ export interface FileRoutesById {
   '/donor/fund': typeof DonorFundRoute
   '/patient/appointments': typeof PatientAppointmentsRoute
   '/patient/change-center': typeof PatientChangeCenterRoute
+  '/patient/change-password': typeof PatientChangePasswordRoute
   '/patient/notifications': typeof PatientNotificationsRoute
   '/patient/profile': typeof PatientProfileRoute
   '/patient/reports': typeof PatientReportsRoute
@@ -760,6 +778,7 @@ export interface FileRouteTypes {
     | '/admin/waitlist'
     | '/center/appointments'
     | '/center/notifications'
+    | '/center/patients'
     | '/center/receipt-history'
     | '/center/refer-patient'
     | '/center/register-patient'
@@ -772,6 +791,7 @@ export interface FileRouteTypes {
     | '/donor/fund'
     | '/patient/appointments'
     | '/patient/change-center'
+    | '/patient/change-password'
     | '/patient/notifications'
     | '/patient/profile'
     | '/patient/reports'
@@ -835,6 +855,7 @@ export interface FileRouteTypes {
     | '/admin/waitlist'
     | '/center/appointments'
     | '/center/notifications'
+    | '/center/patients'
     | '/center/receipt-history'
     | '/center/refer-patient'
     | '/center/register-patient'
@@ -847,6 +868,7 @@ export interface FileRouteTypes {
     | '/donor/fund'
     | '/patient/appointments'
     | '/patient/change-center'
+    | '/patient/change-password'
     | '/patient/notifications'
     | '/patient/profile'
     | '/patient/reports'
@@ -916,6 +938,7 @@ export interface FileRouteTypes {
     | '/admin/waitlist'
     | '/center/appointments'
     | '/center/notifications'
+    | '/center/patients'
     | '/center/receipt-history'
     | '/center/refer-patient'
     | '/center/register-patient'
@@ -928,6 +951,7 @@ export interface FileRouteTypes {
     | '/donor/fund'
     | '/patient/appointments'
     | '/patient/change-center'
+    | '/patient/change-password'
     | '/patient/notifications'
     | '/patient/profile'
     | '/patient/reports'
@@ -1083,6 +1107,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PatientNotificationsRouteImport
       parentRoute: typeof PatientRouteRoute
     }
+    '/patient/change-password': {
+      id: '/patient/change-password'
+      path: '/change-password'
+      fullPath: '/patient/change-password'
+      preLoaderRoute: typeof PatientChangePasswordRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
     '/patient/change-center': {
       id: '/patient/change-center'
       path: '/change-center'
@@ -1165,6 +1196,13 @@ declare module '@tanstack/react-router' {
       path: '/receipt-history'
       fullPath: '/center/receipt-history'
       preLoaderRoute: typeof CenterReceiptHistoryRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/patients': {
+      id: '/center/patients'
+      path: '/patients'
+      fullPath: '/center/patients'
+      preLoaderRoute: typeof CenterPatientsRouteImport
       parentRoute: typeof CenterRouteRoute
     }
     '/center/notifications': {
@@ -1664,6 +1702,7 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
 interface CenterRouteRouteChildren {
   CenterAppointmentsRoute: typeof CenterAppointmentsRoute
   CenterNotificationsRoute: typeof CenterNotificationsRoute
+  CenterPatientsRoute: typeof CenterPatientsRoute
   CenterReceiptHistoryRoute: typeof CenterReceiptHistoryRoute
   CenterReferPatientRoute: typeof CenterReferPatientRoute
   CenterRegisterPatientRoute: typeof CenterRegisterPatientRoute
@@ -1680,6 +1719,7 @@ interface CenterRouteRouteChildren {
 const CenterRouteRouteChildren: CenterRouteRouteChildren = {
   CenterAppointmentsRoute: CenterAppointmentsRoute,
   CenterNotificationsRoute: CenterNotificationsRoute,
+  CenterPatientsRoute: CenterPatientsRoute,
   CenterReceiptHistoryRoute: CenterReceiptHistoryRoute,
   CenterReferPatientRoute: CenterReferPatientRoute,
   CenterRegisterPatientRoute: CenterRegisterPatientRoute,
@@ -1737,6 +1777,7 @@ const DonorRouteRouteWithChildren = DonorRouteRoute._addFileChildren(
 interface PatientRouteRouteChildren {
   PatientAppointmentsRoute: typeof PatientAppointmentsRoute
   PatientChangeCenterRoute: typeof PatientChangeCenterRoute
+  PatientChangePasswordRoute: typeof PatientChangePasswordRoute
   PatientNotificationsRoute: typeof PatientNotificationsRoute
   PatientProfileRoute: typeof PatientProfileRoute
   PatientReportsRoute: typeof PatientReportsRoute
@@ -1753,6 +1794,7 @@ interface PatientRouteRouteChildren {
 const PatientRouteRouteChildren: PatientRouteRouteChildren = {
   PatientAppointmentsRoute: PatientAppointmentsRoute,
   PatientChangeCenterRoute: PatientChangeCenterRoute,
+  PatientChangePasswordRoute: PatientChangePasswordRoute,
   PatientNotificationsRoute: PatientNotificationsRoute,
   PatientProfileRoute: PatientProfileRoute,
   PatientReportsRoute: PatientReportsRoute,
