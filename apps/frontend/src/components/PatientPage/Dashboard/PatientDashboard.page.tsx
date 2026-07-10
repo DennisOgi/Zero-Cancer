@@ -36,7 +36,9 @@ export function PatientDashboardPage() {
     error: notificationsError,
   } = useQuery(useNotifications())
 
-  const notifications = notificationsData?.data || []
+  const notifications = (notificationsData?.data || []).filter(
+    (notification) => !notification.read,
+  )
 
   const handlePayAndBook = (screeningId: string) => {
     navigate({

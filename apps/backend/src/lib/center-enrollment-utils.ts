@@ -238,6 +238,158 @@ export async function createCenterEnrollmentRequest(
   return { request, created: true };
 }
 
+function parseNotificationData(data: unknown): Record<string, any> | null {
+  if (!data) return null;
+  if (typeof data === "string") {
+    try {
+      const parsed = JSON.parse(data);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof data === "object" && !Array.isArray(data)) {
+    return data as Record<string, any>;
+  }
+  return null;
+}
+
+/** Mark CENTER_ENROLLMENT_REQUEST notifications as read after approve/reject. */
+export async function markEnrollmentRequestNotificationsRead(
+  c: any,
+  patientId: string,
+  requestId?: string
+) {
+  const supabase = getSupabaseClient(c);
+
+  const { data: recipients, error: recipientError } = await supabase
+    .from("NotificationRecipient")
+    .select("id, notificationId")
+    .eq("userId", patientId)
+    .eq("read", false);
+
+  if (recipientError) throw recipientError;
+  if (!recipients?.length) return;
+
+  const { data: notifications, error: notificationError } = await supabase
+    .from("Notification")
+    .select("id, type, data")
+    .in(
+      "id",
+      recipients.map((recipient) => recipient.notificationId)
+    )
+    .eq("type", "CENTER_ENROLLMENT_REQUEST");
+
+  if (notificationError) throw notificationError;
+
+  const matchingNotificationIds = new Set(
+    (notifications || [])
+      .filter((notification) => {
+        if (!requestId) return true;
+        const data = parseNotificationData(notification.data);
+        return data?.requestId === requestId;
+      })
+      .map((notification) => notification.id as string)
+  );
+
+  const recipientIds = recipients
+    .filter((recipient) =>
+      matchingNotificationIds.has(recipient.notificationId as string)
+    )
+    .map((recipient) => recipient.id as string);
+
+  if (!recipientIds.length) return;
+
+  const { error: updateError } = await supabase
+    .from("NotificationRecipient")
+    .update({ read: true, readAt: new Date().toISOString() })
+    .in("id", recipientIds);
+
+  if (updateError) throw updateError;
+}
+
+/**
+ * Clear enrollment notifications whose requests are no longer pending.
+ * Fixes the case where a patient already approved but the unread badge remains.
+ */
+export async function clearResolvedEnrollmentNotifications(
+  c: any,
+  patientId: string
+) {
+  const supabase = getSupabaseClient(c);
+
+  const { data: recipients, error: recipientError } = await supabase
+    .from("NotificationRecipient")
+    .select("id, notificationId")
+    .eq("userId", patientId)
+    .eq("read", false);
+
+  if (recipientError) throw recipientError;
+  if (!recipients?.length) return;
+
+  const { data: notifications, error: notificationError } = await supabase
+    .from("Notification")
+    .select("id, type, data")
+    .in(
+      "id",
+      recipients.map((recipient) => recipient.notificationId)
+    )
+    .eq("type", "CENTER_ENROLLMENT_REQUEST");
+
+  if (notificationError) throw notificationError;
+  if (!notifications?.length) return;
+
+  const requestIds = [
+    ...new Set(
+      notifications
+        .map((notification) => parseNotificationData(notification.data)?.requestId)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
+    ),
+  ];
+
+  if (!requestIds.length) return;
+
+  const { data: requests, error: requestError } = await supabase
+    .from("CenterEnrollmentRequest")
+    .select("id, status")
+    .in("id", requestIds)
+    .eq("patientId", patientId);
+
+  if (requestError) throw requestError;
+
+  const pendingIds = new Set(
+    (requests || [])
+      .filter((request) => request.status === "PENDING")
+      .map((request) => request.id as string)
+  );
+
+  const resolvedNotificationIds = new Set(
+    notifications
+      .filter((notification) => {
+        const data = parseNotificationData(notification.data);
+        const requestId = data?.requestId;
+        // No linked request, or request is no longer pending → clear
+        return !requestId || !pendingIds.has(requestId);
+      })
+      .map((notification) => notification.id as string)
+  );
+
+  const recipientIds = recipients
+    .filter((recipient) =>
+      resolvedNotificationIds.has(recipient.notificationId as string)
+    )
+    .map((recipient) => recipient.id as string);
+
+  if (!recipientIds.length) return;
+
+  const { error: updateError } = await supabase
+    .from("NotificationRecipient")
+    .update({ read: true, readAt: new Date().toISOString() })
+    .in("id", recipientIds);
+
+  if (updateError) throw updateError;
+}
+
 export async function approveCenterEnrollmentRequest(
   c: any,
   requestId: string,
@@ -289,6 +441,15 @@ export async function approveCenterEnrollmentRequest(
 
   if (!updated) {
     return { error: "Enrollment request not found or already handled" as const };
+  }
+
+  try {
+    await markEnrollmentRequestNotificationsRead(c, patientId, requestId);
+  } catch (error) {
+    console.error(
+      "Failed to clear enrollment request notifications after approve:",
+      error
+    );
   }
 
   return { request, enrollment };

@@ -7,6 +7,7 @@ import {
   expireStaleEnrollmentRequests,
   formatEnrollmentRequestForApi,
   isEnrollmentRequestExpired,
+  markEnrollmentRequestNotificationsRead,
 } from "../lib/center-enrollment-utils";
 import { getDB } from "../lib/db";
 import { THonoApp } from "../lib/types";
@@ -113,6 +114,15 @@ patientEnrollmentApp.post(
               error: "Enrollment request not found or already handled",
             },
             404
+          );
+        }
+
+        try {
+          await markEnrollmentRequestNotificationsRead(c, patientId, requestId);
+        } catch (error) {
+          console.error(
+            "Failed to clear enrollment request notifications after reject:",
+            error
           );
         }
 

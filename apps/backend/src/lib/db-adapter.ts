@@ -1883,11 +1883,22 @@ export const getDB = (c: Context) => {
       updateMany: async ({ where, data }: any = {}) => {
         let query = supabase.from("NotificationRecipient").update(data);
         if (where?.userId) query = query.eq("userId", where.userId);
-        if (where?.id?.in?.length) query = query.in("id", where.id.in);
+        if (typeof where?.id === "string") {
+          query = query.eq("id", where.id);
+        } else if (where?.id?.in?.length) {
+          query = query.in("id", where.id.in);
+        }
+        if (where?.notificationId) {
+          if (typeof where.notificationId === "string") {
+            query = query.eq("notificationId", where.notificationId);
+          } else if (where.notificationId?.in?.length) {
+            query = query.in("notificationId", where.notificationId.in);
+          }
+        }
         if (where?.read === false) query = query.eq("read", false);
         const { error } = await query;
         if (error) throw error;
-        return { count: where?.id?.in?.length ?? 0 };
+        return { count: 0 };
       },
     },
     

@@ -37,6 +37,7 @@ export function PatientEnrollmentRequests() {
       queryClient.invalidateQueries({ queryKey: ['patientEnrollmentRequests'] })
       queryClient.invalidateQueries({ queryKey: ['authUser'] })
       queryClient.invalidateQueries({ queryKey: ['waitlists'] })
+      queryClient.invalidateQueries({ queryKey: ['authUser', 'notifications'] })
       toast.success(
         variables.action === 'approve'
           ? response.message || 'Enrollment approved'

@@ -11,6 +11,7 @@ import type {
   TMarkNotificationReadResponse,
 } from "@zerocancer/shared/types";
 import { Hono } from "hono";
+import { clearResolvedEnrollmentNotifications } from "../lib/center-enrollment-utils";
 import { getDB } from "../lib/db";
 import { THonoApp } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
@@ -26,6 +27,14 @@ notificationApp.get("/", async (c) => {
     return c.json<TErrorResponse>({ ok: false, error: "Unauthorized" }, 401);
   const userId = payload.id!;
   const db = getDB(c);
+
+  // Clear enrollment request notifications that were already approved/rejected
+  try {
+    await clearResolvedEnrollmentNotifications(c, userId);
+  } catch (error) {
+    console.error("Failed to clear resolved enrollment notifications:", error);
+  }
+
   const notifications = await db.notificationRecipient.findMany({
     where: { userId },
     include: { notification: true },
