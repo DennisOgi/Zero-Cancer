@@ -37,6 +37,9 @@ export default function AppointmentCard({
 }: AppointmentCardProps) {
   const isPast = new Date(appointment.appointmentDateTime) < new Date()
   const hasResult = appointment.result?.id
+  const canCancel =
+    !isPast &&
+    appointment.status === 'SCHEDULED'
 
   return (
     <Card className="shadow-sm hover:shadow-md transition-shadow">

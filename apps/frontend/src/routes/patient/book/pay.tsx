@@ -5,6 +5,8 @@ import { z } from 'zod'
 const bookingSearchSchema = z.object({
   screeningTypeId: z.string().optional(),
   centerId: z.string().optional(),
+  savingsPlanId: z.string().optional(),
+  referralCode: z.string().optional(),
 })
 
 export const Route = createFileRoute('/patient/book/pay')({
@@ -14,6 +16,8 @@ export const Route = createFileRoute('/patient/book/pay')({
       <PatientPayBookingPage
         screeningTypeId={search.screeningTypeId}
         centerId={search.centerId}
+        savingsPlanId={search.savingsPlanId}
+        referralCode={search.referralCode}
       />
     )
   },

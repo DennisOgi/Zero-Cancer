@@ -65,13 +65,17 @@ appointmentApp.get(
   async (c) => {
     const db = getDB(c);
     const { id: appointmentId } = c.req.valid("param");
+    const payload = c.get("jwtPayload");
+    const profile = payload?.profile?.toUpperCase();
 
     // Check appointment exists and user has access
     const appointment = await db.appointment.findFirst({
       where: {
         id: appointmentId,
-        // Access control based on user role
-        // Admin can access all appointments
+        ...(profile === "PATIENT" ? { patientId: payload.id } : {}),
+        ...(profile === "CENTER" || profile === "CENTER_STAFF"
+          ? { centerId: payload.id }
+          : {}),
       },
       select: { id: true },
     });
@@ -1092,8 +1096,14 @@ appointmentApp.post(
           commissionAllowed,
           preferredCenterId: centerId,
         });
-      } catch (error) {
-        console.error("Referral accept during booking:", error);
+      } catch (error: any) {
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            error: error?.message || "Invalid referral code",
+          },
+          400
+        );
       }
     } else if (commissionAllowed !== undefined) {
       try {

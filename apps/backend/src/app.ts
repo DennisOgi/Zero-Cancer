@@ -28,6 +28,7 @@ import { agentsApp } from "./api/agents";
 import { referralsApp } from "./api/referrals";
 import { savingsApp } from "./api/savings";
 import { adminAgentsApp } from "./api/admin-agents";
+import { walletApp } from "./api/wallets";
 import { TEnvs } from "./lib/types";
 
 // Create the main app (no basePath for root)
@@ -101,6 +102,7 @@ apiApp.route("/agents", agentsApp);
 apiApp.route("/referrals", referralsApp);
 apiApp.route("/savings", savingsApp);
 apiApp.route("/admin/agents", adminAgentsApp);
+apiApp.route("/wallets", walletApp);
 
 // Mount API app BEFORE static file serving
 app.route("/api/v1", apiApp);

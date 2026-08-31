@@ -31,7 +31,7 @@ export function PatientSavingsPage() {
   })
   const { data: typesData } = useQuery({
     queryKey: ['screening-types-savings'],
-    queryFn: () => screeningTypeService.getScreeningTypes({ page: 1, pageSize: 50 }),
+    queryFn: () => screeningTypeService.fetchScreeningTypes({ page: 1, pageSize: 50 }),
   })
 
   const [screeningTypeId, setScreeningTypeId] = useState('')
@@ -180,8 +180,8 @@ export function PatientSavingsPage() {
                   variant="secondary"
                   onClick={() =>
                     navigate({
-                      to: '/patient/book',
-                      search: { savingsPlanId: plan.id } as any,
+                      to: '/patient/book/pay',
+                      search: { savingsPlanId: plan.id },
                     })
                   }
                 >

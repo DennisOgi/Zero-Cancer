@@ -22,6 +22,12 @@ export const patientSchema = z.object({
   groupId: z.string().optional(),
   photoUrl: z.string().url().optional(),
   centerId: z.string().uuid().optional(),
+  referralCode: z
+    .string()
+    .trim()
+    .max(40)
+    .optional()
+    .transform((value) => (value ? value.toUpperCase() : value)),
 });
 
 export const donorSchema = z.object({

@@ -292,7 +292,12 @@ export async function creditAgentWallet(
   supabase: any,
   agentId: string,
   amount: number,
-  meta: { reference?: string; description?: string; commissionId?: string }
+  meta: {
+    reference?: string;
+    description?: string;
+    commissionId?: string;
+    skipEarnings?: boolean;
+  }
 ) {
   const wallet = await ensureAgentWallet(supabase, agentId);
   const balanceAfter = Number(wallet.balance || 0) + amount;
@@ -315,27 +320,25 @@ export async function creditAgentWallet(
     createdAt: new Date().toISOString(),
   });
 
-  await supabase
-    .from("AgentProfile")
-    .update({
-      totalEarned: supabase.rpc ? undefined : undefined,
-      updatedAt: new Date().toISOString(),
-    })
-    .eq("id", agentId);
-
-  // Increment totalEarned safely
-  const { data: agent } = await supabase
-    .from("AgentProfile")
-    .select("totalEarned")
-    .eq("id", agentId)
-    .single();
-  await supabase
-    .from("AgentProfile")
-    .update({
-      totalEarned: Number(agent?.totalEarned || 0) + amount,
-      updatedAt: new Date().toISOString(),
-    })
-    .eq("id", agentId);
+  if (!meta.skipEarnings) {
+    const { data: agent } = await supabase
+      .from("AgentProfile")
+      .select("totalEarned")
+      .eq("id", agentId)
+      .single();
+    await supabase
+      .from("AgentProfile")
+      .update({
+        totalEarned: Number(agent?.totalEarned || 0) + amount,
+        updatedAt: new Date().toISOString(),
+      })
+      .eq("id", agentId);
+  } else {
+    await supabase
+      .from("AgentProfile")
+      .update({ updatedAt: new Date().toISOString() })
+      .eq("id", agentId);
+  }
 
   return balanceAfter;
 }
@@ -370,3 +373,69 @@ export async function debitAgentWallet(
 
   return { wallet, balanceAfter };
 }
+
+export async function settleAgentCashoutFromTransfer(
+  c: any,
+  payload: { event?: string; data?: { reference?: string; transfer_code?: string } }
+) {
+  const reference = payload?.data?.reference;
+  const event = payload?.event || "";
+  if (!reference || !event.startsWith("transfer.")) return { handled: false };
+
+  const supabase = getSupabaseClient(c);
+  const { data: cashout } = await supabase
+    .from("AgentCashout")
+    .select("*")
+    .eq("paystackReference", reference)
+    .maybeSingle();
+
+  if (!cashout) return { handled: false };
+  if (cashout.status === "SUCCESS" || cashout.status === "FAILED") {
+    return { handled: true, alreadySettled: true };
+  }
+
+  if (event === "transfer.success") {
+    await supabase
+      .from("AgentCashout")
+      .update({
+        status: "SUCCESS",
+        paystackTransferCode: payload.data?.transfer_code || cashout.paystackTransferCode,
+        updatedAt: new Date().toISOString(),
+      })
+      .eq("id", cashout.id);
+
+    const { data: agent } = await supabase
+      .from("AgentProfile")
+      .select("totalPaidOut")
+      .eq("id", cashout.agentId)
+      .single();
+
+    await supabase
+      .from("AgentProfile")
+      .update({
+        totalPaidOut: Number(agent?.totalPaidOut || 0) + Number(cashout.amount),
+        updatedAt: new Date().toISOString(),
+      })
+      .eq("id", cashout.agentId);
+
+    return { handled: true, status: "SUCCESS" };
+  }
+
+  await supabase
+    .from("AgentCashout")
+    .update({
+      status: "FAILED",
+      failureReason: event,
+      updatedAt: new Date().toISOString(),
+    })
+    .eq("id", cashout.id);
+
+  await creditAgentWallet(supabase, cashout.agentId, Number(cashout.amount), {
+    reference,
+    description: "Cashout reversed after transfer failure",
+    skipEarnings: true,
+  });
+
+  return { handled: true, status: "FAILED" };
+}
+

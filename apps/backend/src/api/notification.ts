@@ -104,6 +104,13 @@ notificationApp.post(
     // TODO: Add admin check if needed
     const db = getDB(c);
     const { type, title, message, data, userIds } = c.req.valid("json");
+    const payload = c.get("jwtPayload");
+    if (payload?.profile?.toLowerCase() !== "admin") {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Only admins can create notifications" },
+        403
+      );
+    }
     // Create notification
     const notification = await db.notification.create({
       data: {

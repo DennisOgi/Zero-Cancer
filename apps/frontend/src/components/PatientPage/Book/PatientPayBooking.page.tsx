@@ -31,28 +31,45 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 import { useEffect, useMemo } from 'react'
 // Use the new shared components for consistency
+import { Input } from '@/components/shared/ui/input'
+import { Textarea } from '@/components/shared/ui/textarea'
+import { Checkbox } from '@/components/shared/ui/checkbox'
+import * as agentApi from '@/services/agent-network.service'
 import CenterCombobox from './components/CenterCombobox'
 import SchedulePicker from './components/SchedulePicker'
 
 // Zod schema for form validation
-const bookingSchema = z.object({
-  screeningTypeId: z.string().min(1, 'Screening type is required'),
-  centerId: z.string().min(1, 'Center ID is required'),
-  appointmentDate: z.string().min(1, 'Appointment date is required'),
-  appointmentTime: z.string().min(1, 'Appointment time is required'),
-  paymentReference: z.string().optional(),
-})
+const bookingSchema = z
+  .object({
+    screeningTypeId: z.string().min(1, 'Screening type is required'),
+    centerId: z.string().min(1, 'Center ID is required'),
+    appointmentDate: z.string().min(1, 'Appointment date is required'),
+    appointmentTime: z.string().min(1, 'Appointment time is required'),
+    isHomeVisit: z.boolean().optional(),
+    homeAddress: z.string().optional(),
+    referralCode: z.string().optional(),
+    commissionAllowed: z.boolean().optional(),
+    savingsPlanId: z.string().optional(),
+  })
+  .refine((data) => !data.isHomeVisit || (data.homeAddress || '').trim().length >= 5, {
+    message: 'Home address is required for a home screening',
+    path: ['homeAddress'],
+  })
 
 type FormData = z.infer<typeof bookingSchema>
 
 interface PatientPayBookingPageProps {
   screeningTypeId?: string
   centerId?: string
+  savingsPlanId?: string
+  referralCode?: string
 }
 
 export function PatientPayBookingPage({
   screeningTypeId,
   centerId,
+  savingsPlanId,
+  referralCode,
 }: PatientPayBookingPageProps) {
   const navigate = useNavigate()
 
@@ -63,7 +80,11 @@ export function PatientPayBookingPage({
       centerId: centerId || '',
       appointmentDate: '',
       appointmentTime: '',
-      paymentReference: '',
+      isHomeVisit: false,
+      homeAddress: '',
+      referralCode: referralCode || '',
+      commissionAllowed: true,
+      savingsPlanId: savingsPlanId || '',
     },
   })
 
@@ -110,16 +131,25 @@ export function PatientPayBookingPage({
     if (screeningTypeId) {
       form.setValue('screeningTypeId', screeningTypeId)
     }
-  }, [centerId, form, screeningTypeId])
+    if (savingsPlanId) {
+      form.setValue('savingsPlanId', savingsPlanId)
+    }
+    if (referralCode) {
+      form.setValue('referralCode', referralCode)
+    }
+  }, [centerId, form, referralCode, savingsPlanId, screeningTypeId])
+
+  const { data: savingsData } = useQuery({
+    queryKey: ['savings-plans-booking'],
+    queryFn: agentApi.listSavingsPlans,
+  })
+  const readyPlans = ((savingsData as any)?.data?.plans || []).filter(
+    (plan: any) => plan.status === 'READY',
+  )
 
   const bookSelfPayAppointmentMutation = useBookSelfPayAppointment()
 
   function onSubmit(values: FormData) {
-    const paymentReference =
-      values.paymentReference ||
-      'PAY-' + Math.random().toString(36).substring(2, 10).toUpperCase()
-
-    // Combine date and time into a single datetime
     const appointmentDateTime = new Date(values.appointmentDate)
     const [hours, minutes] = values.appointmentTime.split(':')
     appointmentDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0)
@@ -127,8 +157,12 @@ export function PatientPayBookingPage({
     const formattedValues = {
       screeningTypeId: values.screeningTypeId,
       centerId: values.centerId,
-      paymentReference,
       appointmentDateTime: appointmentDateTime.toISOString(),
+      isHomeVisit: values.isHomeVisit || false,
+      homeAddress: values.isHomeVisit ? values.homeAddress : undefined,
+      referralCode: values.referralCode?.trim() || undefined,
+      commissionAllowed: values.commissionAllowed,
+      savingsPlanId: values.savingsPlanId || undefined,
     }
 
     bookSelfPayAppointmentMutation.mutate(formattedValues, {
@@ -293,6 +327,134 @@ export function PatientPayBookingPage({
               }
             />
           )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Home screening</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="isHomeVisit"
+                render={({ field }) => (
+                  <FormItem className="flex items-start gap-3 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={(checked) =>
+                          field.onChange(checked === true)
+                        }
+                      />
+                    </FormControl>
+                    <div>
+                      <FormLabel>Request a home visit</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        A home screening includes a visit surcharge. Your
+                        referrer earns a higher commission if you allow it.
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              {form.watch('isHomeVisit') ? (
+                <FormField
+                  control={form.control}
+                  name="homeAddress"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Home address</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Street, area, landmark, city"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Referral and savings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="referralCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Referral code (optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="ZC..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="commissionAllowed"
+                render={({ field }) => (
+                  <FormItem className="flex items-start gap-3 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value !== false}
+                        onCheckedChange={(checked) =>
+                          field.onChange(checked === true)
+                        }
+                      />
+                    </FormControl>
+                    <div>
+                      <FormLabel>
+                        Allow my referrer to earn a screening commission
+                      </FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        You can turn this off. It does not change what you pay.
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              {readyPlans.length > 0 ? (
+                <FormField
+                  control={form.control}
+                  name="savingsPlanId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pay from savings plan</FormLabel>
+                      <Select
+                        value={field.value || '__none'}
+                        onValueChange={(value) =>
+                          field.onChange(value === '__none' ? '' : value)
+                        }
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Do not use savings" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="__none">Do not use savings</SelectItem>
+                          {readyPlans.map((plan: any) => (
+                            <SelectItem key={plan.id} value={plan.id}>
+                              Saved ₦
+                              {Number(plan.savedAmount).toLocaleString()} / ₦
+                              {Number(plan.targetAmount).toLocaleString()}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : null}
+            </CardContent>
+          </Card>
 
           <div className="flex flex-col gap-2">
             <Button

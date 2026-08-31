@@ -51,6 +51,27 @@ export function PatientAppointmentDetailsPage({
     usePatientAppointmentById(appointmentId),
   )
   const appointment = appointmentQuery.data.data
+  const navigate = useNavigate()
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const cancelMutation = useCancelPatientAppointment()
+
+  const handleCancel = () => {
+    cancelMutation.mutate(
+      { appointmentId },
+      {
+        onSuccess: () => {
+          toast.success('Appointment cancelled')
+          setCancelOpen(false)
+          navigate({ to: '/patient/appointments' })
+        },
+        onError: (error: any) => {
+          toast.error(
+            error?.response?.data?.error || 'Could not cancel appointment',
+          )
+        },
+      },
+    )
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {

@@ -137,6 +137,20 @@ async function resolveCenterAssignment(
   return { recommendedCenters, assignedCenter };
 }
 
+async function applyReferralCode(
+  c: any,
+  userId: string,
+  referralCode?: string | null
+) {
+  if (!referralCode?.trim()) return;
+  try {
+    const { acceptReferralInvite } = await import("../lib/agent.service");
+    await acceptReferralInvite(c, userId, referralCode);
+  } catch (error) {
+    console.warn("[PATIENT_REG] Referral code not applied:", error);
+  }
+}
+
 registerApp.post(
   "/check-profiles",
   zValidator("json", checkProfilesSchema, (result) => {
@@ -312,6 +326,7 @@ registerApp.post(
           data.centerId
         );
       const token = await issuePatientAuthTokens(c, updatedUser);
+      await applyReferralCode(c, updatedUser.id, data.referralCode);
 
       return c.json<TPatientRegisterResponse>(
         {
@@ -372,6 +387,7 @@ registerApp.post(
           data.centerId
         );
       const token = await issuePatientAuthTokens(c, patient);
+      await applyReferralCode(c, patient.id, data.referralCode);
 
       return c.json<TPatientRegisterResponse>(
         {

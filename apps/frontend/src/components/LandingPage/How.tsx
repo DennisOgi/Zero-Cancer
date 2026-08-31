@@ -25,7 +25,7 @@ export default function How() {
             <p className="text-muted-foreground mt-2">
               Book a cancer screening or get sponsored.
             </p>
-            <Link href="sign-up">
+            <Link href="/sign-up">
               <button className="mt-4 bg-secondary text-white p-2 rounded-full cursor-pointer hover:bg-secondary/90 transition-all duration-300">
                 <ArrowRight />
               </button>
@@ -40,7 +40,7 @@ export default function How() {
           <p className="text-muted-foreground mt-2">
             Refer patients or access their results.
           </p>
-          <Link href="sign-up">
+          <Link href="/sign-up">
             <button className="mt-4 bg-secondary text-white p-2 rounded-full cursor-pointer hover:bg-secondary/90 transition-all duration-300">
               <ArrowRight />
             </button>
@@ -55,7 +55,7 @@ export default function How() {
             <p className="text-muted-foreground mt-2">
               Sponsor someone's screening and track your impact.
             </p>
-            <Link href="sign-up">
+            <Link href="/sign-up">
               <button className="mt-4 bg-secondary text-white p-2 rounded-full cursor-pointer hover:bg-secondary/90 transition-all duration-300">
                 <ArrowRight />
               </button>
@@ -68,7 +68,7 @@ export default function How() {
           <p className="text-muted-foreground mt-2">
             Manage vaccinations, patients, and reporting.
           </p>
-          <Link href="sign-up">
+          <Link href="/sign-up">
             <button className="mt-4 bg-secondary text-white p-2 rounded-full cursor-pointer hover:bg-secondary/90 transition-all duration-300">
               <ArrowRight />
             </button>
@@ -84,7 +84,7 @@ export default function How() {
           <p className="text-muted-foreground mt-2">
             Refer patients or access their results.
           </p>
-          <Link href="sign-up">
+          <Link href="/sign-up">
             <button className="mt-4 bg-secondary text-white p-2 rounded-full cursor-pointer hover:bg-secondary/90 transition-all duration-300">
               <ArrowRight />
             </button>
@@ -100,7 +100,7 @@ export default function How() {
           <p className="text-muted-foreground mt-2">
             Manage appointments and upload screening results.
           </p>
-          <Link href="sign-up">
+          <Link href="/sign-up">
             <button className="mt-4 bg-secondary text-white p-2 rounded-full cursor-pointer hover:bg-secondary/90 transition-all duration-300">
               <ArrowRight />
             </button>
@@ -120,7 +120,7 @@ export default function How() {
             <p className="text-muted-foreground mt-2">
               Book a cancer screening or get sponsored.
             </p>
-            <Link href="sign-up">
+            <Link href="/sign-up">
               <button className="mt-4 bg-secondary text-white p-2 rounded-full cursor-pointer hover:bg-secondary/90 transition-all duration-300">
                 <ArrowRight />
               </button>
@@ -135,7 +135,7 @@ export default function How() {
             <p className="text-muted-foreground mt-2">
               Sponsor someone's screening and track your impact.
             </p>
-            <Link href="sign-up">
+            <Link href="/sign-up">
               <button className="mt-4 bg-secondary text-white p-2 rounded-full cursor-pointer hover:bg-secondary/90 transition-all duration-300">
                 <ArrowRight />
               </button>
@@ -148,7 +148,7 @@ export default function How() {
             <p className="text-muted-foreground mt-2">
               Manage screenings, patients, and reporting.
             </p>
-            <Link href="sign-up">
+            <Link href="/sign-up">
               <button className="mt-4 bg-secondary text-white p-2 rounded-full cursor-pointer hover:bg-secondary/90 transition-all duration-300">
                 <ArrowRight />
               </button>
@@ -162,7 +162,7 @@ export default function How() {
             <p className="text-muted-foreground mt-2">
               Refer patients or access their results.
             </p>
-            <Link href="sign-up">
+            <Link href="/sign-up">
               <button className="mt-4 bg-secondary text-white p-2 rounded-full cursor-pointer hover:bg-secondary/90 transition-all duration-300">
                 <ArrowRight />
               </button>
@@ -176,7 +176,7 @@ export default function How() {
             <p className="text-muted-foreground mt-2">
               Refer patients or access their results.
             </p>
-            <Link href="sign-up">
+            <Link href="/sign-up">
               <button className="mt-4 bg-secondary text-white p-2 rounded-full cursor-pointer hover:bg-secondary/90 transition-all duration-300">
                 <ArrowRight />
               </button>
@@ -190,7 +190,7 @@ export default function How() {
             <p className="text-muted-foreground mt-2">
               Manage appointments and upload screening results.
             </p>
-            <Link href="sign-up">
+            <Link href="/sign-up">
               <button className="mt-4 bg-secondary text-white p-2 rounded-full cursor-pointer hover:bg-secondary/90 transition-all duration-300">
                 <ArrowRight />
               </button>

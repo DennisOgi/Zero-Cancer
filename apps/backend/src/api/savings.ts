@@ -12,6 +12,7 @@ import { getSupabaseClient } from "../lib/supabase";
 import { THonoApp } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { getPaystackKeys } from "../lib/paystack-config";
+import { CryptoUtils } from "../lib/crypto.utils";
 
 export const savingsApp = new Hono<THonoApp>();
 
@@ -137,7 +138,17 @@ savingsApp.get(
 // POST /api/v1/savings/webhook — optional dedicated path; also handled via donor webhook bridge
 savingsApp.post("/webhook", async (c) => {
   try {
-    const payload = await c.req.json();
+    const signature = c.req.header("x-paystack-signature");
+    const rawBody = await c.req.text();
+    if (!signature) {
+      return c.json({ ok: false, error: "Missing Paystack signature" }, 401);
+    }
+    const { secretKey } = getPaystackKeys(c);
+    if (!CryptoUtils.verifyWebhookSignature(rawBody, signature, secretKey)) {
+      return c.json({ ok: false, error: "Invalid signature" }, 401);
+    }
+
+    const payload = JSON.parse(rawBody);
     if (payload.event !== "charge.success") {
       return c.json({ ok: true, ignored: true });
     }

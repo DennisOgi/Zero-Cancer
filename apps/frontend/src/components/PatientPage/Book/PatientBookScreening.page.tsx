@@ -3,7 +3,11 @@ import { usePatientEligibleScreeningTypes } from '@/services/providers/patient-s
 import { useNavigate } from '@tanstack/react-router'
 import BookHeader from './BookHeader'
 
-export function PatientBookScreeningPage() {
+export function PatientBookScreeningPage({
+  savingsPlanId,
+}: {
+  savingsPlanId?: string
+}) {
   const navigate = useNavigate()
   const {
     screenings: eligibleScreenings,
@@ -15,7 +19,7 @@ export function PatientBookScreeningPage() {
   const handlePayAndBook = (screeningId: string) => {
     navigate({
       to: '/patient/book/pay',
-      search: { screeningTypeId: screeningId },
+      search: { screeningTypeId: screeningId, savingsPlanId },
     })
   }
 

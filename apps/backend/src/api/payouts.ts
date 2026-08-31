@@ -26,6 +26,15 @@ const getPayoutService = (c: any) => {
   return new PayoutService(getDB(c), paystackService);
 };
 
+function canAccessCenterPayouts(payload: any, centerId: string) {
+  const profile = payload?.profile?.toLowerCase();
+  if (profile === "admin") return true;
+  if (profile === "center" || profile === "center_staff") {
+    return payload?.id === centerId;
+  }
+  return false;
+}
+
 // GET /api/payouts/center-balances - Get all center balances (Admin only)
 payoutsApp.get("/center-balances", authMiddleware(["admin"]), async (c) => {
   try {
@@ -60,6 +69,11 @@ payoutsApp.get(
       const centerId = c.req.param("centerId");
       if (!centerId) {
         return c.json({ ok: false, error: "Center ID is required" }, 400);
+      }
+
+      const payload = c.get("jwtPayload");
+      if (!canAccessCenterPayouts(payload, centerId)) {
+        return c.json({ ok: false, error: "Access denied" }, 403);
       }
 
       const payoutService = getPayoutService(c);
@@ -241,14 +255,10 @@ payoutsApp.get(
       const centerId = c.req.param("centerId");
       const filters = c.req.valid("query");
       const payload = c.get("jwtPayload");
-      const payoutService = getPayoutService(c);
-
-      // Authorization check - center staff can only access their own center's payouts
-      if (payload?.profile?.toLowerCase() === "center_staff") {
-        // For center staff, we need to verify they can access this center
-        // TODO: Add center staff verification logic based on your auth system
-        // This might involve checking if the user is associated with the center
+      if (!canAccessCenterPayouts(payload, centerId)) {
+        return c.json({ ok: false, error: "Access denied" }, 403);
       }
+      const payoutService = getPayoutService(c);
 
       const result = await payoutService.getCenterPayouts(centerId, filters);
       return c.json({
@@ -295,13 +305,10 @@ payoutsApp.get(
       const centerId = c.req.param("centerId");
       const filters = c.req.valid("query");
       const payload = c.get("jwtPayload");
-      const payoutService = getPayoutService(c);
-
-      // Authorization check - center staff can only access their own center's transactions
-      if (payload?.profile?.toLowerCase() === "center_staff") {
-        // TODO: Add center staff verification logic based on your auth system
-        // This might involve checking if the user is associated with the center
+      if (!canAccessCenterPayouts(payload, centerId)) {
+        return c.json({ ok: false, error: "Access denied" }, 403);
       }
+      const payoutService = getPayoutService(c);
 
       const result = await payoutService.getCenterTransactionHistory(
         centerId,

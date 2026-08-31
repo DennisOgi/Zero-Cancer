@@ -72,7 +72,7 @@ export interface PaginatedResponse<T> {
 export async function getCenterWalletBalance(
   centerId: string
 ): Promise<TDataResponse<WalletBalance>> {
-  return request.get(`/wallets/center/${centerId}`)
+  return request.get(`/api/wallets/center/${centerId}`)
 }
 
 /**
@@ -94,7 +94,7 @@ export async function getCenterWalletTransactions(
   if (params?.endDate) queryParams.append('endDate', params.endDate)
 
   return request.get(
-    `/wallets/center/${centerId}/transactions?${queryParams.toString()}`
+    `/api/wallets/center/${centerId}/transactions?${queryParams.toString()}`
   )
 }
 
@@ -113,7 +113,7 @@ export async function getCenterWalletStats(
   if (params?.endDate) queryParams.append('endDate', params.endDate)
 
   return request.get(
-    `/wallets/center/${centerId}/stats?${queryParams.toString()}`
+    `/api/wallets/center/${centerId}/stats?${queryParams.toString()}`
   )
 }
 
@@ -127,7 +127,7 @@ export async function requestCashout(
     fee: number
   }
 ): Promise<TDataResponse<CashoutRecord>> {
-  return request.post(`/wallets/center/${centerId}/cashout`, data)
+  return request.post(`/api/wallets/center/${centerId}/cashout`, data)
 }
 
 /**
@@ -145,7 +145,7 @@ export async function getCenterCashouts(
   if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString())
 
   return request.get(
-    `/wallets/center/${centerId}/cashouts?${queryParams.toString()}`
+    `/api/wallets/center/${centerId}/cashouts?${queryParams.toString()}`
   )
 }
 
@@ -159,7 +159,7 @@ export async function getCenterCashouts(
 export async function getPlatformWalletBalance(): Promise<
   TDataResponse<WalletBalance>
 > {
-  return request.get('/wallets/platform')
+  return request.get('/api/wallets/platform')
 }
 
 /**
@@ -179,7 +179,7 @@ export async function getPlatformWalletTransactions(
   if (params?.startDate) queryParams.append('startDate', params.startDate)
   if (params?.endDate) queryParams.append('endDate', params.endDate)
 
-  return request.get(`/wallets/platform/transactions?${queryParams.toString()}`)
+  return request.get(`/api/wallets/platform/transactions?${queryParams.toString()}`)
 }
 
 /**
@@ -195,7 +195,7 @@ export async function getPlatformWalletStats(
   if (params?.startDate) queryParams.append('startDate', params.startDate)
   if (params?.endDate) queryParams.append('endDate', params.endDate)
 
-  return request.get(`/wallets/platform/stats?${queryParams.toString()}`)
+  return request.get(`/api/wallets/platform/stats?${queryParams.toString()}`)
 }
 
 /**
@@ -215,5 +215,5 @@ export async function getAllCenterWallets(
   if (params?.page) queryParams.append('page', params.page.toString())
   if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString())
 
-  return request.get(`/wallets/centers?${queryParams.toString()}`)
+  return request.get(`/api/wallets/centers?${queryParams.toString()}`)
 }

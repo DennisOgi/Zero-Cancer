@@ -179,7 +179,20 @@ donationApp.post("/paystack-webhook", async (c) => {
       return c.json({ ok: false, error: "Invalid signature" }, 401);
     }
 
-    const payload = JSON.parse(rawBody) as z.infer<typeof paystackWebhookSchema>;
+    const payload = JSON.parse(rawBody) as z.infer<typeof paystackWebhookSchema> & {
+      event?: string;
+      data?: { reference?: string; amount?: number; metadata?: Record<string, unknown>; transfer_code?: string };
+    };
+
+    if (payload.event?.startsWith("transfer.")) {
+      const { settleAgentCashoutFromTransfer } = await import("../lib/agent.service");
+      const result = await settleAgentCashoutFromTransfer(c, payload);
+      return c.json({
+        ok: true,
+        message: result.handled ? "Transfer event processed" : "Transfer event ignored",
+        event: payload.event,
+      });
+    }
 
     if (payload.event !== "charge.success") {
       return c.json({ ok: true, message: "Event ignored", event: payload.event });

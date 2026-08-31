@@ -39,6 +39,7 @@ export function CenterLayout() {
   const adminNavLinks = [
     { to: '/center/profile', label: 'Profile', icon: people },
     { to: '/center/receipt-history', label: 'Payouts', icon: health },
+    { to: '/center/wallet', label: 'Wallet', icon: health },
     { to: '/center/staff', label: 'Staff', icon: people },
   ]
 

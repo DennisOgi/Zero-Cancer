@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import * as RPNInput from 'react-phone-number-input'
 import { z } from 'zod'
@@ -46,9 +46,13 @@ type PatientFormProps = {
     data: FormData,
     response: TPatientRegisterResponse,
   ) => void
+  referralCode?: string
 }
 
-export default function PatientForm({ onSubmitSuccess }: PatientFormProps) {
+export default function PatientForm({
+  onSubmitSuccess,
+  referralCode,
+}: PatientFormProps) {
   const [selectedState, setSelectedState] = useState<string>('')
   const [localGovernments, setLocalGovernments] = useState<
     Array<{ name: string; id: number }>
@@ -70,8 +74,13 @@ export default function PatientForm({ onSubmitSuccess }: PatientFormProps) {
       state: '',
       localGovernment: '',
       photoUrl: '',
+      referralCode: referralCode || '',
     },
   })
+
+  useEffect(() => {
+    if (referralCode) form.setValue('referralCode', referralCode)
+  }, [form, referralCode])
 
   const handleStateChange = (stateName: string) => {
     setSelectedState(stateName)
@@ -97,6 +106,7 @@ export default function PatientForm({ onSubmitSuccess }: PatientFormProps) {
         ? new Date(values.dateOfBirth).toISOString()
         : values.dateOfBirth,
       photoUrl: values.photoUrl || undefined,
+      referralCode: values.referralCode || referralCode || undefined,
     }
 
     mutation.mutate(formattedValues, {
@@ -339,6 +349,27 @@ export default function PatientForm({ onSubmitSuccess }: PatientFormProps) {
             />
           </div>
         </div>
+
+        {!referralCode ? (
+          <FormField
+            control={form.control}
+            name="referralCode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Referral code (optional)</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="If someone invited you, enter their code"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ) : (
+          <input type="hidden" {...form.register('referralCode')} />
+        )}
 
         <Button
           type="submit"

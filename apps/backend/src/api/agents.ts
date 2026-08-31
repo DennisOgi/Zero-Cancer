@@ -37,6 +37,11 @@ const cashoutSchema = z.object({
   amount: z.number().positive(),
 });
 
+function agentShareUrl(frontendUrl: string, code: string) {
+  const base = (frontendUrl || "https://zerocancer.africa").replace(/\/$/, "");
+  return `${base}/sign-up/patient?ref=${encodeURIComponent(code)}`;
+}
+
 // POST /api/v1/agents/activate
 agentsApp.post("/activate", async (c) => {
   try {
@@ -110,9 +115,9 @@ agentsApp.get("/me", async (c) => {
         screenedCount: screenedCount || 0,
         availableBalance: wallet.balance,
       },
-      shareUrl: `${FRONTEND_URL}/register/patient?ref=${agent.referralCode}`,
+      shareUrl: agentShareUrl(FRONTEND_URL, agent.referralCode),
       whatsappText: encodeURIComponent(
-        `Join me on ZeroCancer for cervical cancer screening. Use my code ${agent.referralCode}: ${FRONTEND_URL}/register/patient?ref=${agent.referralCode}`
+        `Join me on ZeroCancer for cervical cancer screening. Use my code ${agent.referralCode}: ${agentShareUrl(FRONTEND_URL, agent.referralCode)}`
       ),
       config: {
         screenCommissionFlat: config.screenCommissionFlat,
@@ -228,7 +233,7 @@ agentsApp.post(
         ok: true,
         data: {
           ...invite,
-          shareUrl: `${FRONTEND_URL}/register/patient?ref=${invite.inviteCode}`,
+          shareUrl: agentShareUrl(FRONTEND_URL, invite.inviteCode),
         },
       });
     } catch (error: any) {
@@ -330,24 +335,16 @@ agentsApp.post(
       await supabase
         .from("AgentCashout")
         .update({
-          status: "SUCCESS",
+          status: "PROCESSING",
           paystackTransferCode: transferBody?.data?.transfer_code || null,
           updatedAt: new Date().toISOString(),
         })
         .eq("id", cashout.id);
 
-      await supabase
-        .from("AgentProfile")
-        .update({
-          totalPaidOut: Number(agent.totalPaidOut || 0) + amount,
-          updatedAt: new Date().toISOString(),
-        })
-        .eq("id", agent.id);
-
       return c.json({
         ok: true,
-        data: { cashout, balanceAfter },
-        message: "Cashout successful",
+        data: { cashout: { ...cashout, status: "PROCESSING" }, balanceAfter },
+        message: "Cashout submitted. Funds will arrive after Paystack confirms the transfer.",
       });
     } catch (error: any) {
       return c.json<TErrorResponse>(
