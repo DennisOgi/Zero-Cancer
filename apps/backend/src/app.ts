@@ -24,6 +24,10 @@ import { patientEnrollmentApp } from "./api/patient-enrollment";
 import { patientScreeningReportsApp } from "./api/patient-screening-reports";
 import { publicScreeningReportsApp } from "./api/public-screening-reports";
 import { debugApp } from "./api/debug";
+import { agentsApp } from "./api/agents";
+import { referralsApp } from "./api/referrals";
+import { savingsApp } from "./api/savings";
+import { adminAgentsApp } from "./api/admin-agents";
 import { TEnvs } from "./lib/types";
 
 // Create the main app (no basePath for root)
@@ -93,6 +97,10 @@ apiApp.route("/patient/enrollment-requests", patientEnrollmentApp);
 apiApp.route("/patient/screening-reports", patientScreeningReportsApp);
 apiApp.route("/public/screening-reports", publicScreeningReportsApp);
 apiApp.route("/blog", blogApp);
+apiApp.route("/agents", agentsApp);
+apiApp.route("/referrals", referralsApp);
+apiApp.route("/savings", savingsApp);
+apiApp.route("/admin/agents", adminAgentsApp);
 
 // Mount API app BEFORE static file serving
 app.route("/api/v1", apiApp);

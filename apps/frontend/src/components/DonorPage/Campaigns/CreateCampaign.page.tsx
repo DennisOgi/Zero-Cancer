@@ -122,6 +122,7 @@ export function CreateCampaignPage() {
       targetIndividualId: search.targetIndividualId,
       targetGroupId: search.targetGroupId,
       screeningTypeIds: search.screeningTypeId ? [search.screeningTypeId] : [],
+      agentInviteCode: '',
     },
   })
 
@@ -291,6 +292,26 @@ export function CreateCampaignPage() {
                             {...field}
                           />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="agentInviteCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Agent invite code (optional)</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Code from the woman who invited your organization"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          If an agent invited you to sponsor, enter their code so
+                          they can earn a commission.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

@@ -77,9 +77,12 @@ export const bookSelfPayAppointmentSchema = z.object({
   appointmentDateTime: z.string().min(1, {
     message: "Appointment date and time is required.",
   }),
-  paymentReference: z.string().min(1, {
-    message: "Payment reference is required.",
-  }),
+  paymentReference: z.string().optional(),
+  isHomeVisit: z.boolean().optional(),
+  homeAddress: z.string().min(5).optional().nullable(),
+  referralCode: z.string().optional(),
+  commissionAllowed: z.boolean().optional(),
+  savingsPlanId: z.string().uuid().optional(),
 });
 
 export const selectCenterSchema = z.object({

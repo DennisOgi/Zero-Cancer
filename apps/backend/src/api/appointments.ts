@@ -813,6 +813,15 @@ appointmentApp.post(
       console.error("Failed to send completion notification:", error);
     }
 
+    try {
+      const { creditCommissionForCompletedAppointment } = await import(
+        "../lib/commission.service"
+      );
+      await creditCommissionForCompletedAppointment(c, id);
+    } catch (error) {
+      console.error("Failed to credit referral commission:", error);
+    }
+
     if (appointment.isDonation) {
       try {
         const db = getDB(c);
@@ -1051,7 +1060,11 @@ appointmentApp.post(
       screeningTypeId,
       centerId,
       appointmentDateTime,
-      // paymentReference,
+      isHomeVisit,
+      homeAddress,
+      referralCode,
+      commissionAllowed,
+      savingsPlanId,
     } = c.req.valid("json");
     const payload = c.get("jwtPayload");
     if (!payload) {
@@ -1064,6 +1077,44 @@ appointmentApp.post(
         401
       );
     }
+
+    if (isHomeVisit && !homeAddress?.trim()) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Home address is required for home screening" },
+        400
+      );
+    }
+
+    if (referralCode) {
+      try {
+        const { acceptReferralInvite } = await import("../lib/agent.service");
+        await acceptReferralInvite(c, userId, referralCode, {
+          commissionAllowed,
+          preferredCenterId: centerId,
+        });
+      } catch (error) {
+        console.error("Referral accept during booking:", error);
+      }
+    } else if (commissionAllowed !== undefined) {
+      try {
+        const { updateReferralConsent } = await import("../lib/agent.service");
+        await updateReferralConsent(c, userId, {
+          commissionAllowed,
+          preferredCenterId: centerId,
+        });
+      } catch {
+        /* no existing referral */
+      }
+    }
+
+    const { resolveAttributionForPatient } = await import(
+      "../lib/agent.service"
+    );
+    const { getAgentNetworkConfig } = await import(
+      "../lib/agent-network-config"
+    );
+    const attribution = await resolveAttributionForPatient(c, userId);
+    const networkConfig = getAgentNetworkConfig(c.env || {});
 
     const result = await db.serviceCenterScreeningType.findUnique({
       where: {
@@ -1087,7 +1138,27 @@ appointmentApp.post(
     // Get base price and retail price for price snapshots
     const basePrice =
       result.screeningType.agreedPrice ?? result.screeningType.basePrice ?? 0;
-    const retailPrice = result.amount; // The amount is the retail price set by the center
+    let retailPrice = result.amount; // The amount is the retail price set by the center
+    if (isHomeVisit && networkConfig.homeScreeningEnabled) {
+      retailPrice =
+        Number(retailPrice) + Number(networkConfig.homeVisitSurchargeFlat);
+    }
+
+    // Savings plan can fully cover booking
+    let coveredBySavings = false;
+    if (savingsPlanId) {
+      const supabase = getSupabaseClient(c);
+      const { data: plan } = await supabase
+        .from("SavingsPlan")
+        .select("*")
+        .eq("id", savingsPlanId)
+        .eq("patientId", userId)
+        .eq("status", "READY")
+        .maybeSingle();
+      if (plan && Number(plan.savedAmount) >= Number(retailPrice)) {
+        coveredBySavings = true;
+      }
+    }
 
     // TODO: Validate input, authenticate user, verify payment with Paystack
     const paymentReference = `book-appointment-${
@@ -1098,10 +1169,10 @@ appointmentApp.post(
     const transaction = await db.transaction.create({
       data: {
         type: "APPOINTMENT",
-        status: "PENDING",
-        amount: result?.amount,
+        status: coveredBySavings ? "COMPLETED" : "PENDING",
+        amount: retailPrice,
         paymentReference, // store actual paystack payment reference
-        paymentChannel: "PAYSTACK",
+        paymentChannel: coveredBySavings ? "SAVINGS" : "PAYSTACK",
       },
     });
 
@@ -1112,15 +1183,22 @@ appointmentApp.post(
         screeningTypeId: screeningTypeId!,
         appointmentDateTime: new Date(appointmentDateTime!),
         isDonation: false,
-        status: "PENDING", // Set initial status to PENDING
-        transactionId: transaction.id!, // Link appointment to transaction
-        // Store price snapshots at booking time (NEW - wallet integration)
+        status: coveredBySavings ? "SCHEDULED" : "PENDING",
+        transactionId: transaction.id!,
         basePriceSnapshot: basePrice,
         retailPriceSnapshot: retailPrice,
-        // create helper function to generate check-in code
-        // UPDATE: write checkincode logic in paystack hook when things are recieved
-        // checkInCode: generateHexId(6).toUpperCase(),
-        // checkInCodeExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        isHomeVisit: Boolean(isHomeVisit),
+        homeAddress: isHomeVisit ? homeAddress?.trim() : null,
+        referralId: attribution.referral?.id || null,
+        attributedAgentId: attribution.agentId,
+        ...(coveredBySavings
+          ? {
+              checkInCode: generateHexId(6).toUpperCase(),
+              checkInCodeExpiresAt: new Date(
+                Date.now() + 365 * 24 * 60 * 60 * 1000
+              ),
+            }
+          : {}),
       },
       include: {
         transaction: true,
@@ -1130,6 +1208,28 @@ appointmentApp.post(
       },
     });
 
+    if (coveredBySavings && savingsPlanId) {
+      const supabase = getSupabaseClient(c);
+      await supabase
+        .from("SavingsPlan")
+        .update({
+          status: "USED",
+          appointmentId: appointment.id,
+          updatedAt: new Date().toISOString(),
+        })
+        .eq("id", savingsPlanId);
+
+      return c.json({
+        ok: true,
+        data: {
+          appointment,
+          paidWithSavings: true,
+          authorization_url: null,
+        },
+        message: "Appointment booked using your savings",
+      });
+    }
+
     let paystackResponse: {
       authorization_url?: string;
       access_code?: string;
@@ -1138,7 +1238,7 @@ appointmentApp.post(
     try {
       paystackResponse = await initializePaystackPayment(c, {
         email: payload.email!,
-        amount: result.amount * 100,
+        amount: retailPrice * 100,
         reference: paymentReference,
         paymentType: "appointment_booking",
         patientId: userId,

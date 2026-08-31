@@ -34,6 +34,7 @@ model User {
 
   patientProfile PatientProfile?
   donorProfile   DonorProfile?
+  agentProfile   AgentProfile?
 
   waitlists      Waitlist[]        @relation("UserWaitlists")
   donationCampaigns DonationCampaign[] @relation("UserDonationCampaigns")
@@ -43,6 +44,8 @@ model User {
   notifications    NotificationRecipient[]
   targetedCampaigns DonationCampaign[] @relation("TargetedIndividual")
   enrollmentRequests CenterEnrollmentRequest[] @relation("PatientEnrollmentRequests")
+  referralsAsReferred Referral[] @relation("ReferredUser")
+  savingsPlans   SavingsPlan[] @relation("PatientSavingsPlans")
 }
 
 model PatientProfile {
@@ -62,6 +65,10 @@ model PatientProfile {
   assignedCenter   ServiceCenter? @relation("PatientAssignedCenter", fields: [assignedCenterId], references: [id], onDelete: SetNull)
   association   Association? @relation("PatientAssociation", fields: [associationId], references: [id])
   group         Group?       @relation("PatientGroup", fields: [groupId], references: [id])
+  /// Referral code this patient used when joining
+  referralCodeUsed String?
+  /// Whether the attributed referrer may earn commission (point 11)
+  commissionConsent Boolean @default(true)
 
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -247,18 +254,23 @@ model DonationCampaign {
   targetGroupId       String?
   targetIndividualId   String?
   targetPhone         String?
-  
+  /// Agent who invited this donor/org to sponsor
+  invitedByAgentId    String?
+
   association         Association? @relation(fields: [targetAssociationId], references: [id])
   group               Group?       @relation(fields: [targetGroupId], references: [id])
   targetIndividual    User?        @relation("TargetedIndividual", fields: [targetIndividualId], references: [id])
+  invitedByAgent      AgentProfile? @relation("AgentInvitedCampaigns", fields: [invitedByAgentId], references: [id], onDelete: SetNull)
 
   donor           User             @relation("UserDonationCampaigns", fields: [donorId], references: [id], onDelete: Cascade)
   allocations     DonationAllocation[]
   transactions    Transaction[]    @relation("DonationTransactions")
   screeningTypes  ScreeningType[]  @relation("DonationCampaignScreeningTypes")
-  
+  commissions     Commission[]     @relation("CampaignCommissions")
+
   @@index([status, availableAmount])
   @@index([status, createdAt])
+  @@index([invitedByAgentId])
 }
 
 model DonationAllocation {
@@ -298,6 +310,10 @@ model Appointment {
   kitId                   String?   @unique
   basePriceSnapshot       Float?
   retailPriceSnapshot     Float?
+  isHomeVisit             Boolean  @default(false)
+  homeAddress             String?
+  referralId              String?
+  attributedAgentId       String?
 
   patient                 User     @relation("UserAppointments", fields: [patientId], references: [id], onDelete: Cascade)
   center                  ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Restrict)
@@ -310,6 +326,14 @@ model Appointment {
   kit                     Kit?           @relation(fields: [kitId], references: [id])
   platformWalletTransactions PlatformWalletTransaction[] @relation("PlatformWalletAppointments")
   centerWalletTransactions   CenterWalletTransaction[] @relation("CenterWalletAppointments")
+  referral                Referral?      @relation("AppointmentReferral", fields: [referralId], references: [id], onDelete: SetNull)
+  attributedAgent         AgentProfile?  @relation("AgentAttributedAppointments", fields: [attributedAgentId], references: [id], onDelete: SetNull)
+  commissions             Commission[]   @relation("AppointmentCommissions")
+  savingsPlanUsed         SavingsPlan?   @relation("SavingsPlanAppointment")
+
+  @@index([attributedAgentId])
+  @@index([referralId])
+  @@index([isHomeVisit])
 }
 
 model AppointmentVerification {
@@ -997,4 +1021,161 @@ model CenterPerformanceSnapshot {
   @@index([snapshotDate])
   @@index([category])
   @@map("center_performance_snapshots")
+}
+
+// ========================================
+// Agent / referral / save-to-screen network
+// ========================================
+
+model AgentProfile {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  referralCode          String   @unique
+  status                String   @default("ACTIVE") // ACTIVE, SUSPENDED
+  bankName              String?
+  bankCode              String?
+  accountNumber         String?
+  accountName           String?
+  paystackRecipientCode String?
+  totalEarned           Float    @default(0)
+  totalPaidOut          Float    @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referrals             Referral[] @relation("AgentReferrals")
+  commissions           Commission[] @relation("AgentCommissions")
+  wallet                AgentWallet?
+  invitedCampaigns      DonationCampaign[] @relation("AgentInvitedCampaigns")
+  attributedAppointments Appointment[] @relation("AgentAttributedAppointments")
+
+  @@index([status])
+  @@index([referralCode])
+}
+
+model Referral {
+  id                  String   @id @default(uuid())
+  referrerAgentId     String
+  referredUserId      String?
+  inviteCode          String   @unique
+  invitePhone         String?
+  inviteEmail         String?
+  inviteName          String?
+  status              String   @default("PENDING") // PENDING, ACCEPTED, SCREENED, EXPIRED
+  commissionAllowed   Boolean  @default(true)
+  preferredCenterId   String?
+  acceptedAt          DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  referrerAgent       AgentProfile @relation("AgentReferrals", fields: [referrerAgentId], references: [id], onDelete: Cascade)
+  referredUser        User?        @relation("ReferredUser", fields: [referredUserId], references: [id], onDelete: SetNull)
+  appointments        Appointment[] @relation("AppointmentReferral")
+
+  @@index([referrerAgentId, status])
+  @@index([referredUserId])
+  @@index([inviteCode])
+}
+
+model Commission {
+  id              String   @id @default(uuid())
+  agentId         String
+  sourceType      String   // SCREEN, HOME_SCREEN, SPONSOR_CAMPAIGN
+  sourceId        String
+  amount          Float
+  status          String   @default("PENDING") // PENDING, AVAILABLE, PAID, VOID
+  appointmentId   String?
+  campaignId      String?
+  note            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  agent           AgentProfile @relation("AgentCommissions", fields: [agentId], references: [id], onDelete: Cascade)
+  appointment     Appointment? @relation("AppointmentCommissions", fields: [appointmentId], references: [id], onDelete: SetNull)
+  campaign        DonationCampaign? @relation("CampaignCommissions", fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceType, sourceId, agentId])
+  @@index([agentId, status])
+  @@index([status])
+}
+
+model AgentWallet {
+  id        String   @id @default(uuid())
+  agentId   String   @unique
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent        AgentProfile @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  transactions AgentWalletTransaction[]
+  cashouts     AgentCashout[]
+}
+
+model AgentWalletTransaction {
+  id          String   @id @default(uuid())
+  walletId    String
+  type        String   // CREDIT, DEBIT
+  amount      Float
+  balanceAfter Float
+  reference   String?
+  description String?
+  commissionId String?
+  createdAt   DateTime @default(now())
+
+  wallet      AgentWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, createdAt])
+}
+
+model AgentCashout {
+  id                    String   @id @default(uuid())
+  walletId              String
+  agentId               String
+  amount                Float
+  status                String   @default("PENDING") // PENDING, PROCESSING, SUCCESS, FAILED
+  paystackTransferCode  String?
+  paystackReference     String?
+  failureReason         String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  wallet                AgentWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, status])
+  @@index([status])
+}
+
+model SavingsPlan {
+  id                String   @id @default(uuid())
+  patientId         String
+  screeningTypeId   String
+  preferredCenterId String?
+  targetAmount      Float
+  savedAmount       Float    @default(0)
+  status            String   @default("ACTIVE") // ACTIVE, READY, USED, CANCELLED
+  appointmentId     String?  @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  patient           User     @relation("PatientSavingsPlans", fields: [patientId], references: [id], onDelete: Cascade)
+  appointment       Appointment? @relation("SavingsPlanAppointment", fields: [appointmentId], references: [id], onDelete: SetNull)
+  deposits          SavingsDeposit[]
+
+  @@index([patientId, status])
+  @@index([status])
+}
+
+model SavingsDeposit {
+  id              String   @id @default(uuid())
+  planId          String
+  amount          Float
+  status          String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  paymentReference String? @unique
+  paymentChannel  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  plan            SavingsPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, status])
 }

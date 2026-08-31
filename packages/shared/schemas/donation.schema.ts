@@ -52,6 +52,8 @@ export const createCampaignSchema = z
     targetGroupId: z.string().uuid().optional(),
     targetIndividualId: z.string().uuid().optional(),
     targetPhone: z.string().optional(),
+    /** Agent referral code that invited this donor/org to sponsor */
+    agentInviteCode: z.string().optional(),
   })
   .refine(
     (data) => {

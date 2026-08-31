@@ -9,102 +9,104 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as PatientRouteRouteImport } from './routes/patient/route'
-import { Route as DonorRouteRouteImport } from './routes/donor/route'
-import { Route as CenterRouteRouteImport } from './routes/center/route'
-import { Route as AdminRouteRouteImport } from './routes/admin/route'
-import { Route as publicRouteRouteImport } from './routes/(public)/route'
-import { Route as authRouteRouteImport } from './routes/(auth)/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as PatientIndexRouteImport } from './routes/patient/index'
-import { Route as DonorIndexRouteImport } from './routes/donor/index'
-import { Route as CenterIndexRouteImport } from './routes/center/index'
+import { Route as authRouteRouteImport } from './routes/(auth)/route'
+import { Route as publicRouteRouteImport } from './routes/(public)/route'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
+import { Route as CenterRouteRouteImport } from './routes/center/route'
+import { Route as DonorRouteRouteImport } from './routes/donor/route'
+import { Route as PatientRouteRouteImport } from './routes/patient/route'
+import { Route as authForgotPasswordRouteImport } from './routes/(auth)/forgot-password'
+import { Route as authForgotPasswordCenterRouteImport } from './routes/(auth)/forgot-password-center'
+import { Route as authLoginRouteImport } from './routes/(auth)/login'
+import { Route as authResetPasswordRouteImport } from './routes/(auth)/reset-password'
+import { Route as authResetPasswordCenterRouteImport } from './routes/(auth)/reset-password-center'
+import { Route as authVerifyEmailRouteImport } from './routes/(auth)/verify-email'
+import { Route as publicAboutRouteImport } from './routes/(public)/about'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
-import { Route as PatientSelectCenterRouteImport } from './routes/patient/select-center'
-import { Route as PatientReportsRouteImport } from './routes/patient/reports'
-import { Route as PatientProfileRouteImport } from './routes/patient/profile'
-import { Route as PatientNotificationsRouteImport } from './routes/patient/notifications'
-import { Route as PatientChangePasswordRouteImport } from './routes/patient/change-password'
-import { Route as PatientChangeCenterRouteImport } from './routes/patient/change-center'
-import { Route as PatientAppointmentsRouteImport } from './routes/patient/appointments'
-import { Route as DonorFundRouteImport } from './routes/donor/fund'
-import { Route as CenterWalletRouteImport } from './routes/center/wallet'
-import { Route as CenterVerifyCodeRouteImport } from './routes/center/verify-code'
-import { Route as CenterUploadResultsRouteImport } from './routes/center/upload-results'
-import { Route as CenterStaffRouteImport } from './routes/center/staff'
-import { Route as CenterServicesRouteImport } from './routes/center/services'
-import { Route as CenterReportsRouteImport } from './routes/center/reports'
-import { Route as CenterRegisterPatientRouteImport } from './routes/center/register-patient'
-import { Route as CenterReferPatientRouteImport } from './routes/center/refer-patient'
-import { Route as CenterReceiptHistoryRouteImport } from './routes/center/receipt-history'
+import { Route as AdminAgentsRouteImport } from './routes/admin/agents'
+import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
+import { Route as AdminAppointmentsRouteImport } from './routes/admin/appointments'
+import { Route as AdminBlogRouteImport } from './routes/admin/blog'
+import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
+import { Route as AdminCentersRouteImport } from './routes/admin/centers'
+import { Route as AdminForgotPasswordRouteImport } from './routes/admin/forgot-password'
+import { Route as AdminLoginRouteImport } from './routes/admin/login'
+import { Route as AdminNotificationsRouteImport } from './routes/admin/notifications'
+import { Route as AdminResetPasswordRouteImport } from './routes/admin/reset-password'
+import { Route as AdminResultsRouteImport } from './routes/admin/results'
+import { Route as AdminRolesRouteImport } from './routes/admin/roles'
+import { Route as AdminStoreRouteImport } from './routes/admin/store'
+import { Route as AdminTransactionsRouteImport } from './routes/admin/transactions'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminWaitlistRouteImport } from './routes/admin/waitlist'
+import { Route as CenterIndexRouteImport } from './routes/center/index'
+import { Route as CenterAppointmentsRouteImport } from './routes/center/appointments'
+import { Route as CenterNotificationsRouteImport } from './routes/center/notifications'
 import { Route as CenterPatientsRouteImport } from './routes/center/patients'
 import { Route as CenterProfileRouteImport } from './routes/center/profile'
-import { Route as CenterNotificationsRouteImport } from './routes/center/notifications'
-import { Route as CenterAppointmentsRouteImport } from './routes/center/appointments'
-import { Route as AdminWaitlistRouteImport } from './routes/admin/waitlist'
-import { Route as AdminUsersRouteImport } from './routes/admin/users'
-import { Route as AdminTransactionsRouteImport } from './routes/admin/transactions'
-import { Route as AdminStoreRouteImport } from './routes/admin/store'
-import { Route as AdminRolesRouteImport } from './routes/admin/roles'
-import { Route as AdminResultsRouteImport } from './routes/admin/results'
-import { Route as AdminResetPasswordRouteImport } from './routes/admin/reset-password'
-import { Route as AdminNotificationsRouteImport } from './routes/admin/notifications'
-import { Route as AdminLoginRouteImport } from './routes/admin/login'
-import { Route as AdminForgotPasswordRouteImport } from './routes/admin/forgot-password'
-import { Route as AdminCentersRouteImport } from './routes/admin/centers'
-import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
-import { Route as AdminBlogRouteImport } from './routes/admin/blog'
-import { Route as AdminAppointmentsRouteImport } from './routes/admin/appointments'
-import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
-import { Route as publicAboutRouteImport } from './routes/(public)/about'
-import { Route as authVerifyEmailRouteImport } from './routes/(auth)/verify-email'
-import { Route as authResetPasswordCenterRouteImport } from './routes/(auth)/reset-password-center'
-import { Route as authResetPasswordRouteImport } from './routes/(auth)/reset-password'
-import { Route as authLoginRouteImport } from './routes/(auth)/login'
-import { Route as authForgotPasswordCenterRouteImport } from './routes/(auth)/forgot-password-center'
-import { Route as authForgotPasswordRouteImport } from './routes/(auth)/forgot-password'
-import { Route as PatientBookIndexRouteImport } from './routes/patient/book/index'
-import { Route as DonorCampaignsIndexRouteImport } from './routes/donor/campaigns/index'
-import { Route as publicCentersIndexRouteImport } from './routes/(public)/centers/index'
-import { Route as publicBlogIndexRouteImport } from './routes/(public)/blog/index'
+import { Route as CenterReceiptHistoryRouteImport } from './routes/center/receipt-history'
+import { Route as CenterReferPatientRouteImport } from './routes/center/refer-patient'
+import { Route as CenterRegisterPatientRouteImport } from './routes/center/register-patient'
+import { Route as CenterReportsRouteImport } from './routes/center/reports'
+import { Route as CenterServicesRouteImport } from './routes/center/services'
+import { Route as CenterStaffRouteImport } from './routes/center/staff'
+import { Route as CenterUploadResultsRouteImport } from './routes/center/upload-results'
+import { Route as CenterVerifyCodeRouteImport } from './routes/center/verify-code'
+import { Route as CenterWalletRouteImport } from './routes/center/wallet'
+import { Route as DonorIndexRouteImport } from './routes/donor/index'
+import { Route as DonorFundRouteImport } from './routes/donor/fund'
+import { Route as PatientIndexRouteImport } from './routes/patient/index'
+import { Route as PatientAgentRouteImport } from './routes/patient/agent'
+import { Route as PatientAppointmentsRouteImport } from './routes/patient/appointments'
+import { Route as PatientChangeCenterRouteImport } from './routes/patient/change-center'
+import { Route as PatientChangePasswordRouteImport } from './routes/patient/change-password'
+import { Route as PatientNotificationsRouteImport } from './routes/patient/notifications'
+import { Route as PatientProfileRouteImport } from './routes/patient/profile'
+import { Route as PatientReportsRouteImport } from './routes/patient/reports'
+import { Route as PatientSavingsRouteImport } from './routes/patient/savings'
+import { Route as PatientSelectCenterRouteImport } from './routes/patient/select-center'
 import { Route as authSignUpIndexRouteImport } from './routes/(auth)/sign-up/index'
-import { Route as PatientReportsReportIdRouteImport } from './routes/patient/reports_.$reportId'
-import { Route as PatientBookPaymentStatusRouteImport } from './routes/patient/book/payment-status'
-import { Route as PatientBookPayRouteImport } from './routes/patient/book/pay'
-import { Route as PatientBookCentersRouteImport } from './routes/patient/book/centers'
-import { Route as PatientAppointmentsIdRouteImport } from './routes/patient/appointments_.$id'
-import { Route as DonorCampaignsPaymentStatusRouteImport } from './routes/donor/campaigns/payment-status'
-import { Route as DonorCampaignsCreateRouteImport } from './routes/donor/campaigns/create'
-import { Route as DonorCampaignsCampaignIdRouteImport } from './routes/donor/campaigns/$campaignId'
-import { Route as AdminBlogNewRouteImport } from './routes/admin/blog/new'
-import { Route as publicDonationPaymentStatusRouteImport } from './routes/(public)/donation/payment-status'
-import { Route as publicCentersCenterIdRouteImport } from './routes/(public)/centers/$centerId'
-import { Route as publicBlogSlugRouteImport } from './routes/(public)/blog/$slug'
-import { Route as authStaffLoginRouteImport } from './routes/(auth)/staff.login'
-import { Route as authStaffForgotPasswordRouteImport } from './routes/(auth)/staff.forgot-password'
-import { Route as authStaffCreateNewPasswordRouteImport } from './routes/(auth)/staff.create-new-password'
-import { Route as authSignUpPatientRouteImport } from './routes/(auth)/sign-up/patient'
-import { Route as authSignUpDonorRouteImport } from './routes/(auth)/sign-up/donor'
 import { Route as authSignUpCenterRouteImport } from './routes/(auth)/sign-up/center'
-import { Route as DonorCampaignsCampaignIdPaymentStatusRouteImport } from './routes/donor/campaigns/$campaignId.payment-status'
-import { Route as CenterReportsReportIdPreviewRouteImport } from './routes/center/reports_.$reportId.preview'
-import { Route as AdminBlogIdEditRouteImport } from './routes/admin/blog/$id.edit'
-import { Route as publicReportsViewTokenRouteImport } from './routes/(public)/reports/view.$token'
+import { Route as authSignUpDonorRouteImport } from './routes/(auth)/sign-up/donor'
+import { Route as authSignUpPatientRouteImport } from './routes/(auth)/sign-up/patient'
+import { Route as authStaffCreateNewPasswordRouteImport } from './routes/(auth)/staff.create-new-password'
+import { Route as authStaffForgotPasswordRouteImport } from './routes/(auth)/staff.forgot-password'
+import { Route as authStaffLoginRouteImport } from './routes/(auth)/staff.login'
+import { Route as publicBlogIndexRouteImport } from './routes/(public)/blog/index'
+import { Route as publicBlogSlugRouteImport } from './routes/(public)/blog/$slug'
+import { Route as publicCentersIndexRouteImport } from './routes/(public)/centers/index'
+import { Route as publicCentersCenterIdRouteImport } from './routes/(public)/centers/$centerId'
+import { Route as publicDonationPaymentStatusRouteImport } from './routes/(public)/donation/payment-status'
+import { Route as AdminBlogNewRouteImport } from './routes/admin/blog/new'
+import { Route as DonorCampaignsIndexRouteImport } from './routes/donor/campaigns/index'
+import { Route as DonorCampaignsCampaignIdRouteImport } from './routes/donor/campaigns/$campaignId'
+import { Route as DonorCampaignsCreateRouteImport } from './routes/donor/campaigns/create'
+import { Route as DonorCampaignsPaymentStatusRouteImport } from './routes/donor/campaigns/payment-status'
+import { Route as PatientAppointmentsIdRouteImport } from './routes/patient/appointments_.$id'
+import { Route as PatientBookIndexRouteImport } from './routes/patient/book/index'
+import { Route as PatientBookCentersRouteImport } from './routes/patient/book/centers'
+import { Route as PatientBookPayRouteImport } from './routes/patient/book/pay'
+import { Route as PatientBookPaymentStatusRouteImport } from './routes/patient/book/payment-status'
+import { Route as PatientReportsReportIdRouteImport } from './routes/patient/reports_.$reportId'
+import { Route as PatientSavingsPaymentStatusRouteImport } from './routes/patient/savings/payment-status'
 import { Route as authSignUpPatientCentersRouteImport } from './routes/(auth)/sign-up/patient/centers'
+import { Route as publicReportsViewTokenRouteImport } from './routes/(public)/reports/view.$token'
+import { Route as AdminBlogIdEditRouteImport } from './routes/admin/blog/$id.edit'
+import { Route as CenterReportsReportIdPreviewRouteImport } from './routes/center/reports_.$reportId.preview'
+import { Route as DonorCampaignsCampaignIdPaymentStatusRouteImport } from './routes/donor/campaigns/$campaignId.payment-status'
 
-const PatientRouteRoute = PatientRouteRouteImport.update({
-  id: '/patient',
-  path: '/patient',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DonorRouteRoute = DonorRouteRouteImport.update({
-  id: '/donor',
-  path: '/donor',
+const authRouteRoute = authRouteRouteImport.update({
+  id: '/(auth)',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CenterRouteRoute = CenterRouteRouteImport.update({
-  id: '/center',
-  path: '/center',
+const publicRouteRoute = publicRouteRouteImport.update({
+  id: '/(public)',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRouteRoute = AdminRouteRouteImport.update({
@@ -112,242 +114,24 @@ const AdminRouteRoute = AdminRouteRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const publicRouteRoute = publicRouteRouteImport.update({
-  id: '/(public)',
+const CenterRouteRoute = CenterRouteRouteImport.update({
+  id: '/center',
+  path: '/center',
   getParentRoute: () => rootRouteImport,
 } as any)
-const authRouteRoute = authRouteRouteImport.update({
-  id: '/(auth)',
+const DonorRouteRoute = DonorRouteRouteImport.update({
+  id: '/donor',
+  path: '/donor',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const PatientRouteRoute = PatientRouteRouteImport.update({
+  id: '/patient',
+  path: '/patient',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PatientIndexRoute = PatientIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PatientRouteRoute,
-} as any)
-const DonorIndexRoute = DonorIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => DonorRouteRoute,
-} as any)
-const CenterIndexRoute = CenterIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => CenterRouteRoute,
-} as any)
-const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const PatientSelectCenterRoute = PatientSelectCenterRouteImport.update({
-  id: '/select-center',
-  path: '/select-center',
-  getParentRoute: () => PatientRouteRoute,
-} as any)
-const PatientReportsRoute = PatientReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => PatientRouteRoute,
-} as any)
-const PatientProfileRoute = PatientProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => PatientRouteRoute,
-} as any)
-const PatientNotificationsRoute = PatientNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => PatientRouteRoute,
-} as any)
-const PatientChangePasswordRoute = PatientChangePasswordRouteImport.update({
-  id: '/change-password',
-  path: '/change-password',
-  getParentRoute: () => PatientRouteRoute,
-} as any)
-const PatientChangeCenterRoute = PatientChangeCenterRouteImport.update({
-  id: '/change-center',
-  path: '/change-center',
-  getParentRoute: () => PatientRouteRoute,
-} as any)
-const PatientAppointmentsRoute = PatientAppointmentsRouteImport.update({
-  id: '/appointments',
-  path: '/appointments',
-  getParentRoute: () => PatientRouteRoute,
-} as any)
-const DonorFundRoute = DonorFundRouteImport.update({
-  id: '/fund',
-  path: '/fund',
-  getParentRoute: () => DonorRouteRoute,
-} as any)
-const CenterWalletRoute = CenterWalletRouteImport.update({
-  id: '/wallet',
-  path: '/wallet',
-  getParentRoute: () => CenterRouteRoute,
-} as any)
-const CenterVerifyCodeRoute = CenterVerifyCodeRouteImport.update({
-  id: '/verify-code',
-  path: '/verify-code',
-  getParentRoute: () => CenterRouteRoute,
-} as any)
-const CenterUploadResultsRoute = CenterUploadResultsRouteImport.update({
-  id: '/upload-results',
-  path: '/upload-results',
-  getParentRoute: () => CenterRouteRoute,
-} as any)
-const CenterStaffRoute = CenterStaffRouteImport.update({
-  id: '/staff',
-  path: '/staff',
-  getParentRoute: () => CenterRouteRoute,
-} as any)
-const CenterServicesRoute = CenterServicesRouteImport.update({
-  id: '/services',
-  path: '/services',
-  getParentRoute: () => CenterRouteRoute,
-} as any)
-const CenterProfileRoute = CenterProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => CenterRouteRoute,
-} as any)
-const CenterReportsRoute = CenterReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => CenterRouteRoute,
-} as any)
-const CenterRegisterPatientRoute = CenterRegisterPatientRouteImport.update({
-  id: '/register-patient',
-  path: '/register-patient',
-  getParentRoute: () => CenterRouteRoute,
-} as any)
-const CenterReferPatientRoute = CenterReferPatientRouteImport.update({
-  id: '/refer-patient',
-  path: '/refer-patient',
-  getParentRoute: () => CenterRouteRoute,
-} as any)
-const CenterReceiptHistoryRoute = CenterReceiptHistoryRouteImport.update({
-  id: '/receipt-history',
-  path: '/receipt-history',
-  getParentRoute: () => CenterRouteRoute,
-} as any)
-const CenterPatientsRoute = CenterPatientsRouteImport.update({
-  id: '/patients',
-  path: '/patients',
-  getParentRoute: () => CenterRouteRoute,
-} as any)
-const CenterNotificationsRoute = CenterNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => CenterRouteRoute,
-} as any)
-const CenterAppointmentsRoute = CenterAppointmentsRouteImport.update({
-  id: '/appointments',
-  path: '/appointments',
-  getParentRoute: () => CenterRouteRoute,
-} as any)
-const AdminWaitlistRoute = AdminWaitlistRouteImport.update({
-  id: '/waitlist',
-  path: '/waitlist',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminTransactionsRoute = AdminTransactionsRouteImport.update({
-  id: '/transactions',
-  path: '/transactions',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminStoreRoute = AdminStoreRouteImport.update({
-  id: '/store',
-  path: '/store',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminRolesRoute = AdminRolesRouteImport.update({
-  id: '/roles',
-  path: '/roles',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminResultsRoute = AdminResultsRouteImport.update({
-  id: '/results',
-  path: '/results',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminResetPasswordRoute = AdminResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminLoginRoute = AdminLoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminForgotPasswordRoute = AdminForgotPasswordRouteImport.update({
+const authForgotPasswordRoute = authForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminCentersRoute = AdminCentersRouteImport.update({
-  id: '/centers',
-  path: '/centers',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
-  id: '/campaigns',
-  path: '/campaigns',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminBlogRoute = AdminBlogRouteImport.update({
-  id: '/blog',
-  path: '/blog',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminAppointmentsRoute = AdminAppointmentsRouteImport.update({
-  id: '/appointments',
-  path: '/appointments',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const publicAboutRoute = publicAboutRouteImport.update({
-  id: '/about',
-  path: '/about',
-  getParentRoute: () => publicRouteRoute,
-} as any)
-const authVerifyEmailRoute = authVerifyEmailRouteImport.update({
-  id: '/verify-email',
-  path: '/verify-email',
-  getParentRoute: () => authRouteRoute,
-} as any)
-const authResetPasswordCenterRoute = authResetPasswordCenterRouteImport.update({
-  id: '/reset-password-center',
-  path: '/reset-password-center',
-  getParentRoute: () => authRouteRoute,
-} as any)
-const authResetPasswordRoute = authResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => authRouteRoute,
-} as any)
-const authLoginRoute = authLoginRouteImport.update({
-  id: '/login',
-  path: '/login',
   getParentRoute: () => authRouteRoute,
 } as any)
 const authForgotPasswordCenterRoute =
@@ -356,108 +140,264 @@ const authForgotPasswordCenterRoute =
     path: '/forgot-password-center',
     getParentRoute: () => authRouteRoute,
   } as any)
-const authForgotPasswordRoute = authForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
+const authLoginRoute = authLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => authRouteRoute,
 } as any)
-const PatientBookIndexRoute = PatientBookIndexRouteImport.update({
-  id: '/book/',
-  path: '/book/',
-  getParentRoute: () => PatientRouteRoute,
+const authResetPasswordRoute = authResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => authRouteRoute,
 } as any)
-const DonorCampaignsIndexRoute = DonorCampaignsIndexRouteImport.update({
-  id: '/campaigns/',
-  path: '/campaigns/',
+const authResetPasswordCenterRoute = authResetPasswordCenterRouteImport.update({
+  id: '/reset-password-center',
+  path: '/reset-password-center',
+  getParentRoute: () => authRouteRoute,
+} as any)
+const authVerifyEmailRoute = authVerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
+  getParentRoute: () => authRouteRoute,
+} as any)
+const publicAboutRoute = publicAboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => publicRouteRoute,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminAgentsRoute = AdminAgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminAppointmentsRoute = AdminAppointmentsRouteImport.update({
+  id: '/appointments',
+  path: '/appointments',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminBlogRoute = AdminBlogRouteImport.update({
+  id: '/blog',
+  path: '/blog',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCentersRoute = AdminCentersRouteImport.update({
+  id: '/centers',
+  path: '/centers',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminForgotPasswordRoute = AdminForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminResetPasswordRoute = AdminResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminResultsRoute = AdminResultsRouteImport.update({
+  id: '/results',
+  path: '/results',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminRolesRoute = AdminRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminStoreRoute = AdminStoreRouteImport.update({
+  id: '/store',
+  path: '/store',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminTransactionsRoute = AdminTransactionsRouteImport.update({
+  id: '/transactions',
+  path: '/transactions',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminWaitlistRoute = AdminWaitlistRouteImport.update({
+  id: '/waitlist',
+  path: '/waitlist',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const CenterIndexRoute = CenterIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterAppointmentsRoute = CenterAppointmentsRouteImport.update({
+  id: '/appointments',
+  path: '/appointments',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterNotificationsRoute = CenterNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterPatientsRoute = CenterPatientsRouteImport.update({
+  id: '/patients',
+  path: '/patients',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterProfileRoute = CenterProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterReceiptHistoryRoute = CenterReceiptHistoryRouteImport.update({
+  id: '/receipt-history',
+  path: '/receipt-history',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterReferPatientRoute = CenterReferPatientRouteImport.update({
+  id: '/refer-patient',
+  path: '/refer-patient',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterRegisterPatientRoute = CenterRegisterPatientRouteImport.update({
+  id: '/register-patient',
+  path: '/register-patient',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterReportsRoute = CenterReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterServicesRoute = CenterServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterStaffRoute = CenterStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterUploadResultsRoute = CenterUploadResultsRouteImport.update({
+  id: '/upload-results',
+  path: '/upload-results',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterVerifyCodeRoute = CenterVerifyCodeRouteImport.update({
+  id: '/verify-code',
+  path: '/verify-code',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterWalletRoute = CenterWalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const DonorIndexRoute = DonorIndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => DonorRouteRoute,
 } as any)
-const publicCentersIndexRoute = publicCentersIndexRouteImport.update({
-  id: '/centers/',
-  path: '/centers/',
-  getParentRoute: () => publicRouteRoute,
+const DonorFundRoute = DonorFundRouteImport.update({
+  id: '/fund',
+  path: '/fund',
+  getParentRoute: () => DonorRouteRoute,
 } as any)
-const publicBlogIndexRoute = publicBlogIndexRouteImport.update({
-  id: '/blog/',
-  path: '/blog/',
-  getParentRoute: () => publicRouteRoute,
+const PatientIndexRoute = PatientIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
+const PatientAgentRoute = PatientAgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
+const PatientAppointmentsRoute = PatientAppointmentsRouteImport.update({
+  id: '/appointments',
+  path: '/appointments',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
+const PatientChangeCenterRoute = PatientChangeCenterRouteImport.update({
+  id: '/change-center',
+  path: '/change-center',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
+const PatientChangePasswordRoute = PatientChangePasswordRouteImport.update({
+  id: '/change-password',
+  path: '/change-password',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
+const PatientNotificationsRoute = PatientNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
+const PatientProfileRoute = PatientProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
+const PatientReportsRoute = PatientReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
+const PatientSavingsRoute = PatientSavingsRouteImport.update({
+  id: '/savings',
+  path: '/savings',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
+const PatientSelectCenterRoute = PatientSelectCenterRouteImport.update({
+  id: '/select-center',
+  path: '/select-center',
+  getParentRoute: () => PatientRouteRoute,
 } as any)
 const authSignUpIndexRoute = authSignUpIndexRouteImport.update({
   id: '/sign-up/',
   path: '/sign-up/',
   getParentRoute: () => authRouteRoute,
 } as any)
-const PatientReportsReportIdRoute = PatientReportsReportIdRouteImport.update({
-  id: '/reports_/$reportId',
-  path: '/reports/$reportId',
-  getParentRoute: () => PatientRouteRoute,
-} as any)
-const PatientBookPaymentStatusRoute =
-  PatientBookPaymentStatusRouteImport.update({
-    id: '/book/payment-status',
-    path: '/book/payment-status',
-    getParentRoute: () => PatientRouteRoute,
-  } as any)
-const PatientBookPayRoute = PatientBookPayRouteImport.update({
-  id: '/book/pay',
-  path: '/book/pay',
-  getParentRoute: () => PatientRouteRoute,
-} as any)
-const PatientBookCentersRoute = PatientBookCentersRouteImport.update({
-  id: '/book/centers',
-  path: '/book/centers',
-  getParentRoute: () => PatientRouteRoute,
-} as any)
-const PatientAppointmentsIdRoute = PatientAppointmentsIdRouteImport.update({
-  id: '/appointments_/$id',
-  path: '/appointments/$id',
-  getParentRoute: () => PatientRouteRoute,
-} as any)
-const DonorCampaignsPaymentStatusRoute =
-  DonorCampaignsPaymentStatusRouteImport.update({
-    id: '/campaigns/payment-status',
-    path: '/campaigns/payment-status',
-    getParentRoute: () => DonorRouteRoute,
-  } as any)
-const DonorCampaignsCreateRoute = DonorCampaignsCreateRouteImport.update({
-  id: '/campaigns/create',
-  path: '/campaigns/create',
-  getParentRoute: () => DonorRouteRoute,
-} as any)
-const DonorCampaignsCampaignIdRoute =
-  DonorCampaignsCampaignIdRouteImport.update({
-    id: '/campaigns/$campaignId',
-    path: '/campaigns/$campaignId',
-    getParentRoute: () => DonorRouteRoute,
-  } as any)
-const AdminBlogNewRoute = AdminBlogNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => AdminBlogRoute,
-} as any)
-const publicDonationPaymentStatusRoute =
-  publicDonationPaymentStatusRouteImport.update({
-    id: '/donation/payment-status',
-    path: '/donation/payment-status',
-    getParentRoute: () => publicRouteRoute,
-  } as any)
-const publicCentersCenterIdRoute = publicCentersCenterIdRouteImport.update({
-  id: '/centers/$centerId',
-  path: '/centers/$centerId',
-  getParentRoute: () => publicRouteRoute,
-} as any)
-const publicBlogSlugRoute = publicBlogSlugRouteImport.update({
-  id: '/blog/$slug',
-  path: '/blog/$slug',
-  getParentRoute: () => publicRouteRoute,
-} as any)
-const authStaffLoginRoute = authStaffLoginRouteImport.update({
-  id: '/staff/login',
-  path: '/staff/login',
+const authSignUpCenterRoute = authSignUpCenterRouteImport.update({
+  id: '/sign-up/center',
+  path: '/sign-up/center',
   getParentRoute: () => authRouteRoute,
 } as any)
-const authStaffForgotPasswordRoute = authStaffForgotPasswordRouteImport.update({
-  id: '/staff/forgot-password',
-  path: '/staff/forgot-password',
+const authSignUpDonorRoute = authSignUpDonorRouteImport.update({
+  id: '/sign-up/donor',
+  path: '/sign-up/donor',
+  getParentRoute: () => authRouteRoute,
+} as any)
+const authSignUpPatientRoute = authSignUpPatientRouteImport.update({
+  id: '/sign-up/patient',
+  path: '/sign-up/patient',
   getParentRoute: () => authRouteRoute,
 } as any)
 const authStaffCreateNewPasswordRoute =
@@ -466,52 +406,137 @@ const authStaffCreateNewPasswordRoute =
     path: '/staff/create-new-password',
     getParentRoute: () => authRouteRoute,
   } as any)
-const authSignUpPatientRoute = authSignUpPatientRouteImport.update({
-  id: '/sign-up/patient',
-  path: '/sign-up/patient',
+const authStaffForgotPasswordRoute = authStaffForgotPasswordRouteImport.update({
+  id: '/staff/forgot-password',
+  path: '/staff/forgot-password',
   getParentRoute: () => authRouteRoute,
 } as any)
-const authSignUpDonorRoute = authSignUpDonorRouteImport.update({
-  id: '/sign-up/donor',
-  path: '/sign-up/donor',
+const authStaffLoginRoute = authStaffLoginRouteImport.update({
+  id: '/staff/login',
+  path: '/staff/login',
   getParentRoute: () => authRouteRoute,
 } as any)
-const authSignUpCenterRoute = authSignUpCenterRouteImport.update({
-  id: '/sign-up/center',
-  path: '/sign-up/center',
-  getParentRoute: () => authRouteRoute,
-} as any)
-const DonorCampaignsCampaignIdPaymentStatusRoute =
-  DonorCampaignsCampaignIdPaymentStatusRouteImport.update({
-    id: '/payment-status',
-    path: '/payment-status',
-    getParentRoute: () => DonorCampaignsCampaignIdRoute,
-  } as any)
-const CenterReportsReportIdPreviewRoute =
-  CenterReportsReportIdPreviewRouteImport.update({
-    id: '/reports_/$reportId/preview',
-    path: '/reports/$reportId/preview',
-    getParentRoute: () => CenterRouteRoute,
-  } as any)
-const AdminBlogIdEditRoute = AdminBlogIdEditRouteImport.update({
-  id: '/$id/edit',
-  path: '/$id/edit',
-  getParentRoute: () => AdminBlogRoute,
-} as any)
-const publicReportsViewTokenRoute = publicReportsViewTokenRouteImport.update({
-  id: '/reports/view/$token',
-  path: '/reports/view/$token',
+const publicBlogIndexRoute = publicBlogIndexRouteImport.update({
+  id: '/blog/',
+  path: '/blog/',
   getParentRoute: () => publicRouteRoute,
 } as any)
+const publicBlogSlugRoute = publicBlogSlugRouteImport.update({
+  id: '/blog/$slug',
+  path: '/blog/$slug',
+  getParentRoute: () => publicRouteRoute,
+} as any)
+const publicCentersIndexRoute = publicCentersIndexRouteImport.update({
+  id: '/centers/',
+  path: '/centers/',
+  getParentRoute: () => publicRouteRoute,
+} as any)
+const publicCentersCenterIdRoute = publicCentersCenterIdRouteImport.update({
+  id: '/centers/$centerId',
+  path: '/centers/$centerId',
+  getParentRoute: () => publicRouteRoute,
+} as any)
+const publicDonationPaymentStatusRoute =
+  publicDonationPaymentStatusRouteImport.update({
+    id: '/donation/payment-status',
+    path: '/donation/payment-status',
+    getParentRoute: () => publicRouteRoute,
+  } as any)
+const AdminBlogNewRoute = AdminBlogNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AdminBlogRoute,
+} as any)
+const DonorCampaignsIndexRoute = DonorCampaignsIndexRouteImport.update({
+  id: '/campaigns/',
+  path: '/campaigns/',
+  getParentRoute: () => DonorRouteRoute,
+} as any)
+const DonorCampaignsCampaignIdRoute =
+  DonorCampaignsCampaignIdRouteImport.update({
+    id: '/campaigns/$campaignId',
+    path: '/campaigns/$campaignId',
+    getParentRoute: () => DonorRouteRoute,
+  } as any)
+const DonorCampaignsCreateRoute = DonorCampaignsCreateRouteImport.update({
+  id: '/campaigns/create',
+  path: '/campaigns/create',
+  getParentRoute: () => DonorRouteRoute,
+} as any)
+const DonorCampaignsPaymentStatusRoute =
+  DonorCampaignsPaymentStatusRouteImport.update({
+    id: '/campaigns/payment-status',
+    path: '/campaigns/payment-status',
+    getParentRoute: () => DonorRouteRoute,
+  } as any)
+const PatientAppointmentsIdRoute = PatientAppointmentsIdRouteImport.update({
+  id: '/appointments_/$id',
+  path: '/appointments/$id',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
+const PatientBookIndexRoute = PatientBookIndexRouteImport.update({
+  id: '/book/',
+  path: '/book/',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
+const PatientBookCentersRoute = PatientBookCentersRouteImport.update({
+  id: '/book/centers',
+  path: '/book/centers',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
+const PatientBookPayRoute = PatientBookPayRouteImport.update({
+  id: '/book/pay',
+  path: '/book/pay',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
+const PatientBookPaymentStatusRoute =
+  PatientBookPaymentStatusRouteImport.update({
+    id: '/book/payment-status',
+    path: '/book/payment-status',
+    getParentRoute: () => PatientRouteRoute,
+  } as any)
+const PatientReportsReportIdRoute = PatientReportsReportIdRouteImport.update({
+  id: '/reports_/$reportId',
+  path: '/reports/$reportId',
+  getParentRoute: () => PatientRouteRoute,
+} as any)
+const PatientSavingsPaymentStatusRoute =
+  PatientSavingsPaymentStatusRouteImport.update({
+    id: '/payment-status',
+    path: '/payment-status',
+    getParentRoute: () => PatientSavingsRoute,
+  } as any)
 const authSignUpPatientCentersRoute =
   authSignUpPatientCentersRouteImport.update({
     id: '/centers',
     path: '/centers',
     getParentRoute: () => authSignUpPatientRoute,
   } as any)
+const publicReportsViewTokenRoute = publicReportsViewTokenRouteImport.update({
+  id: '/reports/view/$token',
+  path: '/reports/view/$token',
+  getParentRoute: () => publicRouteRoute,
+} as any)
+const AdminBlogIdEditRoute = AdminBlogIdEditRouteImport.update({
+  id: '/$id/edit',
+  path: '/$id/edit',
+  getParentRoute: () => AdminBlogRoute,
+} as any)
+const CenterReportsReportIdPreviewRoute =
+  CenterReportsReportIdPreviewRouteImport.update({
+    id: '/reports_/$reportId/preview',
+    path: '/reports/$reportId/preview',
+    getParentRoute: () => CenterRouteRoute,
+  } as any)
+const DonorCampaignsCampaignIdPaymentStatusRoute =
+  DonorCampaignsCampaignIdPaymentStatusRouteImport.update({
+    id: '/payment-status',
+    path: '/payment-status',
+    getParentRoute: () => DonorCampaignsCampaignIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof publicRouteRouteWithChildren
+  '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/center': typeof CenterRouteRouteWithChildren
   '/donor': typeof DonorRouteRouteWithChildren
@@ -523,6 +548,7 @@ export interface FileRoutesByFullPath {
   '/reset-password-center': typeof authResetPasswordCenterRoute
   '/verify-email': typeof authVerifyEmailRoute
   '/about': typeof publicAboutRoute
+  '/admin/agents': typeof AdminAgentsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
   '/admin/blog': typeof AdminBlogRouteWithChildren
@@ -552,12 +578,14 @@ export interface FileRoutesByFullPath {
   '/center/verify-code': typeof CenterVerifyCodeRoute
   '/center/wallet': typeof CenterWalletRoute
   '/donor/fund': typeof DonorFundRoute
+  '/patient/agent': typeof PatientAgentRoute
   '/patient/appointments': typeof PatientAppointmentsRoute
   '/patient/change-center': typeof PatientChangeCenterRoute
   '/patient/change-password': typeof PatientChangePasswordRoute
   '/patient/notifications': typeof PatientNotificationsRoute
   '/patient/profile': typeof PatientProfileRoute
   '/patient/reports': typeof PatientReportsRoute
+  '/patient/savings': typeof PatientSavingsRouteWithChildren
   '/patient/select-center': typeof PatientSelectCenterRoute
   '/admin/': typeof AdminIndexRoute
   '/center/': typeof CenterIndexRoute
@@ -581,11 +609,12 @@ export interface FileRoutesByFullPath {
   '/patient/book/pay': typeof PatientBookPayRoute
   '/patient/book/payment-status': typeof PatientBookPaymentStatusRoute
   '/patient/reports/$reportId': typeof PatientReportsReportIdRoute
-  '/sign-up': typeof authSignUpIndexRoute
-  '/blog': typeof publicBlogIndexRoute
-  '/centers': typeof publicCentersIndexRoute
-  '/donor/campaigns': typeof DonorCampaignsIndexRoute
-  '/patient/book': typeof PatientBookIndexRoute
+  '/patient/savings/payment-status': typeof PatientSavingsPaymentStatusRoute
+  '/sign-up/': typeof authSignUpIndexRoute
+  '/blog/': typeof publicBlogIndexRoute
+  '/centers/': typeof publicCentersIndexRoute
+  '/donor/campaigns/': typeof DonorCampaignsIndexRoute
+  '/patient/book/': typeof PatientBookIndexRoute
   '/sign-up/patient/centers': typeof authSignUpPatientCentersRoute
   '/reports/view/$token': typeof publicReportsViewTokenRoute
   '/admin/blog/$id/edit': typeof AdminBlogIdEditRoute
@@ -593,7 +622,7 @@ export interface FileRoutesByFullPath {
   '/donor/campaigns/$campaignId/payment-status': typeof DonorCampaignsCampaignIdPaymentStatusRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof publicRouteRouteWithChildren
+  '/': typeof IndexRoute
   '/forgot-password': typeof authForgotPasswordRoute
   '/forgot-password-center': typeof authForgotPasswordCenterRoute
   '/login': typeof authLoginRoute
@@ -601,6 +630,7 @@ export interface FileRoutesByTo {
   '/reset-password-center': typeof authResetPasswordCenterRoute
   '/verify-email': typeof authVerifyEmailRoute
   '/about': typeof publicAboutRoute
+  '/admin/agents': typeof AdminAgentsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
   '/admin/blog': typeof AdminBlogRouteWithChildren
@@ -630,12 +660,14 @@ export interface FileRoutesByTo {
   '/center/verify-code': typeof CenterVerifyCodeRoute
   '/center/wallet': typeof CenterWalletRoute
   '/donor/fund': typeof DonorFundRoute
+  '/patient/agent': typeof PatientAgentRoute
   '/patient/appointments': typeof PatientAppointmentsRoute
   '/patient/change-center': typeof PatientChangeCenterRoute
   '/patient/change-password': typeof PatientChangePasswordRoute
   '/patient/notifications': typeof PatientNotificationsRoute
   '/patient/profile': typeof PatientProfileRoute
   '/patient/reports': typeof PatientReportsRoute
+  '/patient/savings': typeof PatientSavingsRouteWithChildren
   '/patient/select-center': typeof PatientSelectCenterRoute
   '/admin': typeof AdminIndexRoute
   '/center': typeof CenterIndexRoute
@@ -659,6 +691,7 @@ export interface FileRoutesByTo {
   '/patient/book/pay': typeof PatientBookPayRoute
   '/patient/book/payment-status': typeof PatientBookPaymentStatusRoute
   '/patient/reports/$reportId': typeof PatientReportsReportIdRoute
+  '/patient/savings/payment-status': typeof PatientSavingsPaymentStatusRoute
   '/sign-up': typeof authSignUpIndexRoute
   '/blog': typeof publicBlogIndexRoute
   '/centers': typeof publicCentersIndexRoute
@@ -686,6 +719,7 @@ export interface FileRoutesById {
   '/(auth)/reset-password-center': typeof authResetPasswordCenterRoute
   '/(auth)/verify-email': typeof authVerifyEmailRoute
   '/(public)/about': typeof publicAboutRoute
+  '/admin/agents': typeof AdminAgentsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
   '/admin/blog': typeof AdminBlogRouteWithChildren
@@ -715,12 +749,14 @@ export interface FileRoutesById {
   '/center/verify-code': typeof CenterVerifyCodeRoute
   '/center/wallet': typeof CenterWalletRoute
   '/donor/fund': typeof DonorFundRoute
+  '/patient/agent': typeof PatientAgentRoute
   '/patient/appointments': typeof PatientAppointmentsRoute
   '/patient/change-center': typeof PatientChangeCenterRoute
   '/patient/change-password': typeof PatientChangePasswordRoute
   '/patient/notifications': typeof PatientNotificationsRoute
   '/patient/profile': typeof PatientProfileRoute
   '/patient/reports': typeof PatientReportsRoute
+  '/patient/savings': typeof PatientSavingsRouteWithChildren
   '/patient/select-center': typeof PatientSelectCenterRoute
   '/admin/': typeof AdminIndexRoute
   '/center/': typeof CenterIndexRoute
@@ -744,6 +780,7 @@ export interface FileRoutesById {
   '/patient/book/pay': typeof PatientBookPayRoute
   '/patient/book/payment-status': typeof PatientBookPaymentStatusRoute
   '/patient/reports_/$reportId': typeof PatientReportsReportIdRoute
+  '/patient/savings/payment-status': typeof PatientSavingsPaymentStatusRoute
   '/(auth)/sign-up/': typeof authSignUpIndexRoute
   '/(public)/blog/': typeof publicBlogIndexRoute
   '/(public)/centers/': typeof publicCentersIndexRoute
@@ -770,6 +807,7 @@ export interface FileRouteTypes {
     | '/reset-password-center'
     | '/verify-email'
     | '/about'
+    | '/admin/agents'
     | '/admin/analytics'
     | '/admin/appointments'
     | '/admin/blog'
@@ -799,12 +837,14 @@ export interface FileRouteTypes {
     | '/center/verify-code'
     | '/center/wallet'
     | '/donor/fund'
+    | '/patient/agent'
     | '/patient/appointments'
     | '/patient/change-center'
     | '/patient/change-password'
     | '/patient/notifications'
     | '/patient/profile'
     | '/patient/reports'
+    | '/patient/savings'
     | '/patient/select-center'
     | '/admin/'
     | '/center/'
@@ -828,11 +868,12 @@ export interface FileRouteTypes {
     | '/patient/book/pay'
     | '/patient/book/payment-status'
     | '/patient/reports/$reportId'
-    | '/sign-up'
-    | '/blog'
-    | '/centers'
-    | '/donor/campaigns'
-    | '/patient/book'
+    | '/patient/savings/payment-status'
+    | '/sign-up/'
+    | '/blog/'
+    | '/centers/'
+    | '/donor/campaigns/'
+    | '/patient/book/'
     | '/sign-up/patient/centers'
     | '/reports/view/$token'
     | '/admin/blog/$id/edit'
@@ -848,6 +889,7 @@ export interface FileRouteTypes {
     | '/reset-password-center'
     | '/verify-email'
     | '/about'
+    | '/admin/agents'
     | '/admin/analytics'
     | '/admin/appointments'
     | '/admin/blog'
@@ -877,12 +919,14 @@ export interface FileRouteTypes {
     | '/center/verify-code'
     | '/center/wallet'
     | '/donor/fund'
+    | '/patient/agent'
     | '/patient/appointments'
     | '/patient/change-center'
     | '/patient/change-password'
     | '/patient/notifications'
     | '/patient/profile'
     | '/patient/reports'
+    | '/patient/savings'
     | '/patient/select-center'
     | '/admin'
     | '/center'
@@ -906,6 +950,7 @@ export interface FileRouteTypes {
     | '/patient/book/pay'
     | '/patient/book/payment-status'
     | '/patient/reports/$reportId'
+    | '/patient/savings/payment-status'
     | '/sign-up'
     | '/blog'
     | '/centers'
@@ -932,6 +977,7 @@ export interface FileRouteTypes {
     | '/(auth)/reset-password-center'
     | '/(auth)/verify-email'
     | '/(public)/about'
+    | '/admin/agents'
     | '/admin/analytics'
     | '/admin/appointments'
     | '/admin/blog'
@@ -961,12 +1007,14 @@ export interface FileRouteTypes {
     | '/center/verify-code'
     | '/center/wallet'
     | '/donor/fund'
+    | '/patient/agent'
     | '/patient/appointments'
     | '/patient/change-center'
     | '/patient/change-password'
     | '/patient/notifications'
     | '/patient/profile'
     | '/patient/reports'
+    | '/patient/savings'
     | '/patient/select-center'
     | '/admin/'
     | '/center/'
@@ -990,6 +1038,7 @@ export interface FileRouteTypes {
     | '/patient/book/pay'
     | '/patient/book/payment-status'
     | '/patient/reports_/$reportId'
+    | '/patient/savings/payment-status'
     | '/(auth)/sign-up/'
     | '/(public)/blog/'
     | '/(public)/centers/'
@@ -1014,25 +1063,25 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/patient': {
-      id: '/patient'
-      path: '/patient'
-      fullPath: '/patient'
-      preLoaderRoute: typeof PatientRouteRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/donor': {
-      id: '/donor'
-      path: '/donor'
-      fullPath: '/donor'
-      preLoaderRoute: typeof DonorRouteRouteImport
+    '/(auth)': {
+      id: '/(auth)'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof authRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/center': {
-      id: '/center'
-      path: '/center'
-      fullPath: '/center'
-      preLoaderRoute: typeof CenterRouteRouteImport
+    '/(public)': {
+      id: '/(public)'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof publicRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -1042,340 +1091,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/(public)': {
-      id: '/(public)'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof publicRouteRouteImport
+    '/center': {
+      id: '/center'
+      path: '/center'
+      fullPath: '/center'
+      preLoaderRoute: typeof CenterRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/(auth)': {
-      id: '/(auth)'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof authRouteRouteImport
+    '/donor': {
+      id: '/donor'
+      path: '/donor'
+      fullPath: '/donor'
+      preLoaderRoute: typeof DonorRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/patient': {
+      id: '/patient'
+      path: '/patient'
+      fullPath: '/patient'
+      preLoaderRoute: typeof PatientRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/patient/': {
-      id: '/patient/'
-      path: '/'
-      fullPath: '/patient/'
-      preLoaderRoute: typeof PatientIndexRouteImport
-      parentRoute: typeof PatientRouteRoute
-    }
-    '/donor/': {
-      id: '/donor/'
-      path: '/'
-      fullPath: '/donor/'
-      preLoaderRoute: typeof DonorIndexRouteImport
-      parentRoute: typeof DonorRouteRoute
-    }
-    '/center/': {
-      id: '/center/'
-      path: '/'
-      fullPath: '/center/'
-      preLoaderRoute: typeof CenterIndexRouteImport
-      parentRoute: typeof CenterRouteRoute
-    }
-    '/admin/': {
-      id: '/admin/'
-      path: '/'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/patient/select-center': {
-      id: '/patient/select-center'
-      path: '/select-center'
-      fullPath: '/patient/select-center'
-      preLoaderRoute: typeof PatientSelectCenterRouteImport
-      parentRoute: typeof PatientRouteRoute
-    }
-    '/patient/reports': {
-      id: '/patient/reports'
-      path: '/reports'
-      fullPath: '/patient/reports'
-      preLoaderRoute: typeof PatientReportsRouteImport
-      parentRoute: typeof PatientRouteRoute
-    }
-    '/patient/profile': {
-      id: '/patient/profile'
-      path: '/profile'
-      fullPath: '/patient/profile'
-      preLoaderRoute: typeof PatientProfileRouteImport
-      parentRoute: typeof PatientRouteRoute
-    }
-    '/patient/notifications': {
-      id: '/patient/notifications'
-      path: '/notifications'
-      fullPath: '/patient/notifications'
-      preLoaderRoute: typeof PatientNotificationsRouteImport
-      parentRoute: typeof PatientRouteRoute
-    }
-    '/patient/change-password': {
-      id: '/patient/change-password'
-      path: '/change-password'
-      fullPath: '/patient/change-password'
-      preLoaderRoute: typeof PatientChangePasswordRouteImport
-      parentRoute: typeof PatientRouteRoute
-    }
-    '/patient/change-center': {
-      id: '/patient/change-center'
-      path: '/change-center'
-      fullPath: '/patient/change-center'
-      preLoaderRoute: typeof PatientChangeCenterRouteImport
-      parentRoute: typeof PatientRouteRoute
-    }
-    '/patient/appointments': {
-      id: '/patient/appointments'
-      path: '/appointments'
-      fullPath: '/patient/appointments'
-      preLoaderRoute: typeof PatientAppointmentsRouteImport
-      parentRoute: typeof PatientRouteRoute
-    }
-    '/donor/fund': {
-      id: '/donor/fund'
-      path: '/fund'
-      fullPath: '/donor/fund'
-      preLoaderRoute: typeof DonorFundRouteImport
-      parentRoute: typeof DonorRouteRoute
-    }
-    '/center/wallet': {
-      id: '/center/wallet'
-      path: '/wallet'
-      fullPath: '/center/wallet'
-      preLoaderRoute: typeof CenterWalletRouteImport
-      parentRoute: typeof CenterRouteRoute
-    }
-    '/center/verify-code': {
-      id: '/center/verify-code'
-      path: '/verify-code'
-      fullPath: '/center/verify-code'
-      preLoaderRoute: typeof CenterVerifyCodeRouteImport
-      parentRoute: typeof CenterRouteRoute
-    }
-    '/center/upload-results': {
-      id: '/center/upload-results'
-      path: '/upload-results'
-      fullPath: '/center/upload-results'
-      preLoaderRoute: typeof CenterUploadResultsRouteImport
-      parentRoute: typeof CenterRouteRoute
-    }
-    '/center/staff': {
-      id: '/center/staff'
-      path: '/staff'
-      fullPath: '/center/staff'
-      preLoaderRoute: typeof CenterStaffRouteImport
-      parentRoute: typeof CenterRouteRoute
-    }
-    '/center/services': {
-      id: '/center/services'
-      path: '/services'
-      fullPath: '/center/services'
-      preLoaderRoute: typeof CenterServicesRouteImport
-      parentRoute: typeof CenterRouteRoute
-    }
-    '/center/reports': {
-      id: '/center/reports'
-      path: '/reports'
-      fullPath: '/center/reports'
-      preLoaderRoute: typeof CenterReportsRouteImport
-      parentRoute: typeof CenterRouteRoute
-    }
-    '/center/register-patient': {
-      id: '/center/register-patient'
-      path: '/register-patient'
-      fullPath: '/center/register-patient'
-      preLoaderRoute: typeof CenterRegisterPatientRouteImport
-      parentRoute: typeof CenterRouteRoute
-    }
-    '/center/refer-patient': {
-      id: '/center/refer-patient'
-      path: '/refer-patient'
-      fullPath: '/center/refer-patient'
-      preLoaderRoute: typeof CenterReferPatientRouteImport
-      parentRoute: typeof CenterRouteRoute
-    }
-    '/center/receipt-history': {
-      id: '/center/receipt-history'
-      path: '/receipt-history'
-      fullPath: '/center/receipt-history'
-      preLoaderRoute: typeof CenterReceiptHistoryRouteImport
-      parentRoute: typeof CenterRouteRoute
-    }
-    '/center/profile': {
-      id: '/center/profile'
-      path: '/profile'
-      fullPath: '/center/profile'
-      preLoaderRoute: typeof CenterProfileRouteImport
-      parentRoute: typeof CenterRouteRoute
-    }
-    '/center/patients': {
-      id: '/center/patients'
-      path: '/patients'
-      fullPath: '/center/patients'
-      preLoaderRoute: typeof CenterPatientsRouteImport
-      parentRoute: typeof CenterRouteRoute
-    }
-    '/center/notifications': {
-      id: '/center/notifications'
-      path: '/notifications'
-      fullPath: '/center/notifications'
-      preLoaderRoute: typeof CenterNotificationsRouteImport
-      parentRoute: typeof CenterRouteRoute
-    }
-    '/center/appointments': {
-      id: '/center/appointments'
-      path: '/appointments'
-      fullPath: '/center/appointments'
-      preLoaderRoute: typeof CenterAppointmentsRouteImport
-      parentRoute: typeof CenterRouteRoute
-    }
-    '/admin/waitlist': {
-      id: '/admin/waitlist'
-      path: '/waitlist'
-      fullPath: '/admin/waitlist'
-      preLoaderRoute: typeof AdminWaitlistRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/users': {
-      id: '/admin/users'
-      path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminUsersRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/transactions': {
-      id: '/admin/transactions'
-      path: '/transactions'
-      fullPath: '/admin/transactions'
-      preLoaderRoute: typeof AdminTransactionsRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/store': {
-      id: '/admin/store'
-      path: '/store'
-      fullPath: '/admin/store'
-      preLoaderRoute: typeof AdminStoreRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/roles': {
-      id: '/admin/roles'
-      path: '/roles'
-      fullPath: '/admin/roles'
-      preLoaderRoute: typeof AdminRolesRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/results': {
-      id: '/admin/results'
-      path: '/results'
-      fullPath: '/admin/results'
-      preLoaderRoute: typeof AdminResultsRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/reset-password': {
-      id: '/admin/reset-password'
-      path: '/reset-password'
-      fullPath: '/admin/reset-password'
-      preLoaderRoute: typeof AdminResetPasswordRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/notifications': {
-      id: '/admin/notifications'
-      path: '/notifications'
-      fullPath: '/admin/notifications'
-      preLoaderRoute: typeof AdminNotificationsRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/login': {
-      id: '/admin/login'
-      path: '/login'
-      fullPath: '/admin/login'
-      preLoaderRoute: typeof AdminLoginRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/forgot-password': {
-      id: '/admin/forgot-password'
+    '/(auth)/forgot-password': {
+      id: '/(auth)/forgot-password'
       path: '/forgot-password'
-      fullPath: '/admin/forgot-password'
-      preLoaderRoute: typeof AdminForgotPasswordRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/centers': {
-      id: '/admin/centers'
-      path: '/centers'
-      fullPath: '/admin/centers'
-      preLoaderRoute: typeof AdminCentersRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/campaigns': {
-      id: '/admin/campaigns'
-      path: '/campaigns'
-      fullPath: '/admin/campaigns'
-      preLoaderRoute: typeof AdminCampaignsRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/blog': {
-      id: '/admin/blog'
-      path: '/blog'
-      fullPath: '/admin/blog'
-      preLoaderRoute: typeof AdminBlogRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/appointments': {
-      id: '/admin/appointments'
-      path: '/appointments'
-      fullPath: '/admin/appointments'
-      preLoaderRoute: typeof AdminAppointmentsRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/analytics': {
-      id: '/admin/analytics'
-      path: '/analytics'
-      fullPath: '/admin/analytics'
-      preLoaderRoute: typeof AdminAnalyticsRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/(public)/about': {
-      id: '/(public)/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof publicAboutRouteImport
-      parentRoute: typeof publicRouteRoute
-    }
-    '/(auth)/verify-email': {
-      id: '/(auth)/verify-email'
-      path: '/verify-email'
-      fullPath: '/verify-email'
-      preLoaderRoute: typeof authVerifyEmailRouteImport
-      parentRoute: typeof authRouteRoute
-    }
-    '/(auth)/reset-password-center': {
-      id: '/(auth)/reset-password-center'
-      path: '/reset-password-center'
-      fullPath: '/reset-password-center'
-      preLoaderRoute: typeof authResetPasswordCenterRouteImport
-      parentRoute: typeof authRouteRoute
-    }
-    '/(auth)/reset-password': {
-      id: '/(auth)/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof authResetPasswordRouteImport
-      parentRoute: typeof authRouteRoute
-    }
-    '/(auth)/login': {
-      id: '/(auth)/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof authLoginRouteImport
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof authForgotPasswordRouteImport
       parentRoute: typeof authRouteRoute
     }
     '/(auth)/forgot-password-center': {
@@ -1385,165 +1126,347 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authForgotPasswordCenterRouteImport
       parentRoute: typeof authRouteRoute
     }
-    '/(auth)/forgot-password': {
-      id: '/(auth)/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof authForgotPasswordRouteImport
+    '/(auth)/login': {
+      id: '/(auth)/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof authLoginRouteImport
       parentRoute: typeof authRouteRoute
     }
-    '/patient/book/': {
-      id: '/patient/book/'
-      path: '/book'
-      fullPath: '/patient/book'
-      preLoaderRoute: typeof PatientBookIndexRouteImport
-      parentRoute: typeof PatientRouteRoute
+    '/(auth)/reset-password': {
+      id: '/(auth)/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof authResetPasswordRouteImport
+      parentRoute: typeof authRouteRoute
     }
-    '/donor/campaigns/': {
-      id: '/donor/campaigns/'
+    '/(auth)/reset-password-center': {
+      id: '/(auth)/reset-password-center'
+      path: '/reset-password-center'
+      fullPath: '/reset-password-center'
+      preLoaderRoute: typeof authResetPasswordCenterRouteImport
+      parentRoute: typeof authRouteRoute
+    }
+    '/(auth)/verify-email': {
+      id: '/(auth)/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof authVerifyEmailRouteImport
+      parentRoute: typeof authRouteRoute
+    }
+    '/(public)/about': {
+      id: '/(public)/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof publicAboutRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/agents': {
+      id: '/admin/agents'
+      path: '/agents'
+      fullPath: '/admin/agents'
+      preLoaderRoute: typeof AdminAgentsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/analytics': {
+      id: '/admin/analytics'
+      path: '/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AdminAnalyticsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/appointments': {
+      id: '/admin/appointments'
+      path: '/appointments'
+      fullPath: '/admin/appointments'
+      preLoaderRoute: typeof AdminAppointmentsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/blog': {
+      id: '/admin/blog'
+      path: '/blog'
+      fullPath: '/admin/blog'
+      preLoaderRoute: typeof AdminBlogRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/campaigns': {
+      id: '/admin/campaigns'
       path: '/campaigns'
-      fullPath: '/donor/campaigns'
-      preLoaderRoute: typeof DonorCampaignsIndexRouteImport
+      fullPath: '/admin/campaigns'
+      preLoaderRoute: typeof AdminCampaignsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/centers': {
+      id: '/admin/centers'
+      path: '/centers'
+      fullPath: '/admin/centers'
+      preLoaderRoute: typeof AdminCentersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/forgot-password': {
+      id: '/admin/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/admin/forgot-password'
+      preLoaderRoute: typeof AdminForgotPasswordRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/notifications': {
+      id: '/admin/notifications'
+      path: '/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AdminNotificationsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/reset-password': {
+      id: '/admin/reset-password'
+      path: '/reset-password'
+      fullPath: '/admin/reset-password'
+      preLoaderRoute: typeof AdminResetPasswordRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/results': {
+      id: '/admin/results'
+      path: '/results'
+      fullPath: '/admin/results'
+      preLoaderRoute: typeof AdminResultsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/roles': {
+      id: '/admin/roles'
+      path: '/roles'
+      fullPath: '/admin/roles'
+      preLoaderRoute: typeof AdminRolesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/store': {
+      id: '/admin/store'
+      path: '/store'
+      fullPath: '/admin/store'
+      preLoaderRoute: typeof AdminStoreRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/transactions': {
+      id: '/admin/transactions'
+      path: '/transactions'
+      fullPath: '/admin/transactions'
+      preLoaderRoute: typeof AdminTransactionsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/waitlist': {
+      id: '/admin/waitlist'
+      path: '/waitlist'
+      fullPath: '/admin/waitlist'
+      preLoaderRoute: typeof AdminWaitlistRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/center/': {
+      id: '/center/'
+      path: '/'
+      fullPath: '/center/'
+      preLoaderRoute: typeof CenterIndexRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/appointments': {
+      id: '/center/appointments'
+      path: '/appointments'
+      fullPath: '/center/appointments'
+      preLoaderRoute: typeof CenterAppointmentsRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/notifications': {
+      id: '/center/notifications'
+      path: '/notifications'
+      fullPath: '/center/notifications'
+      preLoaderRoute: typeof CenterNotificationsRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/patients': {
+      id: '/center/patients'
+      path: '/patients'
+      fullPath: '/center/patients'
+      preLoaderRoute: typeof CenterPatientsRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/profile': {
+      id: '/center/profile'
+      path: '/profile'
+      fullPath: '/center/profile'
+      preLoaderRoute: typeof CenterProfileRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/receipt-history': {
+      id: '/center/receipt-history'
+      path: '/receipt-history'
+      fullPath: '/center/receipt-history'
+      preLoaderRoute: typeof CenterReceiptHistoryRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/refer-patient': {
+      id: '/center/refer-patient'
+      path: '/refer-patient'
+      fullPath: '/center/refer-patient'
+      preLoaderRoute: typeof CenterReferPatientRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/register-patient': {
+      id: '/center/register-patient'
+      path: '/register-patient'
+      fullPath: '/center/register-patient'
+      preLoaderRoute: typeof CenterRegisterPatientRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/reports': {
+      id: '/center/reports'
+      path: '/reports'
+      fullPath: '/center/reports'
+      preLoaderRoute: typeof CenterReportsRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/services': {
+      id: '/center/services'
+      path: '/services'
+      fullPath: '/center/services'
+      preLoaderRoute: typeof CenterServicesRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/staff': {
+      id: '/center/staff'
+      path: '/staff'
+      fullPath: '/center/staff'
+      preLoaderRoute: typeof CenterStaffRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/upload-results': {
+      id: '/center/upload-results'
+      path: '/upload-results'
+      fullPath: '/center/upload-results'
+      preLoaderRoute: typeof CenterUploadResultsRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/verify-code': {
+      id: '/center/verify-code'
+      path: '/verify-code'
+      fullPath: '/center/verify-code'
+      preLoaderRoute: typeof CenterVerifyCodeRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/wallet': {
+      id: '/center/wallet'
+      path: '/wallet'
+      fullPath: '/center/wallet'
+      preLoaderRoute: typeof CenterWalletRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/donor/': {
+      id: '/donor/'
+      path: '/'
+      fullPath: '/donor/'
+      preLoaderRoute: typeof DonorIndexRouteImport
       parentRoute: typeof DonorRouteRoute
     }
-    '/(public)/centers/': {
-      id: '/(public)/centers/'
-      path: '/centers'
-      fullPath: '/centers'
-      preLoaderRoute: typeof publicCentersIndexRouteImport
-      parentRoute: typeof publicRouteRoute
+    '/donor/fund': {
+      id: '/donor/fund'
+      path: '/fund'
+      fullPath: '/donor/fund'
+      preLoaderRoute: typeof DonorFundRouteImport
+      parentRoute: typeof DonorRouteRoute
     }
-    '/(public)/blog/': {
-      id: '/(public)/blog/'
-      path: '/blog'
-      fullPath: '/blog'
-      preLoaderRoute: typeof publicBlogIndexRouteImport
-      parentRoute: typeof publicRouteRoute
+    '/patient/': {
+      id: '/patient/'
+      path: '/'
+      fullPath: '/patient/'
+      preLoaderRoute: typeof PatientIndexRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/agent': {
+      id: '/patient/agent'
+      path: '/agent'
+      fullPath: '/patient/agent'
+      preLoaderRoute: typeof PatientAgentRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/appointments': {
+      id: '/patient/appointments'
+      path: '/appointments'
+      fullPath: '/patient/appointments'
+      preLoaderRoute: typeof PatientAppointmentsRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/change-center': {
+      id: '/patient/change-center'
+      path: '/change-center'
+      fullPath: '/patient/change-center'
+      preLoaderRoute: typeof PatientChangeCenterRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/change-password': {
+      id: '/patient/change-password'
+      path: '/change-password'
+      fullPath: '/patient/change-password'
+      preLoaderRoute: typeof PatientChangePasswordRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/notifications': {
+      id: '/patient/notifications'
+      path: '/notifications'
+      fullPath: '/patient/notifications'
+      preLoaderRoute: typeof PatientNotificationsRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/profile': {
+      id: '/patient/profile'
+      path: '/profile'
+      fullPath: '/patient/profile'
+      preLoaderRoute: typeof PatientProfileRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/reports': {
+      id: '/patient/reports'
+      path: '/reports'
+      fullPath: '/patient/reports'
+      preLoaderRoute: typeof PatientReportsRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/savings': {
+      id: '/patient/savings'
+      path: '/savings'
+      fullPath: '/patient/savings'
+      preLoaderRoute: typeof PatientSavingsRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/select-center': {
+      id: '/patient/select-center'
+      path: '/select-center'
+      fullPath: '/patient/select-center'
+      preLoaderRoute: typeof PatientSelectCenterRouteImport
+      parentRoute: typeof PatientRouteRoute
     }
     '/(auth)/sign-up/': {
       id: '/(auth)/sign-up/'
       path: '/sign-up'
-      fullPath: '/sign-up'
+      fullPath: '/sign-up/'
       preLoaderRoute: typeof authSignUpIndexRouteImport
-      parentRoute: typeof authRouteRoute
-    }
-    '/patient/reports_/$reportId': {
-      id: '/patient/reports_/$reportId'
-      path: '/reports/$reportId'
-      fullPath: '/patient/reports/$reportId'
-      preLoaderRoute: typeof PatientReportsReportIdRouteImport
-      parentRoute: typeof PatientRouteRoute
-    }
-    '/patient/book/payment-status': {
-      id: '/patient/book/payment-status'
-      path: '/book/payment-status'
-      fullPath: '/patient/book/payment-status'
-      preLoaderRoute: typeof PatientBookPaymentStatusRouteImport
-      parentRoute: typeof PatientRouteRoute
-    }
-    '/patient/book/pay': {
-      id: '/patient/book/pay'
-      path: '/book/pay'
-      fullPath: '/patient/book/pay'
-      preLoaderRoute: typeof PatientBookPayRouteImport
-      parentRoute: typeof PatientRouteRoute
-    }
-    '/patient/book/centers': {
-      id: '/patient/book/centers'
-      path: '/book/centers'
-      fullPath: '/patient/book/centers'
-      preLoaderRoute: typeof PatientBookCentersRouteImport
-      parentRoute: typeof PatientRouteRoute
-    }
-    '/patient/appointments_/$id': {
-      id: '/patient/appointments_/$id'
-      path: '/appointments/$id'
-      fullPath: '/patient/appointments/$id'
-      preLoaderRoute: typeof PatientAppointmentsIdRouteImport
-      parentRoute: typeof PatientRouteRoute
-    }
-    '/donor/campaigns/payment-status': {
-      id: '/donor/campaigns/payment-status'
-      path: '/campaigns/payment-status'
-      fullPath: '/donor/campaigns/payment-status'
-      preLoaderRoute: typeof DonorCampaignsPaymentStatusRouteImport
-      parentRoute: typeof DonorRouteRoute
-    }
-    '/donor/campaigns/create': {
-      id: '/donor/campaigns/create'
-      path: '/campaigns/create'
-      fullPath: '/donor/campaigns/create'
-      preLoaderRoute: typeof DonorCampaignsCreateRouteImport
-      parentRoute: typeof DonorRouteRoute
-    }
-    '/donor/campaigns/$campaignId': {
-      id: '/donor/campaigns/$campaignId'
-      path: '/campaigns/$campaignId'
-      fullPath: '/donor/campaigns/$campaignId'
-      preLoaderRoute: typeof DonorCampaignsCampaignIdRouteImport
-      parentRoute: typeof DonorRouteRoute
-    }
-    '/admin/blog/new': {
-      id: '/admin/blog/new'
-      path: '/new'
-      fullPath: '/admin/blog/new'
-      preLoaderRoute: typeof AdminBlogNewRouteImport
-      parentRoute: typeof AdminBlogRoute
-    }
-    '/(public)/donation/payment-status': {
-      id: '/(public)/donation/payment-status'
-      path: '/donation/payment-status'
-      fullPath: '/donation/payment-status'
-      preLoaderRoute: typeof publicDonationPaymentStatusRouteImport
-      parentRoute: typeof publicRouteRoute
-    }
-    '/(public)/centers/$centerId': {
-      id: '/(public)/centers/$centerId'
-      path: '/centers/$centerId'
-      fullPath: '/centers/$centerId'
-      preLoaderRoute: typeof publicCentersCenterIdRouteImport
-      parentRoute: typeof publicRouteRoute
-    }
-    '/(public)/blog/$slug': {
-      id: '/(public)/blog/$slug'
-      path: '/blog/$slug'
-      fullPath: '/blog/$slug'
-      preLoaderRoute: typeof publicBlogSlugRouteImport
-      parentRoute: typeof publicRouteRoute
-    }
-    '/(auth)/staff/login': {
-      id: '/(auth)/staff/login'
-      path: '/staff/login'
-      fullPath: '/staff/login'
-      preLoaderRoute: typeof authStaffLoginRouteImport
-      parentRoute: typeof authRouteRoute
-    }
-    '/(auth)/staff/forgot-password': {
-      id: '/(auth)/staff/forgot-password'
-      path: '/staff/forgot-password'
-      fullPath: '/staff/forgot-password'
-      preLoaderRoute: typeof authStaffForgotPasswordRouteImport
-      parentRoute: typeof authRouteRoute
-    }
-    '/(auth)/staff/create-new-password': {
-      id: '/(auth)/staff/create-new-password'
-      path: '/staff/create-new-password'
-      fullPath: '/staff/create-new-password'
-      preLoaderRoute: typeof authStaffCreateNewPasswordRouteImport
-      parentRoute: typeof authRouteRoute
-    }
-    '/(auth)/sign-up/patient': {
-      id: '/(auth)/sign-up/patient'
-      path: '/sign-up/patient'
-      fullPath: '/sign-up/patient'
-      preLoaderRoute: typeof authSignUpPatientRouteImport
-      parentRoute: typeof authRouteRoute
-    }
-    '/(auth)/sign-up/donor': {
-      id: '/(auth)/sign-up/donor'
-      path: '/sign-up/donor'
-      fullPath: '/sign-up/donor'
-      preLoaderRoute: typeof authSignUpDonorRouteImport
       parentRoute: typeof authRouteRoute
     }
     '/(auth)/sign-up/center': {
@@ -1553,26 +1476,166 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authSignUpCenterRouteImport
       parentRoute: typeof authRouteRoute
     }
-    '/donor/campaigns/$campaignId/payment-status': {
-      id: '/donor/campaigns/$campaignId/payment-status'
-      path: '/payment-status'
-      fullPath: '/donor/campaigns/$campaignId/payment-status'
-      preLoaderRoute: typeof DonorCampaignsCampaignIdPaymentStatusRouteImport
-      parentRoute: typeof DonorCampaignsCampaignIdRoute
+    '/(auth)/sign-up/donor': {
+      id: '/(auth)/sign-up/donor'
+      path: '/sign-up/donor'
+      fullPath: '/sign-up/donor'
+      preLoaderRoute: typeof authSignUpDonorRouteImport
+      parentRoute: typeof authRouteRoute
     }
-    '/center/reports_/$reportId/preview': {
-      id: '/center/reports_/$reportId/preview'
-      path: '/reports/$reportId/preview'
-      fullPath: '/center/reports/$reportId/preview'
-      preLoaderRoute: typeof CenterReportsReportIdPreviewRouteImport
-      parentRoute: typeof CenterRouteRoute
+    '/(auth)/sign-up/patient': {
+      id: '/(auth)/sign-up/patient'
+      path: '/sign-up/patient'
+      fullPath: '/sign-up/patient'
+      preLoaderRoute: typeof authSignUpPatientRouteImport
+      parentRoute: typeof authRouteRoute
     }
-    '/admin/blog/$id/edit': {
-      id: '/admin/blog/$id/edit'
-      path: '/$id/edit'
-      fullPath: '/admin/blog/$id/edit'
-      preLoaderRoute: typeof AdminBlogIdEditRouteImport
+    '/(auth)/staff/create-new-password': {
+      id: '/(auth)/staff/create-new-password'
+      path: '/staff/create-new-password'
+      fullPath: '/staff/create-new-password'
+      preLoaderRoute: typeof authStaffCreateNewPasswordRouteImport
+      parentRoute: typeof authRouteRoute
+    }
+    '/(auth)/staff/forgot-password': {
+      id: '/(auth)/staff/forgot-password'
+      path: '/staff/forgot-password'
+      fullPath: '/staff/forgot-password'
+      preLoaderRoute: typeof authStaffForgotPasswordRouteImport
+      parentRoute: typeof authRouteRoute
+    }
+    '/(auth)/staff/login': {
+      id: '/(auth)/staff/login'
+      path: '/staff/login'
+      fullPath: '/staff/login'
+      preLoaderRoute: typeof authStaffLoginRouteImport
+      parentRoute: typeof authRouteRoute
+    }
+    '/(public)/blog/': {
+      id: '/(public)/blog/'
+      path: '/blog'
+      fullPath: '/blog/'
+      preLoaderRoute: typeof publicBlogIndexRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
+    '/(public)/blog/$slug': {
+      id: '/(public)/blog/$slug'
+      path: '/blog/$slug'
+      fullPath: '/blog/$slug'
+      preLoaderRoute: typeof publicBlogSlugRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
+    '/(public)/centers/': {
+      id: '/(public)/centers/'
+      path: '/centers'
+      fullPath: '/centers/'
+      preLoaderRoute: typeof publicCentersIndexRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
+    '/(public)/centers/$centerId': {
+      id: '/(public)/centers/$centerId'
+      path: '/centers/$centerId'
+      fullPath: '/centers/$centerId'
+      preLoaderRoute: typeof publicCentersCenterIdRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
+    '/(public)/donation/payment-status': {
+      id: '/(public)/donation/payment-status'
+      path: '/donation/payment-status'
+      fullPath: '/donation/payment-status'
+      preLoaderRoute: typeof publicDonationPaymentStatusRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
+    '/admin/blog/new': {
+      id: '/admin/blog/new'
+      path: '/new'
+      fullPath: '/admin/blog/new'
+      preLoaderRoute: typeof AdminBlogNewRouteImport
       parentRoute: typeof AdminBlogRoute
+    }
+    '/donor/campaigns/': {
+      id: '/donor/campaigns/'
+      path: '/campaigns'
+      fullPath: '/donor/campaigns/'
+      preLoaderRoute: typeof DonorCampaignsIndexRouteImport
+      parentRoute: typeof DonorRouteRoute
+    }
+    '/donor/campaigns/$campaignId': {
+      id: '/donor/campaigns/$campaignId'
+      path: '/campaigns/$campaignId'
+      fullPath: '/donor/campaigns/$campaignId'
+      preLoaderRoute: typeof DonorCampaignsCampaignIdRouteImport
+      parentRoute: typeof DonorRouteRoute
+    }
+    '/donor/campaigns/create': {
+      id: '/donor/campaigns/create'
+      path: '/campaigns/create'
+      fullPath: '/donor/campaigns/create'
+      preLoaderRoute: typeof DonorCampaignsCreateRouteImport
+      parentRoute: typeof DonorRouteRoute
+    }
+    '/donor/campaigns/payment-status': {
+      id: '/donor/campaigns/payment-status'
+      path: '/campaigns/payment-status'
+      fullPath: '/donor/campaigns/payment-status'
+      preLoaderRoute: typeof DonorCampaignsPaymentStatusRouteImport
+      parentRoute: typeof DonorRouteRoute
+    }
+    '/patient/appointments_/$id': {
+      id: '/patient/appointments_/$id'
+      path: '/appointments/$id'
+      fullPath: '/patient/appointments/$id'
+      preLoaderRoute: typeof PatientAppointmentsIdRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/book/': {
+      id: '/patient/book/'
+      path: '/book'
+      fullPath: '/patient/book/'
+      preLoaderRoute: typeof PatientBookIndexRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/book/centers': {
+      id: '/patient/book/centers'
+      path: '/book/centers'
+      fullPath: '/patient/book/centers'
+      preLoaderRoute: typeof PatientBookCentersRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/book/pay': {
+      id: '/patient/book/pay'
+      path: '/book/pay'
+      fullPath: '/patient/book/pay'
+      preLoaderRoute: typeof PatientBookPayRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/book/payment-status': {
+      id: '/patient/book/payment-status'
+      path: '/book/payment-status'
+      fullPath: '/patient/book/payment-status'
+      preLoaderRoute: typeof PatientBookPaymentStatusRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/reports_/$reportId': {
+      id: '/patient/reports_/$reportId'
+      path: '/reports/$reportId'
+      fullPath: '/patient/reports/$reportId'
+      preLoaderRoute: typeof PatientReportsReportIdRouteImport
+      parentRoute: typeof PatientRouteRoute
+    }
+    '/patient/savings/payment-status': {
+      id: '/patient/savings/payment-status'
+      path: '/payment-status'
+      fullPath: '/patient/savings/payment-status'
+      preLoaderRoute: typeof PatientSavingsPaymentStatusRouteImport
+      parentRoute: typeof PatientSavingsRoute
+    }
+    '/(auth)/sign-up/patient/centers': {
+      id: '/(auth)/sign-up/patient/centers'
+      path: '/centers'
+      fullPath: '/sign-up/patient/centers'
+      preLoaderRoute: typeof authSignUpPatientCentersRouteImport
+      parentRoute: typeof authSignUpPatientRoute
     }
     '/(public)/reports/view/$token': {
       id: '/(public)/reports/view/$token'
@@ -1581,12 +1644,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof publicReportsViewTokenRouteImport
       parentRoute: typeof publicRouteRoute
     }
-    '/(auth)/sign-up/patient/centers': {
-      id: '/(auth)/sign-up/patient/centers'
-      path: '/centers'
-      fullPath: '/sign-up/patient/centers'
-      preLoaderRoute: typeof authSignUpPatientCentersRouteImport
-      parentRoute: typeof authSignUpPatientRoute
+    '/admin/blog/$id/edit': {
+      id: '/admin/blog/$id/edit'
+      path: '/$id/edit'
+      fullPath: '/admin/blog/$id/edit'
+      preLoaderRoute: typeof AdminBlogIdEditRouteImport
+      parentRoute: typeof AdminBlogRoute
+    }
+    '/center/reports_/$reportId/preview': {
+      id: '/center/reports_/$reportId/preview'
+      path: '/reports/$reportId/preview'
+      fullPath: '/center/reports/$reportId/preview'
+      preLoaderRoute: typeof CenterReportsReportIdPreviewRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/donor/campaigns/$campaignId/payment-status': {
+      id: '/donor/campaigns/$campaignId/payment-status'
+      path: '/payment-status'
+      fullPath: '/donor/campaigns/$campaignId/payment-status'
+      preLoaderRoute: typeof DonorCampaignsCampaignIdPaymentStatusRouteImport
+      parentRoute: typeof DonorCampaignsCampaignIdRoute
     }
   }
 }
@@ -1677,6 +1754,7 @@ const AdminBlogRouteWithChildren = AdminBlogRoute._addFileChildren(
 )
 
 interface AdminRouteRouteChildren {
+  AdminAgentsRoute: typeof AdminAgentsRoute
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminAppointmentsRoute: typeof AdminAppointmentsRoute
   AdminBlogRoute: typeof AdminBlogRouteWithChildren
@@ -1696,6 +1774,7 @@ interface AdminRouteRouteChildren {
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminAgentsRoute: AdminAgentsRoute,
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminAppointmentsRoute: AdminAppointmentsRoute,
   AdminBlogRoute: AdminBlogRouteWithChildren,
@@ -1795,13 +1874,27 @@ const DonorRouteRouteWithChildren = DonorRouteRoute._addFileChildren(
   DonorRouteRouteChildren,
 )
 
+interface PatientSavingsRouteChildren {
+  PatientSavingsPaymentStatusRoute: typeof PatientSavingsPaymentStatusRoute
+}
+
+const PatientSavingsRouteChildren: PatientSavingsRouteChildren = {
+  PatientSavingsPaymentStatusRoute: PatientSavingsPaymentStatusRoute,
+}
+
+const PatientSavingsRouteWithChildren = PatientSavingsRoute._addFileChildren(
+  PatientSavingsRouteChildren,
+)
+
 interface PatientRouteRouteChildren {
+  PatientAgentRoute: typeof PatientAgentRoute
   PatientAppointmentsRoute: typeof PatientAppointmentsRoute
   PatientChangeCenterRoute: typeof PatientChangeCenterRoute
   PatientChangePasswordRoute: typeof PatientChangePasswordRoute
   PatientNotificationsRoute: typeof PatientNotificationsRoute
   PatientProfileRoute: typeof PatientProfileRoute
   PatientReportsRoute: typeof PatientReportsRoute
+  PatientSavingsRoute: typeof PatientSavingsRouteWithChildren
   PatientSelectCenterRoute: typeof PatientSelectCenterRoute
   PatientIndexRoute: typeof PatientIndexRoute
   PatientAppointmentsIdRoute: typeof PatientAppointmentsIdRoute
@@ -1813,12 +1906,14 @@ interface PatientRouteRouteChildren {
 }
 
 const PatientRouteRouteChildren: PatientRouteRouteChildren = {
+  PatientAgentRoute: PatientAgentRoute,
   PatientAppointmentsRoute: PatientAppointmentsRoute,
   PatientChangeCenterRoute: PatientChangeCenterRoute,
   PatientChangePasswordRoute: PatientChangePasswordRoute,
   PatientNotificationsRoute: PatientNotificationsRoute,
   PatientProfileRoute: PatientProfileRoute,
   PatientReportsRoute: PatientReportsRoute,
+  PatientSavingsRoute: PatientSavingsRouteWithChildren,
   PatientSelectCenterRoute: PatientSelectCenterRoute,
   PatientIndexRoute: PatientIndexRoute,
   PatientAppointmentsIdRoute: PatientAppointmentsIdRoute,

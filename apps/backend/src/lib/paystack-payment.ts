@@ -2,11 +2,14 @@ import type { Context } from "hono";
 import { getDB } from "./db";
 import { addToGeneralDonorPool } from "./paystack";
 import { generateHexId, triggerWaitlistMatching } from "./utils";
+import { creditCommissionForSponsoredCampaign } from "./commission.service";
+import { completeSavingsDepositByReference } from "./savings.service";
 
 type PaystackChargeMetadata = {
   payment_type?: string;
   campaign_id?: string | null;
   appointmentId?: string;
+  plan_id?: string;
   [key: string]: unknown;
 };
 
@@ -29,6 +32,16 @@ export async function processSuccessfulPaystackCharge(
   const { reference, amountKobo, metadata = {} } = input;
   const paymentType = metadata.payment_type;
   const amountNaira = amountKobo / 100;
+
+  // Savings deposits are tracked on SavingsDeposit, not Transaction
+  if (paymentType === "savings_deposit") {
+    await completeSavingsDepositByReference(
+      c,
+      reference,
+      undefined
+    );
+    return { alreadyProcessed: false, paymentType };
+  }
 
   const existing = await db.transaction.findFirst({
     where: { paymentReference: reference },
@@ -67,6 +80,12 @@ export async function processSuccessfulPaystackCharge(
         status: "ACTIVE",
       },
     });
+
+    try {
+      await creditCommissionForSponsoredCampaign(c, campaignId, amountNaira);
+    } catch (error) {
+      console.error("[PAYSTACK] Sponsor commission failed:", error);
+    }
 
     try {
       await triggerWaitlistMatching(c);

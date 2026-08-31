@@ -83,6 +83,14 @@ export function AdminLayout() {
                 Waitlist
               </Link>
               <Link
+                to="/admin/agents"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+                activeProps={{ className: 'bg-muted text-primary' }}
+              >
+                <Users className="h-4 w-4" />
+                Agents
+              </Link>
+              <Link
                 to="/admin/appointments"
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
                 activeProps={{ className: 'bg-muted text-primary' }}

@@ -20,6 +20,8 @@ export function PatientLayout() {
     { to: '/patient/book', label: 'Book Screening', icon: stethoscope },
     { to: '/patient/appointments', label: 'Appointments', icon: calendar },
     { to: '/patient/reports', label: 'Reports', icon: reportIcon },
+    { to: '/patient/savings', label: 'Save to screen', icon: people },
+    { to: '/patient/agent', label: 'Earn / Refer', icon: people },
     { to: '/patient/notifications', label: 'Notifications', icon: notification },
     { to: '/patient/profile', label: 'Profile', icon: people },
   ]

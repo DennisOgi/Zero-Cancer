@@ -1719,6 +1719,10 @@ export const getDB = (c: Context) => {
             status: data.status,
             basePriceSnapshot: data.basePriceSnapshot ?? null,
             retailPriceSnapshot: data.retailPriceSnapshot ?? null,
+            isHomeVisit: data.isHomeVisit ?? false,
+            homeAddress: data.homeAddress ?? null,
+            referralId: data.referralId ?? null,
+            attributedAgentId: data.attributedAgentId ?? null,
             checkInCode: data.checkInCode ?? null,
             checkInCodeExpiresAt: data.checkInCodeExpiresAt
               ? data.checkInCodeExpiresAt instanceof Date
@@ -2247,6 +2251,7 @@ export const getDB = (c: Context) => {
           targetGroupId: data.targetGroupId ?? null,
           targetIndividualId: data.targetIndividualId ?? null,
           targetPhone: data.targetPhone ?? null,
+          invitedByAgentId: data.invitedByAgentId ?? null,
           createdAt: now,
           updatedAt: now,
         };

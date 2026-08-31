@@ -518,3 +518,29 @@ export const getCenterTransactions = (
 ) => `/api/payouts/center/${centerId}/transactions${buildQuery(params || {})}`
 export const getBanks = () => '/api/payouts/banks'
 export const verifyAccount = () => '/api/payouts/verify-account'
+
+// AGENT / REFERRAL / SAVINGS NETWORK
+export const activateAgent = () => '/api/agents/activate'
+export const getAgentMe = () => '/api/agents/me'
+export const updateAgentBank = () => '/api/agents/me/bank'
+export const createAgentInvite = () => '/api/agents/invites'
+export const agentCashout = () => '/api/agents/cashout'
+export const lookupReferral = (code: string) =>
+  `/api/referrals/lookup/${encodeURIComponent(code)}`
+export const acceptReferral = () => '/api/referrals/accept'
+export const updateReferralConsent = () => '/api/referrals/consent'
+export const getMyReferral = () => '/api/referrals/mine'
+export const listSavingsPlans = () => '/api/savings'
+export const createSavingsPlan = () => '/api/savings'
+export const depositSavings = (id: string) => `/api/savings/${id}/deposit`
+export const verifySavingsDeposit = (ref: string) =>
+  `/api/savings/verify/${encodeURIComponent(ref)}`
+export const adminListAgents = () => '/api/admin/agents'
+export const adminListCommissions = () => '/api/admin/agents/commissions'
+export const adminListSavings = () => '/api/admin/agents/savings'
+export const adminSuspendAgent = (id: string) =>
+  `/api/admin/agents/${id}/suspend`
+export const adminActivateAgent = (id: string) =>
+  `/api/admin/agents/${id}/activate`
+export const adminVoidCommission = (id: string) =>
+  `/api/admin/agents/commissions/${id}/void`

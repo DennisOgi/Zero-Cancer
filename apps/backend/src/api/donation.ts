@@ -36,6 +36,7 @@ import {
 } from "../lib/paystack";
 import { getPaystackKeys } from "../lib/paystack-config";
 import { processSuccessfulPaystackCharge } from "../lib/paystack-payment";
+import { getAgentByCode } from "../lib/agent.service";
 import { TEnvs, THonoApp } from "../lib/types";
 import {
   createNotificationForUsers,
@@ -354,6 +355,12 @@ donationApp.post(
       }
 
       // Create pending campaign
+      let invitedByAgentId: string | null = null;
+      if (campaignData.agentInviteCode) {
+        const agent = await getAgentByCode(c, campaignData.agentInviteCode);
+        if (agent) invitedByAgentId = agent.id;
+      }
+
       const campaign = await db.donationCampaign.create({
         data: {
           donorId: donorId!,
@@ -377,6 +384,7 @@ donationApp.post(
           targetGroupId: campaignData.targetGroupId,
           targetIndividualId: campaignData.targetIndividualId,
           targetPhone: campaignData.targetPhone,
+          invitedByAgentId,
           // Initial status
           status: "PENDING",
           screeningTypes: {
