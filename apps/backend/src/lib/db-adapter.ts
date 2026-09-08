@@ -491,6 +491,8 @@ export const getDB = (c: Context) => {
               groupId: data.patientProfile.create.groupId || null,
               photoUrl: data.patientProfile.create.photoUrl || null,
               assignedCenterId: data.patientProfile.create.assignedCenterId || null,
+              onboardedByStaffId: data.patientProfile.create.onboardedByStaffId || null,
+              onboardedByCenterId: data.patientProfile.create.onboardedByCenterId || null,
               mustChangePassword:
                 data.patientProfile.create.mustChangePassword === true,
               emailVerified: data.patientProfile.create.emailVerified
@@ -559,6 +561,8 @@ export const getDB = (c: Context) => {
               groupId: data.patientProfile.create.groupId || null,
               photoUrl: data.patientProfile.create.photoUrl || null,
               assignedCenterId: data.patientProfile.create.assignedCenterId || null,
+              onboardedByStaffId: data.patientProfile.create.onboardedByStaffId || null,
+              onboardedByCenterId: data.patientProfile.create.onboardedByCenterId || null,
               mustChangePassword:
                 data.patientProfile.create.mustChangePassword === true,
               emailVerified: data.patientProfile.create.emailVerified
@@ -841,6 +845,7 @@ export const getDB = (c: Context) => {
             passwordHash: data.passwordHash,
             role: data.role,
             status: data.status || "ACTIVE",
+            fullName: data.fullName || null,
           })
           .select()
           .single();
@@ -950,6 +955,8 @@ export const getDB = (c: Context) => {
           token: data.token,
           expiresAt: data.expiresAt instanceof Date ? data.expiresAt.toISOString() : data.expiresAt,
           acceptedAt: data.acceptedAt || null,
+          role: data.role || "NURSE",
+          fullName: data.fullName || null,
         };
         const { data: created, error } = await supabase
           .from("CenterStaffInvite")

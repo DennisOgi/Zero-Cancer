@@ -1,5 +1,6 @@
 import calendar from '@/assets/images/calendar.png'
 import cross from '@/assets/images/cross.png'
+import people from '@/assets/images/people.png'
 import ScreeningCard from '@/components/shared/ScreeningCard'
 import StatusCard from '@/components/shared/StatusCard'
 import { Button } from '@/components/shared/ui/button'
@@ -83,14 +84,11 @@ export function PatientDashboardPage() {
             assignedCenter={assignedCenter}
           />
 
-          <div className="flex gap-4 w-full">
-            <Link
-              to="/patient/book"
-              className="flex items-center justify-center w-1/2"
-            >
-              <div className="w-full px-12 h-36 lg:h-28 bg-blue-100 rounded-lg flex items-center justify-center gap-2 flex-col">
-                <img src={cross} alt="cross" className="w-8 h-8" />
-                <span className="text-lg font-medium text-neutral-800 text-center">
+          <div className="grid grid-cols-2 gap-4 w-full">
+            <Link to="/patient/book" className="flex items-center justify-center">
+              <div className="w-full px-4 h-36 lg:h-28 bg-blue-100 rounded-lg flex items-center justify-center gap-2 flex-col">
+                <img src={cross} alt="" className="w-8 h-8" />
+                <span className="text-base lg:text-lg font-medium text-neutral-800 text-center">
                   Book Screening
                 </span>
               </div>
@@ -98,12 +96,35 @@ export function PatientDashboardPage() {
 
             <Link
               to="/patient/appointments"
-              className="flex items-center justify-center w-1/2"
+              className="flex items-center justify-center"
             >
-              <div className="w-full px-12 h-36 lg:h-28 bg-blue-100 rounded-lg flex items-center justify-center gap-2 flex-col">
-                <img src={calendar} alt="cross" className="w-8 h-8" />
-                <span className="text-lg font-medium text-neutral-800 text-center">
+              <div className="w-full px-4 h-36 lg:h-28 bg-blue-100 rounded-lg flex items-center justify-center gap-2 flex-col">
+                <img src={calendar} alt="" className="w-8 h-8" />
+                <span className="text-base lg:text-lg font-medium text-neutral-800 text-center">
                   View Appointments
+                </span>
+              </div>
+            </Link>
+
+            <Link
+              to="/patient/savings"
+              className="flex items-center justify-center"
+            >
+              <div className="w-full px-4 h-36 lg:h-28 bg-pink-50 border border-pink-100 rounded-lg flex items-center justify-center gap-2 flex-col">
+                <span className="text-2xl" aria-hidden>
+                  ₦
+                </span>
+                <span className="text-base lg:text-lg font-medium text-neutral-800 text-center">
+                  Save to screen
+                </span>
+              </div>
+            </Link>
+
+            <Link to="/patient/agent" className="flex items-center justify-center">
+              <div className="w-full px-4 h-36 lg:h-28 bg-pink-50 border border-pink-100 rounded-lg flex items-center justify-center gap-2 flex-col">
+                <img src={people} alt="" className="w-8 h-8" />
+                <span className="text-base lg:text-lg font-medium text-neutral-800 text-center">
+                  Earn / Refer
                 </span>
               </div>
             </Link>

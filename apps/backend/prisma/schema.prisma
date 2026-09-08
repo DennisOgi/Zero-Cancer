@@ -45,6 +45,7 @@ model User {
   targetedCampaigns DonationCampaign[] @relation("TargetedIndividual")
   enrollmentRequests CenterEnrollmentRequest[] @relation("PatientEnrollmentRequests")
   referralsAsReferred Referral[] @relation("ReferredUser")
+  staffReferralsAsReferred StaffReferral[] @relation("StaffReferredUser")
   savingsPlans   SavingsPlan[] @relation("PatientSavingsPlans")
 }
 
@@ -69,6 +70,10 @@ model PatientProfile {
   referralCodeUsed String?
   /// Whether the attributed referrer may earn commission (point 11)
   commissionConsent Boolean @default(true)
+  onboardedByStaffId String?
+  onboardedByCenterId String?
+  onboardedByStaff CenterStaff? @relation("StaffOnboardedPatients", fields: [onboardedByStaffId], references: [id], onDelete: SetNull)
+  onboardedByCenter ServiceCenter? @relation("CenterOnboardedPatients", fields: [onboardedByCenterId], references: [id], onDelete: SetNull)
 
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -132,6 +137,7 @@ model ServiceCenter {
   appointments  Appointment[]
   enrolledWaitlists Waitlist[] @relation("CenterEnrolledWaitlists")
   assignedPatients  PatientProfile[] @relation("PatientAssignedCenter")
+  onboardedPatients PatientProfile[] @relation("CenterOnboardedPatients")
   screeningReports  ScreeningReport[] @relation("CenterScreeningReports")
   enrollmentRequests CenterEnrollmentRequest[] @relation("CenterEnrollmentRequests")
 
@@ -585,8 +591,17 @@ model CenterStaff {
   centerId  String
   email     String  
   passwordHash String
-  role      String?
+  role      String? @default("STAFF") // ADMIN, NURSE, STAFF
   status    String? @default("ACTIVE")
+  fullName  String?
+  bankName  String?
+  bankCode  String?
+  accountNumber String?
+  accountName String?
+  flutterwaveRecipientId String?
+  totalEarned Float @default(0)
+  totalPaidOut Float @default(0)
+  referralCode String? @unique
   createdAt DateTime @default(now())
 
   center    ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
@@ -595,6 +610,11 @@ model CenterStaff {
   signedReports ScreeningReport[] @relation("StaffSignedReports")
   deletedResultFiles ScreeningResultFile[] @relation("StaffDeletedFiles")
   resetTokens CenterStaffResetToken[]
+  onboardedPatients PatientProfile[] @relation("StaffOnboardedPatients")
+  wallet    StaffWallet?
+  commissions StaffCommission[]
+  cashouts  StaffCashout[]
+  referrals StaffReferral[]
 
   @@unique([centerId, email])
 }
@@ -606,6 +626,8 @@ model CenterStaffInvite {
   token     String   @unique
   expiresAt DateTime?
   acceptedAt DateTime?
+  role      String   @default("NURSE")
+  fullName  String?
 
   center    ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
 }
@@ -1037,6 +1059,7 @@ model AgentProfile {
   accountNumber         String?
   accountName           String?
   paystackRecipientCode String?
+  flutterwaveRecipientId String?
   totalEarned           Float    @default(0)
   totalPaidOut          Float    @default(0)
   createdAt             DateTime @default(now())
@@ -1135,6 +1158,9 @@ model AgentCashout {
   status                String   @default("PENDING") // PENDING, PROCESSING, SUCCESS, FAILED
   paystackTransferCode  String?
   paystackReference     String?
+  flutterwaveTransferId String?
+  flutterwaveReference  String?
+  payoutProvider        String   @default("PAYSTACK")
   failureReason         String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -1178,4 +1204,90 @@ model SavingsDeposit {
   plan            SavingsPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 
   @@index([planId, status])
+}
+
+model StaffWallet {
+  id        String   @id @default(uuid())
+  staffId   String   @unique
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  staff        CenterStaff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  transactions StaffWalletTransaction[]
+  cashouts     StaffCashout[]
+}
+
+model StaffWalletTransaction {
+  id           String   @id @default(uuid())
+  walletId     String
+  type         String
+  amount       Float
+  balanceAfter Float
+  reference    String?
+  description  String?
+  commissionId String?
+  createdAt    DateTime @default(now())
+
+  wallet StaffWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, createdAt])
+}
+
+model StaffCommission {
+  id            String   @id @default(uuid())
+  staffId       String
+  sourceType    String
+  sourceId      String
+  amount        Float
+  status        String   @default("AVAILABLE")
+  appointmentId String?
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  staff CenterStaff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceType, sourceId, staffId])
+  @@index([staffId, status])
+}
+
+model StaffCashout {
+  id                    String   @id @default(uuid())
+  walletId              String
+  staffId               String
+  amount                Float
+  status                String   @default("PENDING")
+  payoutProvider        String   @default("FLUTTERWAVE")
+  flutterwaveTransferId String?
+  flutterwaveReference  String?
+  failureReason         String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  wallet StaffWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  staff  CenterStaff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, status])
+}
+
+model StaffReferral {
+  id                 String   @id @default(uuid())
+  staffId            String
+  referredUserId     String?
+  inviteCode         String   @unique
+  invitePhone        String?
+  inviteEmail        String?
+  inviteName         String?
+  status             String   @default("PENDING")
+  commissionAllowed  Boolean  @default(true)
+  acceptedAt         DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  staff              CenterStaff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  referredUser       User?       @relation("StaffReferredUser", fields: [referredUserId], references: [id], onDelete: SetNull)
+
+  @@index([staffId, status])
+  @@index([referredUserId])
 }

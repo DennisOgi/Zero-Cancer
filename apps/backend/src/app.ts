@@ -29,6 +29,8 @@ import { referralsApp } from "./api/referrals";
 import { savingsApp } from "./api/savings";
 import { adminAgentsApp } from "./api/admin-agents";
 import { walletApp } from "./api/wallets";
+import { staffEarningsApp } from "./api/staff-earnings";
+import { webhooksApp } from "./api/webhooks";
 import { TEnvs } from "./lib/types";
 
 // Create the main app (no basePath for root)
@@ -81,6 +83,7 @@ apiApp.route("/auth", authApp);
 apiApp.route("/register", registerApp);
 // Mount /center/patients BEFORE /center so "patients" is not captured by /center/:id
 apiApp.route("/center/patients", centerPatientsApp);
+apiApp.route("/center/staff-earnings", staffEarningsApp);
 apiApp.route("/center", centerApp);
 apiApp.route("/appointment", appointmentApp);
 apiApp.route("/screening-types", screeningTypesApp);
@@ -103,6 +106,7 @@ apiApp.route("/referrals", referralsApp);
 apiApp.route("/savings", savingsApp);
 apiApp.route("/admin/agents", adminAgentsApp);
 apiApp.route("/wallets", walletApp);
+apiApp.route("/webhooks", webhooksApp);
 
 // Mount API app BEFORE static file serving
 app.route("/api/v1", apiApp);

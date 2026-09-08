@@ -34,7 +34,11 @@ export async function ensureAgentWallet(supabase: any, agentId: string) {
   return data;
 }
 
-export async function activateAgent(c: any, userId: string) {
+export async function activateAgent(
+  c: any,
+  userId: string,
+  opts?: { skipCompletedScreen?: boolean }
+) {
   const supabase = getSupabaseClient(c);
   const config = getAgentNetworkConfig(c.env || {});
 
@@ -48,7 +52,7 @@ export async function activateAgent(c: any, userId: string) {
     return existing;
   }
 
-  if (config.requireCompletedScreen) {
+  if (config.requireCompletedScreen && !opts?.skipCompletedScreen) {
     const { data: completed } = await supabase
       .from("Appointment")
       .select("id")
@@ -117,6 +121,63 @@ export async function getAgentByCode(c: any, code: string) {
   return data;
 }
 
+export async function getReferrerBoundCenter(c: any, agentId: string) {
+  const supabase = getSupabaseClient(c);
+  const { data: agent } = await supabase
+    .from("AgentProfile")
+    .select("userId")
+    .eq("id", agentId)
+    .maybeSingle();
+  if (!agent?.userId) return null;
+
+  const { data: profile } = await supabase
+    .from("PatientProfile")
+    .select("assignedCenterId")
+    .eq("userId", agent.userId)
+    .maybeSingle();
+  if (!profile?.assignedCenterId) return null;
+
+  const { data: center } = await supabase
+    .from("ServiceCenter")
+    .select("id, centerName, address, state, lga, status")
+    .eq("id", profile.assignedCenterId)
+    .maybeSingle();
+  if (!center || center.status !== "ACTIVE") return null;
+  return center;
+}
+
+export async function peekReferralInvite(c: any, code: string) {
+  const supabase = getSupabaseClient(c);
+  const normalized = code.trim().toUpperCase();
+  if (!normalized) return null;
+
+  let { data: referral } = await supabase
+    .from("Referral")
+    .select("*")
+    .eq("inviteCode", normalized)
+    .maybeSingle();
+
+  let agent = null;
+  if (referral) {
+    agent = await supabase
+      .from("AgentProfile")
+      .select("*")
+      .eq("id", referral.referrerAgentId)
+      .maybeSingle()
+      .then((r: any) => r.data);
+  } else {
+    agent = await getAgentByCode(c, normalized);
+  }
+  if (!agent) return null;
+
+  const boundCenter = await getReferrerBoundCenter(c, agent.id);
+  return {
+    agent,
+    referral,
+    boundCenter,
+  };
+}
+
 export async function createReferralInvite(
   c: any,
   agentId: string,
@@ -127,6 +188,7 @@ export async function createReferralInvite(
   }
 ) {
   const supabase = getSupabaseClient(c);
+  const boundCenter = await getReferrerBoundCenter(c, agentId);
   let inviteCode = makeCode("RF", 10);
   for (let i = 0; i < 5; i++) {
     const { data: clash } = await supabase
@@ -147,6 +209,7 @@ export async function createReferralInvite(
     inviteName: payload.inviteName || null,
     status: "PENDING",
     commissionAllowed: true,
+    preferredCenterId: boundCenter?.id || null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -193,13 +256,20 @@ export async function acceptReferralInvite(
   const commissionAllowed =
     opts?.commissionAllowed ?? config.defaultCommissionAllowed;
 
+  const boundCenter = await getReferrerBoundCenter(c, referral.referrerAgentId);
+  const preferredCenterId =
+    opts?.preferredCenterId ??
+    referral.preferredCenterId ??
+    boundCenter?.id ??
+    null;
+
   const { data: updated, error } = await supabase
     .from("Referral")
     .update({
       referredUserId: userId,
       status: "ACCEPTED",
       commissionAllowed,
-      preferredCenterId: opts?.preferredCenterId ?? referral.preferredCenterId,
+      preferredCenterId,
       acceptedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     })
@@ -242,6 +312,14 @@ export async function updateReferralConsent(
     })
     .eq("userId", userId);
 
+  await supabase
+    .from("StaffReferral")
+    .update({
+      commissionAllowed: payload.commissionAllowed,
+      updatedAt: new Date().toISOString(),
+    })
+    .eq("referredUserId", userId);
+
   const { data: referral } = await supabase
     .from("Referral")
     .select("*")
@@ -250,7 +328,16 @@ export async function updateReferralConsent(
     .limit(1)
     .maybeSingle();
 
-  if (!referral) return null;
+  if (!referral) {
+    const { data: staffReferral } = await supabase
+      .from("StaffReferral")
+      .select("*")
+      .eq("referredUserId", userId)
+      .order("acceptedAt", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return staffReferral || null;
+  }
 
   const { data, error } = await supabase
     .from("Referral")
@@ -433,6 +520,72 @@ export async function settleAgentCashoutFromTransfer(
   await creditAgentWallet(supabase, cashout.agentId, Number(cashout.amount), {
     reference,
     description: "Cashout reversed after transfer failure",
+    skipEarnings: true,
+  });
+
+  return { handled: true, status: "FAILED" };
+}
+
+export async function settleAgentCashoutFromFlutterwave(
+  c: any,
+  payload: { reference?: string; status?: string; id?: string | number }
+) {
+  const reference = payload?.reference;
+  if (!reference) return { handled: false };
+
+  const supabase = getSupabaseClient(c);
+  const { data: cashout } = await supabase
+    .from("AgentCashout")
+    .select("*")
+    .eq("flutterwaveReference", reference)
+    .maybeSingle();
+
+  if (!cashout) return { handled: false };
+  if (cashout.status === "SUCCESS" || cashout.status === "FAILED") {
+    return { handled: true, alreadySettled: true };
+  }
+
+  const ok = String(payload.status || "").toUpperCase() === "SUCCESSFUL";
+  if (ok) {
+    await supabase
+      .from("AgentCashout")
+      .update({
+        status: "SUCCESS",
+        flutterwaveTransferId:
+          payload.id != null ? String(payload.id) : cashout.flutterwaveTransferId,
+        updatedAt: new Date().toISOString(),
+      })
+      .eq("id", cashout.id);
+
+    const { data: agent } = await supabase
+      .from("AgentProfile")
+      .select("totalPaidOut")
+      .eq("id", cashout.agentId)
+      .single();
+
+    await supabase
+      .from("AgentProfile")
+      .update({
+        totalPaidOut: Number(agent?.totalPaidOut || 0) + Number(cashout.amount),
+        updatedAt: new Date().toISOString(),
+      })
+      .eq("id", cashout.agentId);
+
+    return { handled: true, status: "SUCCESS" };
+  }
+
+  await supabase
+    .from("AgentCashout")
+    .update({
+      status: "FAILED",
+      failureReason: String(payload.status || "FAILED"),
+      updatedAt: new Date().toISOString(),
+    })
+    .eq("id", cashout.id);
+
+  await creditAgentWallet(supabase, cashout.agentId, Number(cashout.amount), {
+    reference,
+    description: "Cashout reversed after Flutterwave failure",
     skipEarnings: true,
   });
 

@@ -104,7 +104,8 @@ async function migratePendingWaitlistsToCenter(
 export async function assignPatientToCenter(
   c: any,
   patientId: string,
-  centerId: string
+  centerId: string,
+  opts?: { skipLocationCheck?: boolean }
 ): Promise<
   | { error: string }
   | { center: RecommendedCenter; enrolledCount: number }
@@ -125,16 +126,14 @@ export async function assignPatientToCenter(
     50
   );
 
-  if (!isCenterRecommendedForPatient(recommendedCenters, centerId)) {
+  if (
+    !opts?.skipLocationCheck &&
+    !isCenterRecommendedForPatient(recommendedCenters, centerId)
+  ) {
     return { error: "Selected center is not available for your location" };
   }
 
-  const matchedCenter = recommendedCenters.find((center) => center.id === centerId)!;
-
-  if (profile.assignedCenterId === centerId) {
-    return { center: matchedCenter, enrolledCount: 0 };
-  }
-
+  const matchedCenter = recommendedCenters.find((center) => center.id === centerId);
   const centerRecord = await db.serviceCenter.findUnique({
     where: { id: centerId },
   });
@@ -161,6 +160,21 @@ export async function assignPatientToCenter(
 
   if (services.length === 0) {
     return { error: "This center has no services available yet" };
+  }
+
+  if (profile.assignedCenterId === centerId) {
+    return {
+      center: {
+        id: centerRecord.id,
+        centerName: centerRecord.centerName,
+        address: centerRecord.address,
+        state: centerRecord.state,
+        lga: centerRecord.lga,
+        services,
+        distanceTier: matchedCenter?.distanceTier || "fallback",
+      },
+      enrolledCount: 0,
+    };
   }
 
   await db.patientProfile.update({
@@ -215,7 +229,7 @@ export async function assignPatientToCenter(
       state: centerRecord.state,
       lga: centerRecord.lga,
       services,
-      distanceTier: matchedCenter.distanceTier,
+      distanceTier: matchedCenter?.distanceTier || "fallback",
     },
     enrolledCount,
   };

@@ -34,6 +34,10 @@ import {
 } from "../lib/phone";
 import type { ServiceTypeKey } from "../lib/service-type-utils";
 import { getSupabaseClient } from "../lib/supabase";
+import {
+  normalizeStaffRole,
+  staffJwtProfile,
+} from "../lib/center-context";
 import { TEnvs, THonoApp } from "../lib/types";
 import { comparePassword, hashPassword } from "../lib/utils";
 import { authMiddleware } from "../middleware/auth.middleware";
@@ -231,7 +235,13 @@ centerApp.get("/", async (c) => {
               },
             },
             staff: {
-              select: { id: true, email: true },
+              select: {
+                id: true,
+                email: true,
+                role: true,
+                fullName: true,
+                status: true,
+              },
             },
           },
         }),
@@ -502,7 +512,18 @@ centerApp.get(
     }
 
     const [staffRows] = includeStaff
-      ? await Promise.all([db.centerStaff.findMany({ where: { centerId: id! } })])
+      ? await Promise.all([
+          db.centerStaff.findMany({
+            where: { centerId: id! },
+            select: {
+              id: true,
+              email: true,
+              role: true,
+              fullName: true,
+              status: true,
+            },
+          }),
+        ])
       : [[]];
 
     const supabase = getSupabaseClient(c);
@@ -546,6 +567,9 @@ centerApp.get(
         ? (staffRows || []).map((member: any) => ({
             id: member.id,
             email: member.email,
+            role: member.role || "STAFF",
+            fullName: member.fullName || null,
+            status: member.status || "ACTIVE",
           }))
         : [],
     };
@@ -572,13 +596,21 @@ centerApp.get("/staff/invite", authMiddleware(["center"]), async (c) => {
   // Fetch pending invites for the center
   const invites = await db.centerStaffInvite.findMany({
     where: { centerId: centerId!, acceptedAt: null },
-    select: { email: true, token: true, expiresAt: true },
+    select: {
+      email: true,
+      token: true,
+      expiresAt: true,
+      role: true,
+      fullName: true,
+    },
   });
 
   // Transform Date objects to strings for JSON serialization
   const transformedInvites = invites.map((invite) => ({
     email: invite.email,
     token: invite.token,
+    role: invite.role || "NURSE",
+    fullName: invite.fullName || null,
     expiresAt: invite.expiresAt
       ? new Date(invite.expiresAt).toISOString()
       : null,
@@ -600,10 +632,21 @@ centerApp.post(
   }),
   async (c) => {
     const db = getDB(c);
-    const { centerId, emails } = c.req.valid("json");
+    const { centerId, emails, role, fullName } = c.req.valid("json");
+    const staffRole = normalizeStaffRole(role || "NURSE");
+    const roleLabel =
+      staffRole === "ADMIN"
+        ? "hospital admin"
+        : staffRole === "NURSE"
+          ? "nurse"
+          : "staff member";
+    const center = await db.serviceCenter.findUnique({ where: { id: centerId } });
+    const centerName = center?.centerName || "a ZeroCancer screening center";
     const invites: Array<{
       email: string;
       token: string;
+      role: string;
+      fullName: string | null;
       expiresAt: string | null;
     }> = [];
     for (const email of emails!) {
@@ -611,29 +654,31 @@ centerApp.post(
       const token = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
 
-      // Store invite in DB (pseudo-code, adjust to your schema)
       await db.centerStaffInvite.create({
         data: {
           centerId: centerId!,
           email,
           token,
           expiresAt,
+          role: staffRole,
+          fullName: fullName || null,
         },
       });
-      // Send invite email
       const inviteUrl = `${
         env<{ FRONTEND_URL: string }>(c).FRONTEND_URL
       }/staff/create-new-password?token=${token}`;
 
       await sendEmail(c, {
         to: email!,
-        subject: "You're invited to join a center on Zerocancer",
-        html: `<p>You have been invited to join a center. <a href="${inviteUrl}">Click here to set your password and join.</a></p>`,
+        subject: `You're invited to join ${centerName} on ZeroCancer`,
+        html: `<p>You have been invited to join <strong>${centerName}</strong> as a ${roleLabel}. <a href="${inviteUrl}">Click here to set your password and join.</a></p>`,
       });
 
       invites.push({
         email: email!,
         token: token!,
+        role: staffRole,
+        fullName: fullName || null,
         expiresAt: expiresAt.toISOString(),
       });
     }
@@ -673,6 +718,8 @@ centerApp.post(
         centerId: invite.centerId!,
         email: invite.email!,
         passwordHash,
+        role: normalizeStaffRole(invite.role || "NURSE"),
+        fullName: invite.fullName || null,
         status: "ACTIVE",
         createdAt: new Date(),
       },
@@ -805,10 +852,14 @@ centerApp.post(
       );
     }
 
+    const profile = staffJwtProfile(staff.role);
+    const staffRole = normalizeStaffRole(staff.role);
     const payload = {
       id: centerId!,
       email: email!,
-      profile: staff.role === "admin" ? "CENTER" : "CENTER_STAFF",
+      profile,
+      staffId: staff.id!,
+      staffRole,
     };
     const token = await sign(
       { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 5 },
@@ -835,8 +886,11 @@ centerApp.post(
         user: {
           userId: staff.id!,
           email: staff.email!,
-          profile: "CENTER_STAFF",
+          profile,
           centerId: staff.centerId!,
+          staffId: staff.id!,
+          staffRole,
+          fullName: staff.fullName || undefined,
         },
       },
     });

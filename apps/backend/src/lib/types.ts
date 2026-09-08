@@ -2,6 +2,8 @@ export type AuthPayload = {
   id: string;
   email: string;
   profile: "PATIENT" | "DONOR" | "CENTER" | "CENTER_STAFF" | "ADMIN";
+  staffId?: string;
+  staffRole?: "ADMIN" | "NURSE" | "STAFF";
 };
 
 export type THonoApp = {
@@ -24,6 +26,9 @@ export type TEnvs = {
   ENV_MODE: "production" | "development" | "test";
   PAYSTACK_SECRET_KEY: string;
   PAYSTACK_PUBLIC_KEY: string;
+  FLUTTERWAVE_SECRET_KEY?: string;
+  FLUTTERWAVE_PUBLIC_KEY?: string;
+  FLUTTERWAVE_WEBHOOK_HASH?: string;
   CRON_API_KEY: string;
   CLOUDINARY_CLOUD_NAME: string;
   CLOUDINARY_API_KEY: string;

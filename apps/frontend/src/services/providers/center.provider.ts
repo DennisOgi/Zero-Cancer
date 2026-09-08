@@ -9,6 +9,7 @@ import { getCenterAppointmentsSchema } from '@zerocancer/shared/schemas/appointm
 import { getCentersQuerySchema } from '@zerocancer/shared/schemas/center.schema'
 import type { z } from 'zod'
 import * as centerService from '../center.service'
+import * as staffEarningsService from '../staff-earnings.service'
 
 // --- Center Query Providers ---
 
@@ -277,3 +278,31 @@ export const useUploadResults = () =>
       notes?: string
     }) => centerService.uploadResults(appointmentId, { files, notes }),
   })
+
+export const staffEarnings = () =>
+  queryOptions({
+    queryKey: [QueryKeys.staffEarnings],
+    queryFn: () => staffEarningsService.getStaffEarnings(),
+  })
+
+export const useUpdateStaffBank = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: [MutationKeys.updateStaffBank],
+    mutationFn: staffEarningsService.updateStaffBank,
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.staffEarnings] })
+    },
+  })
+}
+
+export const useStaffCashout = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: [MutationKeys.staffCashout],
+    mutationFn: staffEarningsService.staffCashout,
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.staffEarnings] })
+    },
+  })
+}

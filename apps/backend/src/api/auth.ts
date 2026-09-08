@@ -31,6 +31,7 @@ import { sendEmail } from "../lib/email";
 import { normalizeEmail } from "../lib/email-normalize";
 import { assignPatientToCenter, findRecommendedCenters } from "../lib/patient-center-utils";
 import { isAllowedPatientPhotoUrl } from "../lib/cloudinary-signed-upload";
+import { normalizeStaffRole } from "../lib/center-context";
 import { TEnvs, THonoApp } from "../lib/types";
 import { getUserWithProfiles } from "../lib/utils";
 import { z } from "zod";
@@ -249,14 +250,35 @@ authApp.get(
         );
       }
 
+      let staffId = jwtPayload.staffId || undefined;
+      let staffRole = jwtPayload.staffRole || undefined;
+      let staff = null as any;
+      if (jwtPayload.staffId) {
+        staff = await db.centerStaff.findUnique({
+          where: { id: jwtPayload.staffId },
+        });
+      }
+      if (!staff && jwtPayload.email) {
+        staff = await db.centerStaff.findFirst({
+          where: { centerId: jwtPayload.id, email: jwtPayload.email },
+        });
+      }
+      if (staff) {
+        staffId = staff.id;
+        staffRole = normalizeStaffRole(staff.role);
+      }
+
       return c.json<TAuthMeResponse>({
         ok: true,
         data: {
           user: {
             id: center.id!,
             fullName: center.centerName!,
-            email: center.email!,
+            email: jwtPayload.email || center.email!,
             profile: jwtPayload.profile,
+            staffId,
+            staffRole,
+            staffFullName: staff?.fullName || undefined,
           },
         },
       });
@@ -591,12 +613,16 @@ authApp.post("/refresh", async (c) => {
 
   try {
     const payload = await verify(refreshToken, JWT_TOKEN_SECRET);
-    // Optionally check if token is revoked/expired in DB
+    const tokenBody = {
+      id: payload.id!,
+      email: payload.email!,
+      profile: payload.profile!,
+      ...(payload.staffId ? { staffId: payload.staffId } : {}),
+      ...(payload.staffRole ? { staffRole: payload.staffRole } : {}),
+    };
     const newAccessToken = await sign(
       {
-        id: payload.id!,
-        email: payload.email!,
-        profile: payload.profile!,
+        ...tokenBody,
         exp: Math.floor(Date.now() / 1000) + 60 * 5,
       },
       JWT_TOKEN_SECRET
@@ -604,9 +630,7 @@ authApp.post("/refresh", async (c) => {
 
     const newRefreshToken = await sign(
       {
-        id: payload.id!,
-        email: payload.email!,
-        profile: payload.profile!,
+        ...tokenBody,
         exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 7 days
       },
       JWT_TOKEN_SECRET

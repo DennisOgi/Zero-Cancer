@@ -355,14 +355,18 @@ export default function PatientForm({
             control={form.control}
             name="referralCode"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="rounded-xl border bg-blue-50/50 p-4">
                 <FormLabel>Referral code (optional)</FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="If someone invited you, enter their code"
+                    placeholder="If someone invited you, enter their ZC or RF code"
                     {...field}
                   />
                 </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  This links you to the woman who invited you. You can still
+                  decide later whether she earns.
+                </p>
                 <FormMessage />
               </FormItem>
             )}

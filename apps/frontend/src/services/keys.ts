@@ -82,6 +82,7 @@ export enum QueryKeys {
   centerPatientsList = 'centerPatientsList',
   centerEnrollmentRequests = 'centerEnrollmentRequests',
   centerProfile = 'centerProfile',
+  staffEarnings = 'staffEarnings',
 }
 
 export enum MutationKeys {
@@ -158,6 +159,8 @@ export enum MutationKeys {
   // Pricing System
   updateBasePrice = 'updateBasePrice',
   updateRetailPrice = 'updateRetailPrice',
+  updateStaffBank = 'updateStaffBank',
+  staffCashout = 'staffCashout',
 }
 
 export const ACCESS_TOKEN_KEY = 'accessToken'

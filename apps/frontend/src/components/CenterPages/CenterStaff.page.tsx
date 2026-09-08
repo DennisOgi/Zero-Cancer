@@ -30,6 +30,13 @@ import {
 } from '@/components/shared/ui/form'
 import { Input } from '@/components/shared/ui/input'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -91,17 +98,22 @@ export function CenterStaffPage() {
     const combined = [
       ...activeStaff.map((member) => ({
         id: member.id,
-        name: member.email.split('@')[0],
+        name: member.fullName || member.email.split('@')[0],
         staffId: member.id.slice(0, 8),
         email: member.email,
-        lastCheckin: 'Jul 10, 2025', // Placeholder
-        status: 'Active',
+        role: (member.role || 'STAFF').toString(),
+        lastCheckin: '—',
+        status:
+          String(member.status || 'ACTIVE').toUpperCase() === 'SUSPENDED'
+            ? 'Suspended'
+            : 'Active',
       })),
       ...pendingInvites.map((invite) => ({
         id: invite.token,
-        name: invite.email.split('@')[0],
+        name: invite.fullName || invite.email.split('@')[0],
         staffId: 'N/A',
         email: invite.email,
+        role: (invite.role || 'NURSE').toString(),
         lastCheckin: 'N/A',
         status:
           invite.expiresAt && new Date(invite.expiresAt) < new Date()
@@ -119,7 +131,9 @@ export function CenterStaffPage() {
         return staff.status === filter
       })
       .filter((staff) =>
-        staff.name.toLowerCase().includes(searchTerm.toLowerCase()),
+        `${staff.name} ${staff.email} ${staff.role}`
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()),
       )
   }, [allStaff, filter, searchTerm])
 
@@ -130,12 +144,14 @@ export function CenterStaffPage() {
     defaultValues: {
       centerId: centerId || '',
       emails: [''],
+      role: 'NURSE',
+      fullName: '',
     },
   })
 
-  const { fields, append, remove } = useFieldArray<InviteStaffForm>({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
-    name: 'emails',
+    name: 'emails' as any,
   })
 
   useEffect(() => {
@@ -152,13 +168,24 @@ export function CenterStaffPage() {
     }
 
     inviteStaffMutation.mutate(
-      { centerId: data.centerId, emails: validEmails },
+      {
+        centerId: data.centerId,
+        emails: validEmails,
+        role: data.role || 'NURSE',
+        fullName: data.fullName || undefined,
+      },
       {
         onSuccess: () => {
           toast.success(`Successfully sent ${validEmails.length} invitation(s)`)
-          form.reset({ centerId: data.centerId, emails: [''] })
+          form.reset({
+            centerId: data.centerId,
+            emails: [''],
+            role: 'NURSE',
+            fullName: '',
+          })
           setInviteDialogOpen(false)
           queryClient.invalidateQueries({ queryKey: ['staffInvites'] })
+          queryClient.invalidateQueries({ queryKey: ['centerById'] })
         },
         onError: (error: any) => {
           toast.error(
@@ -209,6 +236,7 @@ export function CenterStaffPage() {
       case 'Invited':
         return 'bg-gray-400'
       case 'Expired':
+      case 'Suspended':
         return 'bg-red-500'
       default:
         return 'bg-gray-300'
@@ -219,10 +247,11 @@ export function CenterStaffPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Manage Staff</h1>
+          <h1 className="text-3xl font-bold">Nurses & staff</h1>
           <p className="text-muted-foreground">
-            Invite and manage staff members for{' '}
-            {center?.centerName || 'your center'}
+            Invite nurses who can register patients at{' '}
+            {center?.centerName || 'your center'}. Existing center tools stay
+            available for every role.
           </p>
         </div>
       </div>
@@ -283,6 +312,7 @@ export function CenterStaffPage() {
           <TableRow className="bg-blue-50 hover:bg-blue-100">
             <TableHead>Staff Name</TableHead>
             <TableHead>Staff ID</TableHead>
+            <TableHead>Role</TableHead>
             <TableHead>Staff Email</TableHead>
             <TableHead>Last Check-in</TableHead>
             <TableHead>Status</TableHead>
@@ -292,14 +322,14 @@ export function CenterStaffPage() {
         <TableBody>
           {(centerLoading || invitesLoading) && (
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-8">
+              <TableCell colSpan={7} className="text-center py-8">
                 Loading staff...
               </TableCell>
             </TableRow>
           )}
           {!centerLoading && !invitesLoading && filteredStaff.length === 0 && (
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-8">
+              <TableCell colSpan={7} className="text-center py-8">
                 No staff members found.
               </TableCell>
             </TableRow>
@@ -309,6 +339,9 @@ export function CenterStaffPage() {
               <TableCell className="font-medium">{member.name}</TableCell>
               <TableCell className="text-muted-foreground">
                 {member.staffId}
+              </TableCell>
+              <TableCell className="capitalize">
+                {member.role.toLowerCase()}
               </TableCell>
               <TableCell>{member.email}</TableCell>
               <TableCell>{member.lastCheckin}</TableCell>
@@ -348,11 +381,11 @@ export function CenterStaffPage() {
       <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Invite Staff Members</DialogTitle>
+            <DialogTitle>Invite nurses & staff</DialogTitle>
             <DialogDescription>
-              Enter email addresses to invite new staff members to your center.
-              They'll receive an email with instructions to set up their
-              account.
+              Invite a nurse to register patients at this hospital. They can
+              also verify check-ins, upload results, and use the existing
+              center tools.
             </DialogDescription>
           </DialogHeader>
 
@@ -369,6 +402,54 @@ export function CenterStaffPage() {
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full name (optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Nurse Adaeze"
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="NURSE">Nurse</SelectItem>
+                        <SelectItem value="ADMIN">Hospital admin</SelectItem>
+                        <SelectItem value="STAFF">Staff</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Nurses register and screen patients. Hospital admins can
+                      also invite teammates.
+                    </FormDescription>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -422,8 +503,8 @@ export function CenterStaffPage() {
                 </div>
 
                 <FormDescription>
-                  Staff members will be able to verify check-ins, upload
-                  results, and access center management features.
+                  They will be able to register patients, verify check-ins,
+                  upload results, and access existing center tools.
                 </FormDescription>
               </div>
 

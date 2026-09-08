@@ -114,6 +114,9 @@ export type TAuthMeResponse = TDataResponse<{
       lga: string;
     } | null;
     mustChangePassword?: boolean;
+    staffId?: string;
+    staffRole?: "ADMIN" | "NURSE" | "STAFF";
+    staffFullName?: string;
   };
 }>;
 
@@ -294,7 +297,9 @@ export type TCenter = {
   staff: Array<{
     id: string;
     email: string;
-    status?: "ACTIVE" | "SUSPENDED" | "PENDING";
+    role?: "ADMIN" | "NURSE" | "STAFF" | string;
+    fullName?: string | null;
+    status?: "ACTIVE" | "SUSPENDED" | "PENDING" | string;
   }>;
 };
 
@@ -725,7 +730,13 @@ export type TGetScreeningTypeResponse = {
 };
 
 export type TInviteStaffResponse = TDataResponse<{
-  invites: Array<{ email: string; token: string; expiresAt: string | null }>;
+  invites: Array<{
+    email: string;
+    token: string;
+    expiresAt: string | null;
+    role?: string;
+    fullName?: string | null;
+  }>;
 }>;
 
 export type TCreateCenterStaffPasswordResponse = TDataResponse<{
@@ -744,8 +755,11 @@ export type TCenterStaffLoginResponse = TDataResponse<{
   user: {
     userId: string;
     email: string;
-    profile: "CENTER_STAFF";
+    profile: "CENTER" | "CENTER_STAFF";
     centerId: string;
+    staffId?: string;
+    staffRole?: "ADMIN" | "NURSE" | "STAFF";
+    fullName?: string;
   };
 }>;
 

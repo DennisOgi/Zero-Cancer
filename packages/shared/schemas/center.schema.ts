@@ -3,6 +3,8 @@ import { z } from "zod";
 export const inviteStaffSchema = z.object({
   centerId: z.string().min(1),
   emails: z.array(z.string().email()).min(1),
+  role: z.enum(["ADMIN", "NURSE", "STAFF"]).optional(),
+  fullName: z.string().trim().max(120).optional(),
 });
 
 export const getCentersQuerySchema = z.object({

@@ -328,16 +328,22 @@ export function PatientPayBookingPage({
             />
           )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Home screening</CardTitle>
+          <Card className="border-pink-100 overflow-hidden">
+            <CardHeader className="bg-pink-50/70">
+              <CardTitle className="flex items-center gap-2">
+                Home screening
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Optional. Best if you prefer a visit instead of going to a
+                center.
+              </p>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-6">
               <FormField
                 control={form.control}
                 name="isHomeVisit"
                 render={({ field }) => (
-                  <FormItem className="flex items-start gap-3 space-y-0">
+                  <FormItem className="flex items-start gap-3 space-y-0 rounded-xl border bg-white p-4">
                     <FormControl>
                       <Checkbox
                         checked={field.value}
@@ -377,11 +383,15 @@ export function PatientPayBookingPage({
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
+          <Card className="border-blue-100 overflow-hidden">
+            <CardHeader className="bg-blue-50/70">
               <CardTitle>Referral and savings</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                If someone invited you, you choose whether they earn. This does
+                not change what you pay.
+              </p>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-6">
               <FormField
                 control={form.control}
                 name="referralCode"
@@ -389,7 +399,7 @@ export function PatientPayBookingPage({
                   <FormItem>
                     <FormLabel>Referral code (optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="ZC..." {...field} />
+                      <Input placeholder="ZC... or RF..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -399,7 +409,7 @@ export function PatientPayBookingPage({
                 control={form.control}
                 name="commissionAllowed"
                 render={({ field }) => (
-                  <FormItem className="flex items-start gap-3 space-y-0">
+                  <FormItem className="flex items-start gap-3 space-y-0 rounded-xl border bg-white p-4">
                     <FormControl>
                       <Checkbox
                         checked={field.value !== false}
@@ -413,7 +423,8 @@ export function PatientPayBookingPage({
                         Allow my referrer to earn a screening commission
                       </FormLabel>
                       <p className="text-sm text-muted-foreground">
-                        You can turn this off. It does not change what you pay.
+                        Turn this off if you do not want the person who invited
+                        you to earn from this booking.
                       </p>
                     </div>
                   </FormItem>

@@ -300,17 +300,18 @@ export function CreateCampaignPage() {
                     control={form.control}
                     name="agentInviteCode"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="rounded-xl border border-pink-100 bg-pink-50/60 p-4">
                         <FormLabel>Agent invite code (optional)</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Code from the woman who invited your organization"
+                            placeholder="ZC... code from the woman who invited you"
                             {...field}
                           />
                         </FormControl>
                         <FormDescription>
-                          If an agent invited you to sponsor, enter their code so
-                          they can earn a commission.
+                          If a ZeroCancer agent invited your organization to
+                          sponsor women, enter her code so she can earn 5% of
+                          this campaign.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

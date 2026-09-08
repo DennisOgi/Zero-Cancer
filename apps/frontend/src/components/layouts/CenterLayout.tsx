@@ -18,6 +18,11 @@ export function CenterLayout() {
   const user = authUserQuery.data?.data?.user
   const isStaff = user?.profile === 'CENTER_STAFF'
   const isAdmin = user?.profile === 'CENTER'
+  const staffId = user?.staffId
+  const canSeePrivateEarnings =
+    Boolean(staffId) &&
+    user?.profile !== 'CENTER' &&
+    user?.staffRole !== 'ADMIN'
 
   // Fetch notifications for unread count
   const { data: notificationsData } = useQuery(useNotifications())
@@ -40,13 +45,17 @@ export function CenterLayout() {
     { to: '/center/profile', label: 'Profile', icon: people },
     { to: '/center/receipt-history', label: 'Payouts', icon: health },
     { to: '/center/wallet', label: 'Wallet', icon: health },
-    { to: '/center/staff', label: 'Staff', icon: people },
+    { to: '/center/staff', label: 'Nurses & staff', icon: people },
   ]
+
+  const earningsNav = canSeePrivateEarnings
+    ? [{ to: '/center/earnings', label: 'Earnings', icon: health }]
+    : []
 
   // Staff can view profile (read-only WhatsApp); admins can edit
   const navLinks = isAdmin
-    ? [...baseNavLinks, ...adminNavLinks]
-    : [...baseNavLinks, { to: '/center/profile', label: 'Profile', icon: people }]
+    ? [...baseNavLinks, ...adminNavLinks, ...earningsNav]
+    : [...baseNavLinks, { to: '/center/profile', label: 'Profile', icon: people }, ...earningsNav]
 
   return (
     <div className="min-h-screen w-full">

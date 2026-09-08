@@ -36,6 +36,9 @@ export function PatientSignupPage({ referralCode }: { referralCode?: string }) {
     const payload = (referralLookup as any)?.data
     return payload?.referrerName || payload?.inviteName || payload?.agentCode || code
   }, [referralLookup, code])
+  const lookup = (referralLookup as any)?.data
+  const boundCenter = lookup?.boundCenter
+  const screenAnywhere = lookup?.type === 'nurse' || lookup?.screenAnywhere
 
   const handleFormSubmit = (
     _values: FormData,
@@ -97,10 +100,16 @@ export function PatientSignupPage({ referralCode }: { referralCode?: string }) {
           screening center for vaccination, screening, and treatment.
         </p>
         {code ? (
-          <p className="text-sm text-primary">
-            Referred by {referrerLabel}. We will attach this invite to your
-            account.
-          </p>
+          <div className="rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm text-pink-900">
+            <p className="font-medium">Referred by {referrerLabel}</p>
+            <p className="mt-0.5 text-pink-800/80">
+              {screenAnywhere
+                ? `You can screen at any ZeroCancer center, including one near you. You can still choose whether ${referrerLabel} earns a commission.`
+                : boundCenter
+                  ? `You'll be assigned to ${boundCenter.centerName} for screening. You can still choose whether ${referrerLabel} earns a commission.`
+                  : 'We will attach this invite to your account. When you book, you can choose whether they earn a commission.'}
+            </p>
+          </div>
         ) : null}
       </div>
       <PatientForm

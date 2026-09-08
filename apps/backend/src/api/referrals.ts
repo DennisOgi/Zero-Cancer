@@ -5,11 +5,24 @@ import { z } from "zod";
 import {
   acceptReferralInvite,
   getAgentByCode,
+  getReferrerBoundCenter,
   updateReferralConsent,
 } from "../lib/agent.service";
+import { getStaffByReferralCode } from "../lib/staff-referral.service";
 import { getSupabaseClient } from "../lib/supabase";
 import { THonoApp } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
+
+function serializeBoundCenter(center: any) {
+  if (!center) return null;
+  return {
+    id: center.id,
+    centerName: center.centerName,
+    address: center.address,
+    state: center.state,
+    lga: center.lga,
+  };
+}
 
 export const referralsApp = new Hono<THonoApp>();
 
@@ -18,6 +31,25 @@ referralsApp.get("/lookup/:code", async (c) => {
   const code = c.req.param("code");
   const supabase = getSupabaseClient(c);
   const normalized = code.trim().toUpperCase();
+
+  const staffHit = await getStaffByReferralCode(c, normalized);
+  if (staffHit?.staff) {
+    const staffName =
+      staffHit.staff.fullName ||
+      String(staffHit.staff.email || "").split("@")[0] ||
+      "A ZeroCancer nurse";
+    return c.json({
+      ok: true,
+      data: {
+        type: "nurse",
+        code: staffHit.referral?.inviteCode || staffHit.staff.referralCode,
+        status: staffHit.referral?.status || "ACTIVE",
+        referrerName: staffName,
+        boundCenter: null,
+        screenAnywhere: true,
+      },
+    });
+  }
 
   const { data: invite } = await supabase
     .from("Referral")
@@ -48,6 +80,9 @@ referralsApp.get("/lookup/:code", async (c) => {
         status: invite.status,
         referrerName,
         agentCode: agent?.referralCode,
+        boundCenter: serializeBoundCenter(
+          await getReferrerBoundCenter(c, invite.referrerAgentId)
+        ),
       },
     });
   }
@@ -69,6 +104,7 @@ referralsApp.get("/lookup/:code", async (c) => {
       code: agent.referralCode,
       referrerName: user?.fullName || "A ZeroCancer agent",
       agentCode: agent.referralCode,
+      boundCenter: serializeBoundCenter(await getReferrerBoundCenter(c, agent.id)),
     },
   });
 });
@@ -92,6 +128,16 @@ referralsApp.post(
     try {
       const userId = c.get("jwtPayload")?.id as string;
       const body = c.req.valid("json");
+      const staffHit = await getStaffByReferralCode(c, body.code);
+      if (staffHit?.staff) {
+        const { acceptStaffReferral } = await import(
+          "../lib/staff-referral.service"
+        );
+        const referral = await acceptStaffReferral(c, userId, body.code, {
+          commissionAllowed: body.commissionAllowed,
+        });
+        return c.json({ ok: true, data: referral });
+      }
       const referral = await acceptReferralInvite(c, userId, body.code, {
         commissionAllowed: body.commissionAllowed,
         preferredCenterId: body.preferredCenterId,
@@ -152,6 +198,14 @@ referralsApp.get("/mine", authMiddleware(["patient"]), async (c) => {
     .limit(1)
     .maybeSingle();
 
+  const { data: staffReferral } = await supabase
+    .from("StaffReferral")
+    .select("id, staffId, inviteCode, status, commissionAllowed, acceptedAt")
+    .eq("referredUserId", userId)
+    .order("acceptedAt", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   const { data: profile } = await supabase
     .from("PatientProfile")
     .select("referralCodeUsed, commissionConsent, assignedCenterId")
@@ -160,6 +214,6 @@ referralsApp.get("/mine", authMiddleware(["patient"]), async (c) => {
 
   return c.json({
     ok: true,
-    data: { referral, profile },
+    data: { referral, staffReferral, profile },
   });
 });

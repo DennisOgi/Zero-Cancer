@@ -438,6 +438,9 @@ export const createCenterStaffPassword = () =>
 export const centerStaffLogin = () => '/api/center/staff/login'
 export const validateStaffInvite = (token: string) =>
   `/api/center/staff/invite/validate/${token}`
+export const getStaffEarnings = () => '/api/center/staff-earnings/me'
+export const updateStaffBank = () => '/api/center/staff-earnings/me/bank'
+export const staffCashout = () => '/api/center/staff-earnings/cashout'
 
 // Analytics endpoints
 export const getDashboardMetrics = () => '/api/analytics/dashboard'

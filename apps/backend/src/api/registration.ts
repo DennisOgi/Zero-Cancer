@@ -102,7 +102,8 @@ async function resolveCenterAssignment(
   patientId: string,
   state: string,
   localGovernment: string,
-  centerId?: string
+  centerId?: string,
+  referralBoundCenterId?: string
 ) {
   const db = getDB(c);
   const recommendedCenters = await findRecommendedCenters(
@@ -119,6 +120,23 @@ async function resolveCenterAssignment(
     isCenterRecommendedForPatient(recommendedCenters, centerId)
   ) {
     selectedCenterId = centerId;
+  }
+
+  const boundId = referralBoundCenterId || undefined;
+  if (boundId) {
+    const assignment = await assignPatientToCenter(c, patientId, boundId, {
+      skipLocationCheck: true,
+    });
+    if ("error" in assignment) {
+      console.error("[REGISTRATION] Referral center assignment failed:", {
+        patientId,
+        boundId,
+        error: assignment.error,
+      });
+    } else {
+      assignedCenter = assignment.center;
+    }
+    return { recommendedCenters, assignedCenter };
   }
 
   if (selectedCenterId) {
@@ -140,14 +158,46 @@ async function resolveCenterAssignment(
 async function applyReferralCode(
   c: any,
   userId: string,
-  referralCode?: string | null
+  referralCode?: string | null,
+  preferredCenterId?: string | null
 ) {
   if (!referralCode?.trim()) return;
   try {
+    const { getStaffByReferralCode, acceptStaffReferral } = await import(
+      "../lib/staff-referral.service"
+    );
+    const staffHit = await getStaffByReferralCode(c, referralCode);
+    if (staffHit?.staff) {
+      await acceptStaffReferral(c, userId, referralCode);
+      return;
+    }
     const { acceptReferralInvite } = await import("../lib/agent.service");
-    await acceptReferralInvite(c, userId, referralCode);
+    await acceptReferralInvite(c, userId, referralCode, {
+      preferredCenterId: preferredCenterId || undefined,
+    });
   } catch (error) {
     console.warn("[PATIENT_REG] Referral code not applied:", error);
+  }
+}
+
+async function peekReferralBoundCenterId(
+  c: any,
+  referralCode?: string | null
+) {
+  if (!referralCode?.trim()) return null;
+  try {
+    const { getStaffByReferralCode } = await import(
+      "../lib/staff-referral.service"
+    );
+    const staffHit = await getStaffByReferralCode(c, referralCode);
+    if (staffHit?.staff) return null;
+    const { peekReferralInvite } = await import("../lib/agent.service");
+    const peeked = await peekReferralInvite(c, referralCode);
+    return (
+      peeked?.boundCenter?.id || peeked?.referral?.preferredCenterId || null
+    );
+  } catch {
+    return null;
   }
 }
 
@@ -317,16 +367,23 @@ registerApp.post(
         include: { patientProfile: true },
       });
 
+      const boundCenterId = await peekReferralBoundCenterId(c, data.referralCode);
       const { recommendedCenters, assignedCenter } =
         await resolveCenterAssignment(
           c,
           updatedUser.id,
           data.state!,
           data.localGovernment!,
-          data.centerId
+          data.centerId,
+          boundCenterId
         );
       const token = await issuePatientAuthTokens(c, updatedUser);
-      await applyReferralCode(c, updatedUser.id, data.referralCode);
+      await applyReferralCode(
+        c,
+        updatedUser.id,
+        data.referralCode,
+        assignedCenter?.id || boundCenterId
+      );
 
       return c.json<TPatientRegisterResponse>(
         {
@@ -378,16 +435,23 @@ registerApp.post(
         include: { patientProfile: true },
       });
 
+      const boundCenterId = await peekReferralBoundCenterId(c, data.referralCode);
       const { recommendedCenters, assignedCenter } =
         await resolveCenterAssignment(
           c,
           patient.id,
           data.state!,
           data.localGovernment!,
-          data.centerId
+          data.centerId,
+          boundCenterId
         );
       const token = await issuePatientAuthTokens(c, patient);
-      await applyReferralCode(c, patient.id, data.referralCode);
+      await applyReferralCode(
+        c,
+        patient.id,
+        data.referralCode,
+        assignedCenter?.id || boundCenterId
+      );
 
       return c.json<TPatientRegisterResponse>(
         {

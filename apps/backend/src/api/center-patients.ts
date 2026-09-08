@@ -6,6 +6,7 @@ import {
 import type { TErrorResponse } from "@zerocancer/shared/types";
 import bcrypt from "bcryptjs";
 import { Hono } from "hono";
+import { z } from "zod";
 import { getDB } from "../lib/db";
 import { getSupabaseClient } from "../lib/supabase";
 import { THonoApp } from "../lib/types";
@@ -18,7 +19,8 @@ import {
   expireStaleEnrollmentRequests,
   formatEnrollmentRequestForApi,
 } from "../lib/center-enrollment-utils";
-import { z } from "zod";
+import { resolveCenterStaff } from "../lib/center-context";
+import { activateAgent } from "../lib/agent.service";
 
 export const centerPatientsApp = new Hono<THonoApp>();
 
@@ -36,7 +38,9 @@ centerPatientsApp.post(
   async (c) => {
     try {
       const db = getDB(c);
-      const centerId = c.get("jwtPayload")?.id as string;
+      const context = await resolveCenterStaff(c, db);
+      const centerId = context.centerId as string;
+      const staffId = context.staffId;
       const data = c.req.valid("json");
 
       if (!isLikelyValidWhatsappNumber(data.whatsappNumber)) {
@@ -143,6 +147,9 @@ centerPatientsApp.post(
                 state: data.state,
                 emailVerified: new Date(),
                 mustChangePassword: true,
+                onboardedByStaffId: staffId,
+                onboardedByCenterId: centerId,
+                assignedCenterId: centerId,
               },
             },
           },
@@ -160,6 +167,28 @@ centerPatientsApp.post(
         screeningTypeId: data.screeningTypeId,
         centerId,
       });
+
+      if ("error" in enrollment && enrollment.error) {
+        return c.json<TErrorResponse>({ ok: false, error: enrollment.error }, 404);
+      }
+
+      if (isNewPatient) {
+        await db.patientProfile
+          .update({
+            where: { userId: patientId },
+            data: {
+              onboardedByStaffId: staffId || undefined,
+              onboardedByCenterId: centerId,
+              assignedCenterId: centerId,
+            },
+          })
+          .catch(() => undefined);
+        try {
+          await activateAgent(c, patientId, { skipCompletedScreen: true });
+        } catch (error) {
+          console.warn("Could not auto-activate referral profile:", error);
+        }
+      }
 
       if ("error" in enrollment && enrollment.error) {
         return c.json<TErrorResponse>({ ok: false, error: enrollment.error }, 404);

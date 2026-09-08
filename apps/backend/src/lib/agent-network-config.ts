@@ -7,6 +7,8 @@ export const AGENT_NETWORK_DEFAULTS = {
   SCREEN_COMMISSION_FLAT: 500,
   /** Flat NGN commission when a referred patient completes a home screen */
   HOME_SCREEN_COMMISSION_FLAT: 1000,
+  /** Flat NGN paid to the nurse who onboarded the referring patient */
+  NURSE_REFERRAL_COMMISSION_FLAT: 300,
   /** Percent of sponsored campaign funding credited to inviting agent (0–100) */
   SPONSOR_COMMISSION_PERCENT: 5,
   /** Minimum Paystack deposit toward a savings plan (NGN) */
@@ -42,6 +44,10 @@ export function getAgentNetworkConfig(
     homeScreenCommissionFlat: num(
       "AGENT_COMMISSION_HOME_SCREEN_FLAT",
       AGENT_NETWORK_DEFAULTS.HOME_SCREEN_COMMISSION_FLAT
+    ),
+    nurseReferralCommissionFlat: num(
+      "AGENT_COMMISSION_NURSE_FLAT",
+      AGENT_NETWORK_DEFAULTS.NURSE_REFERRAL_COMMISSION_FLAT
     ),
     sponsorCommissionPercent: num(
       "AGENT_COMMISSION_SPONSOR_PERCENT",
