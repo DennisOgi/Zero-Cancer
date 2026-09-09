@@ -27,12 +27,12 @@ export default function RoleSelection({
     },
     {
       value: 'center',
-      label: 'Center',
+      label: 'Health Facility',
       description: 'Manage dashboard, staff, and results.',
     },
     {
       value: 'center-staff',
-      label: 'Center Staff',
+      label: 'Health Facility Staff',
       description: 'Manage dashboard, staff, and results.',
     },
   ]

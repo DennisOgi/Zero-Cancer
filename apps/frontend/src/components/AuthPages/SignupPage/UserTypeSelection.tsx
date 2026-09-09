@@ -40,10 +40,10 @@ export default function UserTypeSelection() {
           className="bg-blue-200 p-4 rounded-lg cursor-pointer flex-1 min-w-[200px] flex flex-col items-center hover:bg-blue-300 transition-colors duration-300"
           onClick={() => handleTypeSelect('center')}
         >
-          <h3 className="text-2xl font-bold mb-12 w-full">Center</h3>
+          <h3 className="text-2xl font-bold mb-12 w-full">Health Facility</h3>
           <img
             src={screeningImage}
-            alt="center"
+            alt="health facility"
             className="h-40 w-auto object-contain"
           />
         </div>

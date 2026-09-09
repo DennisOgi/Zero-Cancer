@@ -83,9 +83,9 @@ export function StaffLoginForm() {
     <div className="w-full max-w-md space-y-6 mx-auto">
       {/* <div className="space-y-6"> */}
       <div className="space-y-2">
-        <h2 className="text-3xl font-bold">Screening Center Portal</h2>
+        <h2 className="text-3xl font-bold">Health Facility Portal</h2>
         <p className="text-muted-foreground">
-          Sign in to access your center's staff portal.
+          Sign in to access your health facility&apos;s staff portal.
         </p>
       </div>
 
@@ -99,7 +99,7 @@ export function StaffLoginForm() {
             name="centerId"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Center</FormLabel>
+                <FormLabel>Health Facility</FormLabel>
                 <FormControl>
                   <Combobox
                     options={centerOptions}
@@ -107,8 +107,8 @@ export function StaffLoginForm() {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     name={field.name}
-                    placeholder="Select center"
-                    searchPlaceholder="Search centers..."
+                    placeholder="Select health facility"
+                    searchPlaceholder="Search health facilities..."
                     emptyStateMessage={
                       centersLoading
                         ? 'Loading...'

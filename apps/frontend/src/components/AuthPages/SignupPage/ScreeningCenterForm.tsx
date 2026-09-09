@@ -130,8 +130,8 @@ export default function ScreeningCenterForm({
           name="centerName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Center Name</FormLabel>
-              <FormControl>
+              <FormLabel>Health Facility Name</FormLabel>
+                <FormControl>
                 <Input placeholder="Hope Medical Center" {...field} />
               </FormControl>
               <FormMessage />

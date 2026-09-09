@@ -96,7 +96,7 @@ export default function How() {
           />
         </div>
         <div className="md:col-span-4 md:row-span-2 md:col-start-3 md:row-start-5 bg-blue-100 rounded-2xl p-8">
-          <h3 className="text-2xl font-bold">Screening Center</h3>
+          <h3 className="text-2xl font-bold">Health Facility</h3>
           <p className="text-muted-foreground mt-2">
             Manage appointments and upload screening results.
           </p>
@@ -107,7 +107,7 @@ export default function How() {
           </Link>
           <img
             src={screening}
-            alt="Screening Center"
+            alt="Health Facility"
             className="w-64 ml-auto"
           />
         </div>
@@ -186,7 +186,7 @@ export default function How() {
         </div>
         <div className="bg-blue-100 rounded-2xl p-8 flex flex-row-reverse justify-between items-center gap-4">
           <div>
-            <h3 className="text-2xl font-bold">Screening Center</h3>
+            <h3 className="text-2xl font-bold">Health Facility</h3>
             <p className="text-muted-foreground mt-2">
               Manage appointments and upload screening results.
             </p>
@@ -196,7 +196,7 @@ export default function How() {
               </button>
             </Link>
           </div>
-          <img src={screening} alt="Screening Center" className="w-32" />
+          <img src={screening} alt="Health Facility" className="w-32" />
         </div>
       </div>
     </div>

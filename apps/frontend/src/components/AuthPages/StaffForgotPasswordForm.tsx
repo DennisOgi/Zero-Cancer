@@ -90,7 +90,7 @@ export function StaffForgotPasswordForm() {
             name="centerId"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Center</FormLabel>
+                <FormLabel>Health Facility</FormLabel>
                 <FormControl>
                   <Combobox
                     options={centerOptions}
@@ -98,8 +98,8 @@ export function StaffForgotPasswordForm() {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     name={field.name}
-                    placeholder="Select center"
-                    searchPlaceholder="Search centers..."
+                    placeholder="Select health facility"
+                    searchPlaceholder="Search health facilities..."
                     emptyStateMessage={
                       centersLoading
                         ? 'Loading...'
