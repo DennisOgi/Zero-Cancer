@@ -15,6 +15,11 @@ export function isHospitalAdminRole(role?: string | null) {
   return value === "ADMIN";
 }
 
+/** Facility admins sign in as the center; nurses and staff stay CENTER_STAFF. */
+export function staffJwtProfile(role?: string | null): "CENTER" | "CENTER_STAFF" {
+  return isHospitalAdminRole(role) ? "CENTER" : "CENTER_STAFF";
+}
+
 export function canAccessStaffEarnings(ctx: {
   profile?: string | null;
   staffRole?: string | null;

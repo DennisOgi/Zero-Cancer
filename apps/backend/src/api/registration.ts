@@ -26,7 +26,6 @@ import { uploadBase64ImageToCloudinary, isAllowedPatientPhotoUrl } from "../lib/
 import {
   assignPatientToCenter,
   findRecommendedCenters,
-  isCenterRecommendedForPatient,
   pickAutoAssignedCenter,
 } from "../lib/patient-center-utils";
 // import { sendEmail } from "../lib/email"; // Disabled for now
@@ -114,12 +113,22 @@ async function resolveCenterAssignment(
 
   let assignedCenter: TRecommendedCenter | null = null;
 
-  let selectedCenterId = pickAutoAssignedCenter(recommendedCenters)?.id;
-  if (
-    centerId &&
-    isCenterRecommendedForPatient(recommendedCenters, centerId)
-  ) {
-    selectedCenterId = centerId;
+  // Facility invite link (?center=) — register under that health facility.
+  if (centerId) {
+    const assignment = await assignPatientToCenter(c, patientId, centerId, {
+      skipLocationCheck: true,
+      setOnboardedByCenter: true,
+    });
+    if ("error" in assignment) {
+      console.error("[REGISTRATION] Facility invite assignment failed:", {
+        patientId,
+        centerId,
+        error: assignment.error,
+      });
+    } else {
+      assignedCenter = assignment.center;
+    }
+    return { recommendedCenters, assignedCenter };
   }
 
   const boundId = referralBoundCenterId || undefined;
@@ -138,6 +147,8 @@ async function resolveCenterAssignment(
     }
     return { recommendedCenters, assignedCenter };
   }
+
+  let selectedCenterId = pickAutoAssignedCenter(recommendedCenters)?.id;
 
   if (selectedCenterId) {
     const assignment = await assignPatientToCenter(c, patientId, selectedCenterId);

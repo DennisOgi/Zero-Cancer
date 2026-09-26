@@ -27,7 +27,7 @@ import { FileUploadService } from '@/services/upload.service'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
 import { updateCenterProfileSchema } from '@zerocancer/shared/schemas/center.schema'
-import { Building2, Loader2, MessageCircle, Palette } from 'lucide-react'
+import { Building2, Copy, Loader2, MessageCircle, Palette, Share2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type * as RPNInput from 'react-phone-number-input'
@@ -131,15 +131,50 @@ export function CenterProfilePage() {
 
   const logoPreview = form.watch('logoUrl')
 
+  const shareUrl =
+    profile.patientInviteUrl ||
+    `${typeof window !== 'undefined' ? window.location.origin : ''}/sign-up/patient?center=${profile.id}`
+
+  const onCopyInvite = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      toast.success('Patient invite link copied')
+    } catch {
+      toast.error('Could not copy link')
+    }
+  }
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Center profile</h1>
+        <h1 className="text-3xl font-bold">Health facility profile</h1>
         <p className="mt-1 text-muted-foreground">
-          Manage WhatsApp contact details and the branded letterhead used on
-          screening reports.
+          Manage WhatsApp contact details, branded letterhead, and your patient
+          invite link.
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Share2 className="h-5 w-5" />
+            Invite patients to this facility
+          </CardTitle>
+          <CardDescription>
+            Share this link. When a patient registers with it, they are
+            registered under {profile.centerName}.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="break-all rounded-md bg-muted px-3 py-2 text-xs">
+            {shareUrl}
+          </p>
+          <Button type="button" variant="outline" onClick={onCopyInvite}>
+            <Copy className="mr-2 h-4 w-4" />
+            Copy invite link
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

@@ -44,6 +44,7 @@ import { Route as CenterProfileRouteImport } from './routes/center/profile'
 import { Route as CenterPatientsRouteImport } from './routes/center/patients'
 import { Route as CenterNotificationsRouteImport } from './routes/center/notifications'
 import { Route as CenterEarningsRouteImport } from './routes/center/earnings'
+import { Route as CenterKitsRouteImport } from './routes/center/kits'
 import { Route as CenterAppointmentsRouteImport } from './routes/center/appointments'
 import { Route as AdminWaitlistRouteImport } from './routes/admin/waitlist'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
@@ -269,6 +270,11 @@ const CenterNotificationsRoute = CenterNotificationsRouteImport.update({
 const CenterEarningsRoute = CenterEarningsRouteImport.update({
   id: '/earnings',
   path: '/earnings',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterKitsRoute = CenterKitsRouteImport.update({
+  id: '/kits',
+  path: '/kits',
   getParentRoute: () => CenterRouteRoute,
 } as any)
 const CenterAppointmentsRoute = CenterAppointmentsRouteImport.update({
@@ -578,6 +584,7 @@ export interface FileRoutesByFullPath {
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/earnings': typeof CenterEarningsRoute
+  '/center/kits': typeof CenterKitsRoute
   '/center/notifications': typeof CenterNotificationsRoute
   '/center/patients': typeof CenterPatientsRoute
   '/center/profile': typeof CenterProfileRoute
@@ -662,6 +669,7 @@ export interface FileRoutesByTo {
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/earnings': typeof CenterEarningsRoute
+  '/center/kits': typeof CenterKitsRoute
   '/center/notifications': typeof CenterNotificationsRoute
   '/center/patients': typeof CenterPatientsRoute
   '/center/profile': typeof CenterProfileRoute
@@ -753,6 +761,7 @@ export interface FileRoutesById {
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/earnings': typeof CenterEarningsRoute
+  '/center/kits': typeof CenterKitsRoute
   '/center/notifications': typeof CenterNotificationsRoute
   '/center/patients': typeof CenterPatientsRoute
   '/center/profile': typeof CenterProfileRoute
@@ -843,6 +852,7 @@ export interface FileRouteTypes {
     | '/admin/waitlist'
     | '/center/appointments'
     | '/center/earnings'
+    | '/center/kits'
     | '/center/notifications'
     | '/center/patients'
     | '/center/profile'
@@ -927,6 +937,7 @@ export interface FileRouteTypes {
     | '/admin/waitlist'
     | '/center/appointments'
     | '/center/earnings'
+    | '/center/kits'
     | '/center/notifications'
     | '/center/patients'
     | '/center/profile'
@@ -1017,6 +1028,7 @@ export interface FileRouteTypes {
     | '/admin/waitlist'
     | '/center/appointments'
     | '/center/earnings'
+    | '/center/kits'
     | '/center/notifications'
     | '/center/patients'
     | '/center/profile'
@@ -1331,6 +1343,13 @@ declare module '@tanstack/react-router' {
       path: '/earnings'
       fullPath: '/center/earnings'
       preLoaderRoute: typeof CenterEarningsRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/kits': {
+      id: '/center/kits'
+      path: '/kits'
+      fullPath: '/center/kits'
+      preLoaderRoute: typeof CenterKitsRouteImport
       parentRoute: typeof CenterRouteRoute
     }
     '/center/appointments': {
@@ -1839,6 +1858,7 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
 interface CenterRouteRouteChildren {
   CenterAppointmentsRoute: typeof CenterAppointmentsRoute
   CenterEarningsRoute: typeof CenterEarningsRoute
+  CenterKitsRoute: typeof CenterKitsRoute
   CenterNotificationsRoute: typeof CenterNotificationsRoute
   CenterPatientsRoute: typeof CenterPatientsRoute
   CenterProfileRoute: typeof CenterProfileRoute
@@ -1858,6 +1878,7 @@ interface CenterRouteRouteChildren {
 const CenterRouteRouteChildren: CenterRouteRouteChildren = {
   CenterAppointmentsRoute: CenterAppointmentsRoute,
   CenterEarningsRoute: CenterEarningsRoute,
+  CenterKitsRoute: CenterKitsRoute,
   CenterNotificationsRoute: CenterNotificationsRoute,
   CenterPatientsRoute: CenterPatientsRoute,
   CenterProfileRoute: CenterProfileRoute,

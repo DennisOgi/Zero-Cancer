@@ -346,6 +346,7 @@ export type TCenterProfile = {
     logoUrl?: string | null
     reportFooterText?: string | null
     brandColor?: string | null
+    patientInviteUrl?: string
   }
 }
 

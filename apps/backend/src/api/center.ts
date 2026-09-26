@@ -80,6 +80,7 @@ centerApp.get(
           logoUrl: center.logoUrl || null,
           reportFooterText: center.reportFooterText || null,
           brandColor: center.brandColor || null,
+          patientInviteUrl: `${(env<TEnvs>(c).FRONTEND_URL || "https://zerocancer.africa").replace(/\/$/, "")}/sign-up/patient?center=${encodeURIComponent(center.id)}`,
         },
       });
     } catch (error) {

@@ -83,6 +83,9 @@ export enum QueryKeys {
   centerEnrollmentRequests = 'centerEnrollmentRequests',
   centerProfile = 'centerProfile',
   staffEarnings = 'staffEarnings',
+  kitStats = 'kitStats',
+  kits = 'kits',
+  kitOrders = 'kitOrders',
 }
 
 export enum MutationKeys {
@@ -161,6 +164,7 @@ export enum MutationKeys {
   updateRetailPrice = 'updateRetailPrice',
   updateStaffBank = 'updateStaffBank',
   staffCashout = 'staffCashout',
+  createKitOrder = 'createKitOrder',
 }
 
 export const ACCESS_TOKEN_KEY = 'accessToken'

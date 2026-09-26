@@ -99,6 +99,7 @@ export async function initiateFlutterwaveTransfer(
 
 export function verifyFlutterwaveWebhook(c: Context, signature: string | undefined) {
   const { FLUTTERWAVE_WEBHOOK_HASH } = env<TEnvs>(c);
-  if (!FLUTTERWAVE_WEBHOOK_HASH?.trim()) return true;
-  return signature === FLUTTERWAVE_WEBHOOK_HASH.trim();
+  const expected = FLUTTERWAVE_WEBHOOK_HASH?.trim();
+  if (!expected || !signature) return false;
+  return signature === expected;
 }

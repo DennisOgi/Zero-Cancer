@@ -442,6 +442,23 @@ export const getStaffEarnings = () => '/api/center/staff-earnings/me'
 export const updateStaffBank = () => '/api/center/staff-earnings/me/bank'
 export const staffCashout = () => '/api/center/staff-earnings/cashout'
 
+// Kits (inventory + facility orders)
+export const getKits = (params?: {
+  page?: number
+  pageSize?: number
+  status?: string
+  search?: string
+}) =>
+  `/api/kit${buildQuery({
+    page: params?.page ?? 1,
+    pageSize: params?.pageSize ?? 20,
+    status: params?.status,
+    search: params?.search,
+  })}`
+export const getKitStats = () => '/api/kit/stats'
+export const getKitOrders = () => '/api/kit/orders'
+export const createKitOrder = () => '/api/kit/orders'
+
 // Analytics endpoints
 export const getDashboardMetrics = () => '/api/analytics/dashboard'
 export const getTimeBasedReport = (params: {

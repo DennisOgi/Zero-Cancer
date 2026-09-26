@@ -28,6 +28,16 @@ export const assignKitSchema = z.object({
 export const addKitsSchema = z.object({
   centerId: z.string().uuid(),
   screeningTypeId: z.string().uuid(),
-  serialNumbers: z.array(z.string().min(1)).min(1, "At least one serial number is required"),
+  serialNumbers: z
+    .array(z.string().min(1))
+    .min(1, "At least one serial number is required"),
   batchNumber: z.string().optional(),
+});
+
+/** Facility request to purchase / restock kits (fulfillment & pricing come later). */
+export const orderKitsSchema = z.object({
+  screeningTypeId: z.string().uuid("Select a kit / screening type"),
+  quantity: z.coerce.number().int().min(1).max(500),
+  urgency: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
+  notes: z.string().max(500).optional(),
 });

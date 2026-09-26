@@ -9,6 +9,7 @@ import { getCenterAppointmentsSchema } from '@zerocancer/shared/schemas/appointm
 import { getCentersQuerySchema } from '@zerocancer/shared/schemas/center.schema'
 import type { z } from 'zod'
 import * as centerService from '../center.service'
+import * as kitService from '../kit.service'
 import * as staffEarningsService from '../staff-earnings.service'
 
 // --- Center Query Providers ---
@@ -303,6 +304,45 @@ export const useStaffCashout = () => {
     mutationFn: staffEarningsService.staffCashout,
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.staffEarnings] })
+    },
+  })
+}
+
+export const kitStats = () =>
+  queryOptions({
+    queryKey: [QueryKeys.kitStats],
+    queryFn: () => kitService.getKitStats(),
+  })
+
+export const kitsList = (params?: {
+  page?: number
+  pageSize?: number
+  status?: string
+}) =>
+  queryOptions({
+    queryKey: [QueryKeys.kits, params],
+    queryFn: () => kitService.getKits(params),
+  })
+
+export const kitOrders = () =>
+  queryOptions({
+    queryKey: [QueryKeys.kitOrders],
+    queryFn: () => kitService.getKitOrders(),
+  })
+
+export const centerMyServices = () =>
+  queryOptions({
+    queryKey: [QueryKeys.centerServices],
+    queryFn: () => centerService.getCenterMyServices(),
+  })
+
+export const useCreateKitOrder = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: [MutationKeys.createKitOrder],
+    mutationFn: kitService.createKitOrder,
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.kitOrders] })
     },
   })
 }

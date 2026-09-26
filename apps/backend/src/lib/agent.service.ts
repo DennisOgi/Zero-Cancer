@@ -545,8 +545,8 @@ export async function settleAgentCashoutFromFlutterwave(
     return { handled: true, alreadySettled: true };
   }
 
-  const ok = String(payload.status || "").toUpperCase() === "SUCCESSFUL";
-  if (ok) {
+  const status = String(payload.status || "").toUpperCase();
+  if (status === "SUCCESSFUL" || status === "SUCCESS") {
     await supabase
       .from("AgentCashout")
       .update({
@@ -572,6 +572,10 @@ export async function settleAgentCashoutFromFlutterwave(
       .eq("id", cashout.agentId);
 
     return { handled: true, status: "SUCCESS" };
+  }
+
+  if (status !== "FAILED") {
+    return { handled: true, status: "PENDING" };
   }
 
   await supabase

@@ -47,11 +47,13 @@ type PatientFormProps = {
     response: TPatientRegisterResponse,
   ) => void
   referralCode?: string
+  facilityCenterId?: string
 }
 
 export default function PatientForm({
   onSubmitSuccess,
   referralCode,
+  facilityCenterId,
 }: PatientFormProps) {
   const [selectedState, setSelectedState] = useState<string>('')
   const [localGovernments, setLocalGovernments] = useState<
@@ -75,12 +77,17 @@ export default function PatientForm({
       localGovernment: '',
       photoUrl: '',
       referralCode: referralCode || '',
+      centerId: facilityCenterId || undefined,
     },
   })
 
   useEffect(() => {
     if (referralCode) form.setValue('referralCode', referralCode)
   }, [form, referralCode])
+
+  useEffect(() => {
+    if (facilityCenterId) form.setValue('centerId', facilityCenterId)
+  }, [form, facilityCenterId])
 
   const handleStateChange = (stateName: string) => {
     setSelectedState(stateName)
@@ -107,6 +114,7 @@ export default function PatientForm({
         : values.dateOfBirth,
       photoUrl: values.photoUrl || undefined,
       referralCode: values.referralCode || referralCode || undefined,
+      centerId: values.centerId || facilityCenterId || undefined,
     }
 
     mutation.mutate(formattedValues, {

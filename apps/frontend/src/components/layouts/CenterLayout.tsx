@@ -38,6 +38,7 @@ export function CenterLayout() {
     { to: '/center/verify-code', label: 'Verify Code', icon: screening },
     { to: '/center/upload-results', label: 'Upload Results', icon: treatment },
     { to: '/center/reports', label: 'Reports', icon: screening },
+    { to: '/center/kits', label: 'Kits', icon: treatment },
     { to: '/center/notifications', label: 'Notifications', icon: health }, // v1.0 - Center notifications
   ]
 

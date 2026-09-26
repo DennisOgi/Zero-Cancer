@@ -105,7 +105,7 @@ export async function assignPatientToCenter(
   c: any,
   patientId: string,
   centerId: string,
-  opts?: { skipLocationCheck?: boolean }
+  opts?: { skipLocationCheck?: boolean; setOnboardedByCenter?: boolean }
 ): Promise<
   | { error: string }
   | { center: RecommendedCenter; enrolledCount: number }
@@ -163,6 +163,12 @@ export async function assignPatientToCenter(
   }
 
   if (profile.assignedCenterId === centerId) {
+    if (opts?.setOnboardedByCenter && !profile.onboardedByCenterId) {
+      await db.patientProfile.update({
+        where: { userId: patientId },
+        data: { onboardedByCenterId: centerId },
+      });
+    }
     return {
       center: {
         id: centerRecord.id,
@@ -179,7 +185,12 @@ export async function assignPatientToCenter(
 
   await db.patientProfile.update({
     where: { userId: patientId },
-    data: { assignedCenterId: centerId },
+    data: {
+      assignedCenterId: centerId,
+      ...(opts?.setOnboardedByCenter
+        ? { onboardedByCenterId: centerId }
+        : {}),
+    },
   });
 
   await migratePendingWaitlistsToCenter(db, patientId, centerId);

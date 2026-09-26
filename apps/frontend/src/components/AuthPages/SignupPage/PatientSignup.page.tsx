@@ -1,6 +1,7 @@
 import PatientForm from '@/components/AuthPages/SignupPage/PatientForm'
 import { ACCESS_TOKEN_KEY } from '@/services/keys'
 import { lookupReferral } from '@/services/agent-network.service'
+import { getCenterById } from '@/services/center.service'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { TPatientRegisterResponse } from '@zerocancer/shared/types'
@@ -11,7 +12,15 @@ import { useEffect, useMemo } from 'react'
 
 type FormData = z.infer<typeof patientSchema>
 
-export function PatientSignupPage({ referralCode }: { referralCode?: string }) {
+const FACILITY_CENTER_KEY = 'zerocancer_facility_center'
+
+export function PatientSignupPage({
+  referralCode,
+  facilityCenterId,
+}: {
+  referralCode?: string
+  facilityCenterId?: string
+}) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -19,11 +28,22 @@ export function PatientSignupPage({ referralCode }: { referralCode?: string }) {
     typeof window !== 'undefined'
       ? sessionStorage.getItem('zerocancer_ref') || undefined
       : undefined
+  const storedFacility =
+    typeof window !== 'undefined'
+      ? sessionStorage.getItem(FACILITY_CENTER_KEY) || undefined
+      : undefined
+
   const code = (referralCode || storedRef || '').trim()
+  const centerId = (facilityCenterId || storedFacility || '').trim()
 
   useEffect(() => {
     if (referralCode) sessionStorage.setItem('zerocancer_ref', referralCode)
   }, [referralCode])
+
+  useEffect(() => {
+    if (facilityCenterId)
+      sessionStorage.setItem(FACILITY_CENTER_KEY, facilityCenterId)
+  }, [facilityCenterId])
 
   const { data: referralLookup } = useQuery({
     queryKey: ['referral-lookup', code],
@@ -32,19 +52,34 @@ export function PatientSignupPage({ referralCode }: { referralCode?: string }) {
     retry: false,
   })
 
+  const { data: facilityLookup } = useQuery({
+    queryKey: ['facility-invite', centerId],
+    queryFn: () => getCenterById(centerId),
+    enabled: centerId.length > 10,
+    retry: false,
+  })
+
   const referrerLabel = useMemo(() => {
     const payload = (referralLookup as any)?.data
-    return payload?.referrerName || payload?.inviteName || payload?.agentCode || code
+    return (
+      payload?.referrerName ||
+      payload?.inviteName ||
+      payload?.agentCode ||
+      code
+    )
   }, [referralLookup, code])
   const lookup = (referralLookup as any)?.data
   const boundCenter = lookup?.boundCenter
   const screenAnywhere = lookup?.type === 'nurse' || lookup?.screenAnywhere
+  const facility = (facilityLookup as any)?.data
+  const facilityName = facility?.centerName as string | undefined
 
   const handleFormSubmit = (
     _values: FormData,
     response: TPatientRegisterResponse,
   ) => {
     sessionStorage.removeItem('zerocancer_ref')
+    sessionStorage.removeItem(FACILITY_CENTER_KEY)
     const token = response.data?.token
     if (token) {
       queryClient.setQueryData([ACCESS_TOKEN_KEY], token)
@@ -56,7 +91,7 @@ export function PatientSignupPage({ referralCode }: { referralCode?: string }) {
 
     if (assignedCenter) {
       toast.success(
-        `Account created! You've been assigned to ${assignedCenter.centerName} in ${assignedCenter.lga}, ${assignedCenter.state}.`,
+        `Account created! You've been registered at ${assignedCenter.centerName} in ${assignedCenter.lga}, ${assignedCenter.state}.`,
       )
       navigate({ to: '/patient', replace: true })
       return
@@ -97,14 +132,25 @@ export function PatientSignupPage({ referralCode }: { referralCode?: string }) {
         <h1 className="text-2xl font-bold">Create your patient account</h1>
         <p className="text-sm text-muted-foreground">
           Register with your location so we can connect you to the nearest
-          screening center for vaccination, screening, and treatment.
+          health facility for vaccination, screening, and treatment.
         </p>
+        {centerId && facilityName ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
+            <p className="font-medium">
+              You&apos;ll be registered at {facilityName}
+            </p>
+            <p className="mt-0.5 text-emerald-900/80">
+              This health facility invited you. Continue to join them, or close
+              this page if you prefer not to.
+            </p>
+          </div>
+        ) : null}
         {code ? (
           <div className="rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm text-pink-900">
             <p className="font-medium">Referred by {referrerLabel}</p>
             <p className="mt-0.5 text-pink-800/80">
               {screenAnywhere
-                ? `You can screen at any ZeroCancer center, including one near you. You can still choose whether ${referrerLabel} earns a commission.`
+                ? `You can screen at any ZeroCancer health facility, including one near you. You can still choose whether ${referrerLabel} earns a commission.`
                 : boundCenter
                   ? `You'll be assigned to ${boundCenter.centerName} for screening. You can still choose whether ${referrerLabel} earns a commission.`
                   : 'We will attach this invite to your account. When you book, you can choose whether they earn a commission.'}
@@ -115,6 +161,7 @@ export function PatientSignupPage({ referralCode }: { referralCode?: string }) {
       <PatientForm
         onSubmitSuccess={handleFormSubmit}
         referralCode={code || undefined}
+        facilityCenterId={centerId || undefined}
       />
     </div>
   )
