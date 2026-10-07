@@ -868,7 +868,9 @@ export const getDB = (c: Context) => {
       findFirst: async ({ where }: { where: { centerId?: string; email?: string } }) => {
         let query = supabase.from("CenterStaff").select("*");
         if (where?.centerId) query = query.eq("centerId", where.centerId);
-        if (where?.email) query = query.eq("email", where.email);
+        if (where?.email) {
+          query = query.ilike("email", where.email.trim().replace(/[\\%_]/g, "\\$&"));
+        }
         const { data, error } = await query.limit(1).maybeSingle();
         if (error && error.code !== "PGRST116") throw error;
         return data;

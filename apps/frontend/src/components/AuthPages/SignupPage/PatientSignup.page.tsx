@@ -8,7 +8,7 @@ import type { TPatientRegisterResponse } from '@zerocancer/shared/types'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { patientSchema } from '@zerocancer/shared/schemas/register.schema'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 type FormData = z.infer<typeof patientSchema>
 
@@ -52,7 +52,7 @@ export function PatientSignupPage({
     retry: false,
   })
 
-  const { data: facilityLookup } = useQuery({
+  const { data: facilityLookup, isError: facilityLookupError } = useQuery({
     queryKey: ['facility-invite', centerId],
     queryFn: () => getCenterById(centerId),
     enabled: centerId.length > 10,
@@ -71,8 +71,22 @@ export function PatientSignupPage({
   const lookup = (referralLookup as any)?.data
   const boundCenter = lookup?.boundCenter
   const screenAnywhere = lookup?.type === 'nurse' || lookup?.screenAnywhere
+  const [facilityDismissed, setFacilityDismissed] = useState(false)
   const facility = (facilityLookup as any)?.data
   const facilityName = facility?.centerName as string | undefined
+  const facilityUsable =
+    !!facility &&
+    String(facility.status || '').toUpperCase() === 'ACTIVE' &&
+    (facility.services?.length || 0) > 0
+  const facilityUnavailable =
+    !!centerId && (facilityLookupError || (!!facility && !facilityUsable))
+  const activeFacilityId =
+    centerId && facilityUsable && !facilityDismissed ? centerId : undefined
+
+  useEffect(() => {
+    if (facilityUnavailable || facilityDismissed)
+      sessionStorage.removeItem(FACILITY_CENTER_KEY)
+  }, [facilityUnavailable, facilityDismissed])
 
   const handleFormSubmit = (
     _values: FormData,
@@ -134,15 +148,38 @@ export function PatientSignupPage({
           Register with your location so we can connect you to the nearest
           health facility for vaccination, screening, and treatment.
         </p>
-        {centerId && facilityName ? (
+        {activeFacilityId && facilityName ? (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
             <p className="font-medium">
               You&apos;ll be registered at {facilityName}
             </p>
             <p className="mt-0.5 text-emerald-900/80">
-              This health facility invited you. Continue to join them, or close
-              this page if you prefer not to.
+              {facility?.lga && facility?.state
+                ? `${facility.lga}, ${facility.state}. `
+                : ''}
+              This health facility invited you.
             </p>
+            <button
+              type="button"
+              className="mt-2 text-sm font-medium text-emerald-800 underline underline-offset-2"
+              onClick={() => setFacilityDismissed(true)}
+            >
+              Not near you? Choose another facility
+            </button>
+          </div>
+        ) : null}
+        {facilityDismissed && facilityName ? (
+          <div className="rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-800">
+            We&apos;ll match you with a health facility near the location you
+            enter below.
+          </div>
+        ) : null}
+        {facilityUnavailable ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            {facilityName
+              ? `${facilityName} isn't taking new registrations right now.`
+              : "This invite link isn't valid."}{' '}
+            We&apos;ll match you with a health facility near you instead.
           </div>
         ) : null}
         {code ? (
@@ -161,7 +198,7 @@ export function PatientSignupPage({
       <PatientForm
         onSubmitSuccess={handleFormSubmit}
         referralCode={code || undefined}
-        facilityCenterId={centerId || undefined}
+        facilityCenterId={activeFacilityId}
       />
     </div>
   )

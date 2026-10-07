@@ -8,6 +8,7 @@ import {
   Home,
   LineChart,
   LogOut,
+  Package,
   Stethoscope,
   Store as StoreIcon,
   Ticket,
@@ -121,6 +122,14 @@ export function AdminLayout() {
               >
                 <StoreIcon className="h-4 w-4" />
                 Store
+              </Link>
+              <Link
+                to="/admin/kit-orders"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+                activeProps={{ className: 'bg-muted text-primary' }}
+              >
+                <Package className="h-4 w-4" />
+                Kit orders
               </Link>
               <Link
                 to="/admin/analytics"

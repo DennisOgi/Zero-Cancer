@@ -90,6 +90,8 @@ export type TLoginResponse = TDataResponse<{
     fullName: string;
     email: string;
     profile: "PATIENT" | "DONOR" | "CENTER" | "CENTER_STAFF" | "ADMIN";
+    staffId?: string;
+    staffRole?: "ADMIN" | "NURSE" | "STAFF";
   };
 }>;
 
@@ -737,6 +739,7 @@ export type TInviteStaffResponse = TDataResponse<{
     role?: string;
     fullName?: string | null;
   }>;
+  skipped?: Array<{ email: string; reason: string }>;
 }>;
 
 export type TCreateCenterStaffPasswordResponse = TDataResponse<{
@@ -1086,8 +1089,26 @@ export type TPaymentContext =
       } | null;
     };
 
+export type TCenterStaffMember = {
+  id: string;
+  email: string;
+  fullName: string | null;
+  role: "ADMIN" | "NURSE" | "STAFF";
+  status: "ACTIVE" | "SUSPENDED";
+  createdAt: string | null;
+  patientsRegistered: number;
+  isOwner?: boolean;
+};
+
+export type TCenterStaffMembersResponse = TDataResponse<{
+  members: TCenterStaffMember[];
+}>;
+
 export type TValidateStaffInviteResponse = TDataResponse<{
   isValid: boolean;
+  centerId?: string;
+  role?: string;
+  fullName?: string | null;
   centerName: string;
   centerAddress: string;
   email: string;

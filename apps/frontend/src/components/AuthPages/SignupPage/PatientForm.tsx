@@ -29,7 +29,6 @@ import { patientSchema } from '@zerocancer/shared/schemas/register.schema'
 import type { TPatientRegisterResponse } from '@zerocancer/shared/types'
 
 import { Calendar as ShadCalendar } from '@/components/shared/ui/calendar'
-import { Label as ShadLabel } from '@/components/shared/ui/label'
 import {
   Popover as ShadPopover,
   PopoverContent as ShadPopoverContent,
@@ -86,7 +85,7 @@ export default function PatientForm({
   }, [form, referralCode])
 
   useEffect(() => {
-    if (facilityCenterId) form.setValue('centerId', facilityCenterId)
+    form.setValue('centerId', facilityCenterId || undefined)
   }, [form, facilityCenterId])
 
   const handleStateChange = (stateName: string) => {
@@ -114,7 +113,7 @@ export default function PatientForm({
         : values.dateOfBirth,
       photoUrl: values.photoUrl || undefined,
       referralCode: values.referralCode || referralCode || undefined,
-      centerId: values.centerId || facilityCenterId || undefined,
+      centerId: facilityCenterId || undefined,
     }
 
     mutation.mutate(formattedValues, {

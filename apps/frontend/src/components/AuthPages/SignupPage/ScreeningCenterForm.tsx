@@ -31,7 +31,6 @@ import {
   serviceTypeOrder,
 } from '@/lib/service-types'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
 import statesData from '@zerocancer/shared/constants/states.json'
 import { centerSchema } from '@zerocancer/shared/schemas/register.schema'
 import * as RPNInput from 'react-phone-number-input'
@@ -51,7 +50,6 @@ export default function ScreeningCenterForm({
   const [localGovernments, setLocalGovernments] = useState<
     Array<{ name: string; id: number }>
   >([])
-  const navigate = useNavigate()
 
   // Fetch available screening types from the backend
   const { data: screeningTypesResponse, isLoading: isLoadingScreeningTypes } =
@@ -94,11 +92,9 @@ export default function ScreeningCenterForm({
         console.log('Registration successful:', data)
         onSubmitSuccess(values)
         toast.success('Registration successful!', {
-          description: 'Your account is pending admin approval. You\'ll receive an email once approved.',
+          description:
+            'Your health facility is pending ZeroCancer approval. After that you can invite nurses from Nurses & staff.',
         })
-        setTimeout(() => {
-          navigate({ to: '/login', replace: true })
-        }, 3000)
       },
       onError: (error) => {
         console.error('Registration failed:', error)
@@ -125,6 +121,14 @@ export default function ScreeningCenterForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold">Register your health facility</h1>
+          <p className="text-sm text-muted-foreground">
+            Create the facility account first. After ZeroCancer approves it,
+            sign in and invite as many nurses and health care providers as you
+            need. They each get their own login under your facility.
+          </p>
+        </div>
         <FormField
           control={form.control}
           name="centerName"

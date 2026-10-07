@@ -8,9 +8,11 @@ import {
   getCentersQuerySchema,
   inviteStaffSchema,
   updateCenterProfileSchema,
+  updateCenterStaffMemberSchema,
   validateStaffInviteSchema,
 } from "@zerocancer/shared";
 import type {
+  TCenterStaffMembersResponse,
   TCenterStaffForgotPasswordResponse,
   TCenterStaffLoginResponse,
   TCenterStaffResetPasswordResponse,
@@ -43,6 +45,10 @@ import { comparePassword, hashPassword } from "../lib/utils";
 import { authMiddleware } from "../middleware/auth.middleware";
 
 export const centerApp = new Hono<THonoApp>();
+
+/** Case-insensitive exact match for PostgREST ilike. */
+const emailMatch = (email: string) =>
+  email.trim().replace(/[\\%_]/g, "\\$&");
 
 // GET /api/center/profile - Logged-in center profile (for settings)
 centerApp.get(
@@ -468,9 +474,9 @@ centerApp.delete(
   }
 );
 
-// GET /api/center/:id - Get center by ID
+// GET /api/center/:id - Get center by ID (UUID only so /staff/* is not captured)
 centerApp.get(
-  "/:id",
+  "/:id{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}}",
   zValidator("param", getCenterByIdSchema, (result, c) => {
     if (!result.success)
       return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
@@ -550,14 +556,14 @@ centerApp.get(
 
     const formattedCenter = {
       id: center.id,
-      email: center.email,
+      email: includeStaff ? center.email : "",
       centerName: center.centerName,
       address: center.address,
       state: center.state,
       lga: center.lga,
-      phone: center.phone,
-      bankAccount: center.bankAccount,
-      bankName: center.bankName,
+      phone: includeStaff ? center.phone : null,
+      bankAccount: includeStaff ? center.bankAccount : null,
+      bankName: includeStaff ? center.bankName : null,
       status: center.status?.toString?.() || String(center.status),
       createdAt:
         center.createdAt instanceof Date
@@ -565,7 +571,9 @@ centerApp.get(
           : center.createdAt,
       services,
       staff: includeStaff
-        ? (staffRows || []).map((member: any) => ({
+        ? (staffRows || [])
+            .filter((member: any) => String(member.status || "").toUpperCase() !== "REMOVED")
+            .map((member: any) => ({
             id: member.id,
             email: member.email,
             role: member.role || "STAFF",
@@ -623,6 +631,284 @@ centerApp.get("/staff/invite", authMiddleware(["center"]), async (c) => {
   });
 });
 
+// GET /api/center/staff/members - Facility team with activity (no earnings)
+centerApp.get("/staff/members", authMiddleware(["center"]), async (c) => {
+  const supabase = getSupabaseClient(c);
+  const centerId = c.get("jwtPayload")?.id as string;
+
+  const { data: rows, error } = await supabase
+    .from("CenterStaff")
+    .select("id, email, fullName, role, status, createdAt")
+    .eq("centerId", centerId)
+    .order("createdAt", { ascending: true });
+  if (error) {
+    console.error("List staff members failed:", error);
+    return c.json<TErrorResponse>(
+      { ok: false, error: "Failed to load staff" },
+      500
+    );
+  }
+
+  const { data: centerRow } = await supabase
+    .from("ServiceCenter")
+    .select("email")
+    .eq("id", centerId)
+    .maybeSingle();
+  const ownerEmail = String(centerRow?.email || "").toLowerCase();
+
+  const members = (rows || []).filter(
+    (row: any) => String(row.status || "").toUpperCase() !== "REMOVED"
+  );
+  const ids = members.map((m: any) => m.id);
+  const { data: onboarded } = ids.length
+    ? await supabase
+        .from("PatientProfile")
+        .select("onboardedByStaffId")
+        .in("onboardedByStaffId", ids)
+    : { data: [] };
+  const countByStaff = new Map<string, number>();
+  for (const row of onboarded || []) {
+    const id = (row as any).onboardedByStaffId;
+    countByStaff.set(id, (countByStaff.get(id) || 0) + 1);
+  }
+
+  return c.json<TCenterStaffMembersResponse>({
+    ok: true,
+    data: {
+      members: members.map((m: any) => ({
+        id: m.id,
+        email: m.email,
+        fullName: m.fullName || null,
+        role: normalizeStaffRole(m.role),
+        status:
+          String(m.status || "ACTIVE").toUpperCase() === "SUSPENDED"
+            ? "SUSPENDED"
+            : "ACTIVE",
+        createdAt: m.createdAt || null,
+        patientsRegistered: countByStaff.get(m.id) || 0,
+        isOwner: String(m.email || "").toLowerCase() === ownerEmail,
+      })),
+    },
+  });
+});
+
+async function loadOwnStaffMember(c: any, staffId: string) {
+  const supabase = getSupabaseClient(c);
+  const payload = c.get("jwtPayload");
+  const { data: member } = await supabase
+    .from("CenterStaff")
+    .select("id, centerId, status, email")
+    .eq("id", staffId)
+    .maybeSingle();
+  if (
+    !member ||
+    member.centerId !== payload?.id ||
+    String(member.status || "").toUpperCase() === "REMOVED"
+  ) {
+    return { error: "Staff member not found", status: 404 as const };
+  }
+  if (payload?.staffId && payload.staffId === staffId) {
+    return {
+      error: "You can't change your own account. Ask another facility admin.",
+      status: 400 as const,
+    };
+  }
+  const { data: center } = await supabase
+    .from("ServiceCenter")
+    .select("email")
+    .eq("id", payload?.id)
+    .maybeSingle();
+  const memberEmail = String(member.email || "").toLowerCase();
+  const actorEmail = String(payload?.email || "").toLowerCase();
+  const ownerEmail = String(center?.email || "").toLowerCase();
+  if (
+    (actorEmail && memberEmail === actorEmail) ||
+    (ownerEmail && memberEmail === ownerEmail)
+  ) {
+    return {
+      error:
+        "The health facility owner account can't be removed or changed from here.",
+      status: 400 as const,
+    };
+  }
+  return { member };
+}
+
+// PATCH /api/center/staff/members/:staffId - Change role, suspend or reactivate
+centerApp.patch(
+  "/staff/members/:staffId",
+  authMiddleware(["center"]),
+  zValidator("json", updateCenterStaffMemberSchema, (result, c) => {
+    if (!result.success)
+      return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
+  }),
+  async (c) => {
+    const staffId = c.req.param("staffId");
+    const check = await loadOwnStaffMember(c, staffId);
+    if ("error" in check) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: check.error! },
+        check.status
+      );
+    }
+
+    const body = c.req.valid("json");
+    const updates: Record<string, unknown> = {};
+    if (body.role) updates.role = normalizeStaffRole(body.role);
+    if (body.status) updates.status = body.status;
+    if (body.fullName) updates.fullName = body.fullName;
+
+    const { data, error } = await getSupabaseClient(c)
+      .from("CenterStaff")
+      .update(updates)
+      .eq("id", staffId)
+      .select("id, email, fullName, role, status")
+      .single();
+    if (error) {
+      console.error("Update staff member failed:", error);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to update staff member" },
+        500
+      );
+    }
+    return c.json({ ok: true, data });
+  }
+);
+
+// DELETE /api/center/staff/members/:staffId - Remove from the facility (keeps history)
+centerApp.delete(
+  "/staff/members/:staffId",
+  authMiddleware(["center"]),
+  async (c) => {
+    const staffId = c.req.param("staffId");
+    const check = await loadOwnStaffMember(c, staffId);
+    if ("error" in check) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: check.error! },
+        check.status
+      );
+    }
+    const { error } = await getSupabaseClient(c)
+      .from("CenterStaff")
+      .update({ status: "REMOVED" })
+      .eq("id", staffId);
+    if (error) {
+      console.error("Remove staff member failed:", error);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to remove staff member" },
+        500
+      );
+    }
+    return c.json({ ok: true, data: { id: staffId } });
+  }
+);
+
+// DELETE /api/center/staff/invite/:token - Cancel a pending invite
+centerApp.delete(
+  "/staff/invite/:token",
+  authMiddleware(["center"]),
+  async (c) => {
+    const centerId = c.get("jwtPayload")?.id as string;
+    const token = c.req.param("token");
+    const { data, error } = await getSupabaseClient(c)
+      .from("CenterStaffInvite")
+      .delete()
+      .eq("token", token)
+      .eq("centerId", centerId)
+      .is("acceptedAt", null)
+      .select("id");
+    if (error) {
+      console.error("Cancel invite failed:", error);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to cancel invite" },
+        500
+      );
+    }
+    if (!data?.length) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Invite not found" },
+        404
+      );
+    }
+    return c.json({ ok: true, data: { token } });
+  }
+);
+
+// POST /api/center/staff/invite/:token/resend - New link, new 7-day expiry
+centerApp.post(
+  "/staff/invite/:token/resend",
+  authMiddleware(["center"]),
+  async (c) => {
+    const db = getDB(c);
+    const supabase = getSupabaseClient(c);
+    const centerId = c.get("jwtPayload")?.id as string;
+    const oldToken = c.req.param("token");
+
+    const { data: invite } = await supabase
+      .from("CenterStaffInvite")
+      .select("id, email, role, fullName, centerId, acceptedAt")
+      .eq("token", oldToken)
+      .maybeSingle();
+    if (!invite || invite.centerId !== centerId || invite.acceptedAt) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Invite not found" },
+        404
+      );
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const { error } = await supabase
+      .from("CenterStaffInvite")
+      .update({ token, expiresAt: expiresAt.toISOString() })
+      .eq("id", invite.id);
+    if (error) {
+      console.error("Resend invite failed:", error);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to resend invite" },
+        500
+      );
+    }
+
+    const center = await db.serviceCenter.findUnique({ where: { id: centerId } });
+    try {
+      await sendStaffInviteEmail(c, {
+        email: invite.email,
+        token,
+        centerName: center?.centerName || "a ZeroCancer health facility",
+        role: normalizeStaffRole(invite.role || "NURSE"),
+      });
+    } catch (error) {
+      console.error("Staff invite resend email failed:", error);
+    }
+
+    return c.json({
+      ok: true,
+      data: { email: invite.email, token, expiresAt: expiresAt.toISOString() },
+    });
+  }
+);
+
+async function sendStaffInviteEmail(
+  c: any,
+  opts: { email: string; token: string; centerName: string; role: string }
+) {
+  const roleLabel =
+    opts.role === "ADMIN"
+      ? "hospital admin"
+      : opts.role === "NURSE"
+        ? "nurse"
+        : "staff member";
+  const inviteUrl = `${
+    env<{ FRONTEND_URL: string }>(c).FRONTEND_URL
+  }/staff/create-new-password?token=${opts.token}`;
+  await sendEmail(c, {
+    to: opts.email,
+    subject: `You're invited to join ${opts.centerName} on ZeroCancer`,
+    html: `<p>You have been invited to join <strong>${opts.centerName}</strong> as a ${roleLabel}. <a href="${inviteUrl}">Click here to set your password and join.</a> This link expires in 7 days.</p>`,
+  });
+}
+
 // POST /api/center/staff/invite - Invite staff by email
 centerApp.post(
   "/staff/invite",
@@ -633,16 +919,12 @@ centerApp.post(
   }),
   async (c) => {
     const db = getDB(c);
-    const { centerId, emails, role, fullName } = c.req.valid("json");
+    const supabase = getSupabaseClient(c);
+    const centerId = c.get("jwtPayload")?.id as string;
+    const { emails, role, fullName } = c.req.valid("json");
     const staffRole = normalizeStaffRole(role || "NURSE");
-    const roleLabel =
-      staffRole === "ADMIN"
-        ? "hospital admin"
-        : staffRole === "NURSE"
-          ? "nurse"
-          : "staff member";
     const center = await db.serviceCenter.findUnique({ where: { id: centerId } });
-    const centerName = center?.centerName || "a ZeroCancer screening center";
+    const centerName = center?.centerName || "a ZeroCancer health facility";
     const invites: Array<{
       email: string;
       token: string;
@@ -650,7 +932,29 @@ centerApp.post(
       fullName: string | null;
       expiresAt: string | null;
     }> = [];
-    for (const email of emails!) {
+    const skipped: Array<{ email: string; reason: string }> = [];
+    const uniqueEmails = [
+      ...new Set(emails!.map((e) => e.trim().toLowerCase()).filter(Boolean)),
+    ];
+    for (const email of uniqueEmails) {
+      const { data: existing } = await supabase
+        .from("CenterStaff")
+        .select("id, status")
+        .eq("centerId", centerId)
+        .ilike("email", emailMatch(email))
+        .maybeSingle();
+      if (existing && String(existing.status).toUpperCase() !== "REMOVED") {
+        skipped.push({ email, reason: "Already on your team" });
+        continue;
+      }
+
+      await supabase
+        .from("CenterStaffInvite")
+        .delete()
+        .eq("centerId", centerId)
+        .ilike("email", emailMatch(email))
+        .is("acceptedAt", null);
+
       // Generate a unique token
       const token = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
@@ -665,15 +969,16 @@ centerApp.post(
           fullName: fullName || null,
         },
       });
-      const inviteUrl = `${
-        env<{ FRONTEND_URL: string }>(c).FRONTEND_URL
-      }/staff/create-new-password?token=${token}`;
-
-      await sendEmail(c, {
-        to: email!,
-        subject: `You're invited to join ${centerName} on ZeroCancer`,
-        html: `<p>You have been invited to join <strong>${centerName}</strong> as a ${roleLabel}. <a href="${inviteUrl}">Click here to set your password and join.</a></p>`,
-      });
+      try {
+        await sendStaffInviteEmail(c, {
+          email,
+          token,
+          centerName,
+          role: staffRole,
+        });
+      } catch (error) {
+        console.error("Staff invite email failed:", error);
+      }
 
       invites.push({
         email: email!,
@@ -683,7 +988,19 @@ centerApp.post(
         expiresAt: expiresAt.toISOString(),
       });
     }
-    return c.json<TInviteStaffResponse>({ ok: true, data: { invites } });
+    if (invites.length === 0 && skipped.length > 0) {
+      return c.json<TErrorResponse>(
+        {
+          ok: false,
+          error: `${skipped.map((s) => s.email).join(", ")} already on your team`,
+        },
+        409
+      );
+    }
+    return c.json<TInviteStaffResponse>({
+      ok: true,
+      data: { invites, skipped },
+    });
   }
 );
 
@@ -713,18 +1030,35 @@ centerApp.post(
     // Hash password
     const passwordHash = await hashPassword(password!);
 
-    // Create staff
-    const staff = await db.centerStaff.create({
-      data: {
-        centerId: invite.centerId!,
-        email: invite.email!,
-        passwordHash,
-        role: normalizeStaffRole(invite.role || "NURSE"),
-        fullName: invite.fullName || null,
-        status: "ACTIVE",
-        createdAt: new Date(),
-      },
-    });
+    const supabase = getSupabaseClient(c);
+    const { data: previous } = await supabase
+      .from("CenterStaff")
+      .select("id, fullName")
+      .eq("centerId", invite.centerId!)
+      .ilike("email", emailMatch(invite.email!))
+      .maybeSingle();
+
+    const staff = previous
+      ? await db.centerStaff.update({
+          where: { id: previous.id },
+          data: {
+            passwordHash,
+            role: normalizeStaffRole(invite.role || "NURSE"),
+            fullName: invite.fullName || previous.fullName || null,
+            status: "ACTIVE",
+          },
+        })
+      : await db.centerStaff.create({
+          data: {
+            centerId: invite.centerId!,
+            email: invite.email!.toLowerCase(),
+            passwordHash,
+            role: normalizeStaffRole(invite.role || "NURSE"),
+            fullName: invite.fullName || null,
+            status: "ACTIVE",
+            createdAt: new Date(),
+          },
+        });
 
     // Mark invite as accepted
     await db.centerStaffInvite.update({
@@ -753,7 +1087,7 @@ centerApp.post(
     const staff = await db.centerStaff.findFirst({
       where: { centerId: centerId!, email: email! },
     });
-    if (!staff) {
+    if (!staff || String(staff.status || "").toUpperCase() === "REMOVED") {
       return c.json<TErrorResponse>(
         { ok: false, error: "Staff not found" },
         404
@@ -800,7 +1134,7 @@ centerApp.post(
     const reset = await db.centerStaffResetToken.findUnique({
       where: { token: token! },
     });
-    if (!reset || reset.expiresAt! < new Date()) {
+    if (!reset || new Date(reset.expiresAt!) < new Date()) {
       return c.json<TErrorResponse>(
         { ok: false, error: "Invalid or expired reset token" },
         400
@@ -850,6 +1184,24 @@ centerApp.post(
       return c.json<TErrorResponse>(
         { ok: false, error: "Invalid credentials" },
         401
+      );
+    }
+
+    const staffStatus = String(staff.status || "ACTIVE").toUpperCase();
+    if (staffStatus === "REMOVED") {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Invalid credentials" },
+        401
+      );
+    }
+    if (staffStatus !== "ACTIVE") {
+      return c.json<TErrorResponse>(
+        {
+          ok: false,
+          error:
+            "Your account has been suspended by your health facility. Contact your facility admin.",
+        },
+        403
       );
     }
 
@@ -944,6 +1296,7 @@ centerApp.get(
           ok: true,
           data: {
             isValid: false,
+            centerId: invitation.centerId,
             centerName,
             centerAddress,
             email: invitation.email,
@@ -962,6 +1315,9 @@ centerApp.get(
         ok: true,
         data: {
           isValid: !isExpired,
+          centerId: invitation.centerId,
+          role: normalizeStaffRole(invitation.role || "NURSE"),
+          fullName: invitation.fullName || null,
           centerName,
           centerAddress,
           email: invitation.email,

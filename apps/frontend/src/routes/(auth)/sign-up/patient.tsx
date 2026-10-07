@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 const searchSchema = z.object({
   ref: z.string().optional(),
-  center: z.string().uuid().optional(),
+  center: z.string().uuid().optional().catch(undefined),
 })
 
 export const Route = createFileRoute('/(auth)/sign-up/patient')({

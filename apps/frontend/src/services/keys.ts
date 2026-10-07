@@ -86,6 +86,8 @@ export enum QueryKeys {
   kitStats = 'kitStats',
   kits = 'kits',
   kitOrders = 'kitOrders',
+  adminKitOrders = 'adminKitOrders',
+  centerStaffMembers = 'centerStaffMembers',
 }
 
 export enum MutationKeys {
@@ -165,6 +167,12 @@ export enum MutationKeys {
   updateStaffBank = 'updateStaffBank',
   staffCashout = 'staffCashout',
   createKitOrder = 'createKitOrder',
+  cancelKitOrder = 'cancelKitOrder',
+  updateAdminKitOrder = 'updateAdminKitOrder',
+  updateStaffMember = 'updateStaffMember',
+  removeStaffMember = 'removeStaffMember',
+  cancelStaffInvite = 'cancelStaffInvite',
+  resendStaffInvite = 'resendStaffInvite',
 }
 
 export const ACCESS_TOKEN_KEY = 'accessToken'

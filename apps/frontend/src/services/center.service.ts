@@ -16,6 +16,7 @@ import {
   centerStaffResetPasswordSchema,
   createCenterStaffPasswordSchema,
   validateStaffInviteSchema,
+  type TUpdateCenterStaffMemberParams,
 } from '@zerocancer/shared/schemas/centerStaff.schema'
 import {
   completeAppointmentSchema,
@@ -25,6 +26,7 @@ import {
 } from '@zerocancer/shared/schemas/result.schema'
 import type {
   TCancelCenterAppointmentResponse,
+  TCenterStaffMembersResponse,
   TCenterStaffForgotPasswordResponse,
   TCenterStaffLoginResponse,
   TCenterStaffResetPasswordResponse,
@@ -158,6 +160,30 @@ export const inviteStaff = async (
 ): Promise<TInviteStaffResponse> => {
   const res = await request.post(endpoints.inviteStaff(), params)
   return res as TInviteStaffResponse
+}
+
+export const getStaffMembers = async (): Promise<TCenterStaffMembersResponse> => {
+  const res = await request.get(endpoints.staffMembers())
+  return res as TCenterStaffMembersResponse
+}
+
+export const updateStaffMember = async ({
+  staffId,
+  ...data
+}: { staffId: string } & TUpdateCenterStaffMemberParams) => {
+  return request.patch(endpoints.staffMember(staffId), data)
+}
+
+export const removeStaffMember = async (staffId: string) => {
+  return request.delete(endpoints.staffMember(staffId))
+}
+
+export const cancelStaffInvite = async (token: string) => {
+  return request.delete(endpoints.cancelStaffInvite(token))
+}
+
+export const resendStaffInvite = async (token: string) => {
+  return request.post(endpoints.resendStaffInvite(token), {})
 }
 
 export const validateStaffInvite = async (

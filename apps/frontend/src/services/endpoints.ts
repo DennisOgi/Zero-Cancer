@@ -436,6 +436,13 @@ export const getStaffInvites = () => '/api/center/staff/invite'
 export const createCenterStaffPassword = () =>
   '/api/center/staff/create-new-password'
 export const centerStaffLogin = () => '/api/center/staff/login'
+export const staffMembers = () => '/api/center/staff/members'
+export const staffMember = (staffId: string) =>
+  `/api/center/staff/members/${staffId}`
+export const cancelStaffInvite = (token: string) =>
+  `/api/center/staff/invite/${token}`
+export const resendStaffInvite = (token: string) =>
+  `/api/center/staff/invite/${token}/resend`
 export const validateStaffInvite = (token: string) =>
   `/api/center/staff/invite/validate/${token}`
 export const getStaffEarnings = () => '/api/center/staff-earnings/me'
@@ -458,6 +465,10 @@ export const getKits = (params?: {
 export const getKitStats = () => '/api/kit/stats'
 export const getKitOrders = () => '/api/kit/orders'
 export const createKitOrder = () => '/api/kit/orders'
+export const cancelKitOrder = (id: string) => `/api/kit/orders/${id}/cancel`
+export const adminKitOrders = (params?: { status?: string }) =>
+  `/api/kit/admin/orders${buildQuery({ status: params?.status })}`
+export const adminKitOrder = (id: string) => `/api/kit/admin/orders/${id}`
 
 // Analytics endpoints
 export const getDashboardMetrics = () => '/api/analytics/dashboard'

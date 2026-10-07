@@ -1,8 +1,10 @@
 import { zValidator } from "@hono/zod-validator";
 import {
   addKitsSchema,
+  getKitOrdersQuerySchema,
   getKitsQuerySchema,
   orderKitsSchema,
+  updateKitOrderSchema,
 } from "@zerocancer/shared";
 import { Hono } from "hono";
 import { getSupabaseClient } from "../lib/supabase";
@@ -215,7 +217,7 @@ kitApp.get(
 // POST /api/v1/kit/orders - Request kits for this facility (sales/fulfillment later)
 kitApp.post(
   "/orders",
-  authMiddleware(["center", "center_staff"]),
+  authMiddleware(["center"]),
   zValidator("json", orderKitsSchema, (result, c) => {
     if (!result.success) {
       return c.json({ ok: false, error: result.error }, 400);
@@ -284,6 +286,248 @@ kitApp.post(
         400
       );
     }
+  }
+);
+
+// POST /api/v1/kit/orders/:id/cancel - Facility withdraws a pending order
+kitApp.post("/orders/:id/cancel", authMiddleware(["center"]), async (c) => {
+  const supabase = getSupabaseClient(c);
+  const payload = c.get("jwtPayload");
+  const { data, error } = await supabase
+    .from("RestockRequest")
+    .update({
+      status: "CANCELLED",
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: payload?.email || payload?.id,
+    })
+    .eq("id", c.req.param("id"))
+    .eq("centerId", payload?.id as string)
+    .eq("status", "PENDING")
+    .select("id");
+  if (error) {
+    console.error("Cancel kit order failed:", error);
+    return c.json({ ok: false, error: "Failed to cancel order" }, 500);
+  }
+  if (!data?.length) {
+    return c.json(
+      { ok: false, error: "Only pending orders can be cancelled" },
+      400
+    );
+  }
+  return c.json({ ok: true, data: { id: data[0].id } });
+});
+
+// GET /api/v1/kit/admin/orders - All facility kit orders (platform admin)
+kitApp.get(
+  "/admin/orders",
+  authMiddleware(["admin"]),
+  zValidator("query", getKitOrdersQuerySchema),
+  async (c) => {
+    const supabase = getSupabaseClient(c);
+    const { status, centerId } = c.req.valid("query");
+
+    let query = supabase
+      .from("RestockRequest")
+      .select("*")
+      .order("requestedAt", { ascending: false })
+      .limit(200);
+    if (status) query = query.eq("status", status);
+    if (centerId) query = query.eq("centerId", centerId);
+    const { data, error } = await query;
+    if (error) {
+      console.error("Admin list kit orders failed:", error);
+      return c.json({ ok: false, error: "Failed to load kit orders" }, 500);
+    }
+
+    const rows = data || [];
+    const typeIds = [...new Set(rows.map((r: any) => r.screeningTypeId))];
+    const centerIds = [...new Set(rows.map((r: any) => r.centerId))];
+    const [{ data: types }, { data: centers }] = await Promise.all([
+      typeIds.length
+        ? supabase.from("ScreeningType").select("id, name").in("id", typeIds)
+        : Promise.resolve({ data: [] as any[] }),
+      centerIds.length
+        ? supabase
+            .from("ServiceCenter")
+            .select("id, centerName, state, lga, phone, email")
+            .in("id", centerIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const typeById = new Map((types || []).map((t: any) => [t.id, t.name]));
+    const centerById = new Map((centers || []).map((ct: any) => [ct.id, ct]));
+
+    return c.json({
+      ok: true,
+      data: {
+        orders: rows.map((row: any) => ({
+          ...row,
+          screeningTypeName: typeById.get(row.screeningTypeId) || "Kit",
+          center: centerById.get(row.centerId) || null,
+        })),
+      },
+    });
+  }
+);
+
+const allowedTransitions: Record<string, string[]> = {
+  PENDING: ["APPROVED", "REJECTED"],
+  APPROVED: ["SHIPPED", "DELIVERED", "REJECTED"],
+  SHIPPED: ["DELIVERED"],
+};
+
+// PATCH /api/v1/kit/admin/orders/:id - Approve, ship, deliver or reject
+kitApp.patch(
+  "/admin/orders/:id",
+  authMiddleware(["admin"]),
+  zValidator("json", updateKitOrderSchema, (result, c) => {
+    if (!result.success) {
+      return c.json({ ok: false, error: result.error }, 400);
+    }
+  }),
+  async (c) => {
+    const supabase = getSupabaseClient(c);
+    const admin = c.get("jwtPayload");
+    const id = c.req.param("id");
+    const body = c.req.valid("json");
+
+    const { data: order } = await supabase
+      .from("RestockRequest")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (!order) {
+      return c.json({ ok: false, error: "Order not found" }, 404);
+    }
+    if (!(allowedTransitions[order.status] || []).includes(body.status)) {
+      return c.json(
+        {
+          ok: false,
+          error: `Can't move an order from ${order.status} to ${body.status}`,
+        },
+        400
+      );
+    }
+
+    const now = new Date().toISOString();
+    let shipmentId: string | null = order.shipmentId || null;
+
+    let serials: string[] = [];
+    if (body.status === "DELIVERED") {
+      const quantity = order.requestedQuantity as number;
+      const provided = [...new Set(body.serialNumbers || [])];
+      if (provided.length && provided.length !== quantity) {
+        return c.json(
+          {
+            ok: false,
+            error: `Enter ${quantity} serial numbers (one per kit) or leave the box empty to generate them.`,
+          },
+          400
+        );
+      }
+      const prefix = `ZC-${String(order.id).slice(0, 6).toUpperCase()}`;
+      serials = provided.length
+        ? provided
+        : Array.from(
+            { length: quantity },
+            (_, i) => `${prefix}-${String(i + 1).padStart(4, "0")}`
+          );
+
+      const { data: existing } = await supabase
+        .from("Kit")
+        .select("serialNumber")
+        .in("serialNumber", serials);
+      if (existing?.length) {
+        return c.json(
+          {
+            ok: false,
+            error: `Serial numbers already in use: ${existing
+              .slice(0, 5)
+              .map((k: any) => k.serialNumber)
+              .join(", ")}`,
+          },
+          409
+        );
+      }
+    }
+
+    if (body.status === "SHIPPED" || body.status === "DELIVERED") {
+      if (!shipmentId) {
+        const { data: shipment, error: shipError } = await supabase
+          .from("KitShipment")
+          .insert({
+            centerId: order.centerId,
+            screeningTypeId: order.screeningTypeId,
+            quantity: order.requestedQuantity,
+            batchNumber: body.batchNumber || null,
+            trackingNumber: body.trackingNumber || null,
+            status: body.status,
+            notes: body.reviewNotes || null,
+            createdBy: admin?.email || admin?.id,
+            ...(body.status === "DELIVERED" ? { deliveredAt: now } : {}),
+          })
+          .select("id")
+          .single();
+        if (shipError) {
+          console.error("Create kit shipment failed:", shipError);
+          return c.json({ ok: false, error: "Failed to record shipment" }, 500);
+        }
+        shipmentId = shipment.id;
+      } else {
+        await supabase
+          .from("KitShipment")
+          .update({
+            status: body.status,
+            updatedAt: now,
+            ...(body.trackingNumber ? { trackingNumber: body.trackingNumber } : {}),
+            ...(body.batchNumber ? { batchNumber: body.batchNumber } : {}),
+            ...(body.status === "DELIVERED" ? { deliveredAt: now } : {}),
+          })
+          .eq("id", shipmentId);
+      }
+    }
+
+    let kitsAdded = 0;
+    if (body.status === "DELIVERED") {
+      const { data: inserted, error: kitError } = await supabase
+        .from("Kit")
+        .insert(
+          serials.map((serialNumber) => ({
+            serialNumber,
+            batchNumber: body.batchNumber || null,
+            centerId: order.centerId,
+            screeningTypeId: order.screeningTypeId,
+            status: "AVAILABLE",
+          }))
+        )
+        .select("id");
+      if (kitError) {
+        console.error("Add delivered kits failed:", kitError);
+        return c.json(
+          { ok: false, error: "Failed to add kits to facility inventory" },
+          500
+        );
+      }
+      kitsAdded = inserted?.length || 0;
+    }
+
+    const { data: updated, error } = await supabase
+      .from("RestockRequest")
+      .update({
+        status: body.status,
+        reviewedBy: admin?.email || admin?.id,
+        reviewedAt: now,
+        ...(body.reviewNotes ? { reviewNotes: body.reviewNotes } : {}),
+        shipmentId,
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error) {
+      console.error("Update kit order failed:", error);
+      return c.json({ ok: false, error: "Failed to update order" }, 500);
+    }
+
+    return c.json({ ok: true, data: { order: updated, kitsAdded } });
   }
 );
 

@@ -1,15 +1,11 @@
 import { Badge } from '@/components/shared/ui/badge'
 import { Button } from '@/components/shared/ui/button'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/shared/ui/card'
+import { Card, CardContent } from '@/components/shared/ui/card'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/shared/ui/dialog'
@@ -17,6 +13,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/shared/ui/dropdown-menu'
 import {
@@ -49,253 +47,321 @@ import { useAuthUser } from '@/services/providers/auth.provider'
 import {
   centerById,
   staffInvites,
+  staffMembers,
+  useCancelStaffInvite,
   useInviteStaff,
+  useRemoveStaffMember,
+  useResendStaffInvite,
+  useUpdateStaffMember,
 } from '@/services/providers/center.provider'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { inviteStaffSchema } from '@zerocancer/shared/schemas/center.schema'
-import { MoreHorizontal, Plus, Trash2, UserPlus, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { useFieldArray, useForm } from 'react-hook-form'
+import {
+  Ban,
+  CheckCircle2,
+  Copy,
+  Mail,
+  MoreHorizontal,
+  Plus,
+  Trash2,
+  UserCog,
+  UserPlus,
+  X,
+} from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
-// Import static assets
 import megaphoneIcon from '@/assets/images/megaphone.png'
 import peopleIcon from '@/assets/images/people.png'
 import { CenterStaffFilters } from './CenterStaffFilters'
 
-type InviteStaffForm = z.infer<typeof inviteStaffSchema>
+type InviteStaffForm = z.input<typeof inviteStaffSchema>
+type StaffRole = 'ADMIN' | 'NURSE' | 'STAFF'
+
+const roleLabel: Record<StaffRole, string> = {
+  ADMIN: 'Facility admin',
+  NURSE: 'Nurse',
+  STAFF: 'Staff',
+}
+
+type Row =
+  | {
+      kind: 'member'
+      id: string
+      name: string
+      email: string
+      role: StaffRole
+      status: 'Active' | 'Suspended'
+      patientsRegistered: number
+      joined: string
+      isOwner?: boolean
+    }
+  | {
+      kind: 'invite'
+      id: string
+      name: string
+      email: string
+      role: StaffRole
+      status: 'Invited' | 'Expired'
+      patientsRegistered: null
+      joined: string
+    }
+
+const errorMessage = (error: any, fallback: string) =>
+  error?.response?.data?.error || fallback
 
 export function CenterStaffPage() {
-  const queryClient = useQueryClient()
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
   const [filter, setFilter] = useState('All Staff')
   const [searchTerm, setSearchTerm] = useState('')
+  const [pendingRemoval, setPendingRemoval] = useState<Row | null>(null)
+  const [sentInvites, setSentInvites] = useState<
+    Array<{ email: string; token: string }>
+  >([])
 
-  // Get current authenticated center info
   const authUserQuery = useQuery(useAuthUser())
   const user = authUserQuery.data?.data?.user
   const centerId = user?.id
+  const myStaffId = user?.staffId
 
-  // Get center details including staff
-  const { data: centerData, isLoading: centerLoading } = useQuery({
+  const { data: centerData } = useQuery({
     ...centerById(centerId!),
     enabled: !!centerId,
   })
-
-  // Get pending staff invites
-  const { data: staffInvitesData, isLoading: invitesLoading } = useQuery({
+  const { data: membersData, isLoading: membersLoading } = useQuery({
+    ...staffMembers(),
+    enabled: !!centerId,
+  })
+  const { data: invitesData, isLoading: invitesLoading } = useQuery({
     ...staffInvites(),
     enabled: !!centerId,
   })
 
-  const center = centerData?.data
-  const activeStaff = center?.staff || []
-  const pendingInvites = staffInvitesData?.data?.invites || []
+  const inviteStaffMutation = useInviteStaff()
+  const updateMember = useUpdateStaffMember()
+  const removeMember = useRemoveStaffMember()
+  const cancelInvite = useCancelStaffInvite()
+  const resendInvite = useResendStaffInvite()
 
-  const allStaff = useMemo(() => {
-    const combined = [
-      ...activeStaff.map((member) => ({
-        id: member.id,
-        name: member.fullName || member.email.split('@')[0],
-        staffId: member.id.slice(0, 8),
-        email: member.email,
-        role: (member.role || 'STAFF').toString(),
-        lastCheckin: '—',
-        status:
-          String(member.status || 'ACTIVE').toUpperCase() === 'SUSPENDED'
-            ? 'Suspended'
-            : 'Active',
+  const centerName = centerData?.data?.centerName
+  const members = membersData?.data?.members || []
+  const invites = invitesData?.data?.invites || []
+
+  const rows = useMemo<Row[]>(
+    () => [
+      ...members.map((m) => ({
+        kind: 'member' as const,
+        id: m.id,
+        name: m.fullName || m.email.split('@')[0],
+        email: m.email,
+        role: m.role,
+        status: m.status === 'SUSPENDED' ? ('Suspended' as const) : ('Active' as const),
+        patientsRegistered: m.patientsRegistered,
+        joined: m.createdAt ? new Date(m.createdAt).toLocaleDateString() : '—',
+        isOwner: m.isOwner,
       })),
-      ...pendingInvites.map((invite) => ({
+      ...invites.map((invite) => ({
+        kind: 'invite' as const,
         id: invite.token,
         name: invite.fullName || invite.email.split('@')[0],
-        staffId: 'N/A',
         email: invite.email,
-        role: (invite.role || 'NURSE').toString(),
-        lastCheckin: 'N/A',
+        role: (String(invite.role || 'NURSE').toUpperCase() as StaffRole) || 'NURSE',
         status:
           invite.expiresAt && new Date(invite.expiresAt) < new Date()
-            ? 'Expired'
-            : 'Invited',
+            ? ('Expired' as const)
+            : ('Invited' as const),
+        patientsRegistered: null,
+        joined: invite.expiresAt
+          ? `Link expires ${new Date(invite.expiresAt).toLocaleDateString()}`
+          : '—',
       })),
-    ]
-    return combined
-  }, [activeStaff, pendingInvites])
+    ],
+    [members, invites],
+  )
 
-  const filteredStaff = useMemo(() => {
-    return allStaff
-      .filter((staff) => {
-        if (filter === 'All Staff') return true
-        return staff.status === filter
-      })
-      .filter((staff) =>
-        `${staff.name} ${staff.email} ${staff.role}`
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()),
-      )
-  }, [allStaff, filter, searchTerm])
-
-  const inviteStaffMutation = useInviteStaff()
+  const filteredRows = useMemo(
+    () =>
+      rows
+        .filter((row) => {
+          if (filter === 'All Staff') return true
+          if (filter === 'Invited')
+            return row.status === 'Invited' || row.status === 'Expired'
+          return row.status === filter
+        })
+        .filter((row) =>
+          `${row.name} ${row.email} ${roleLabel[row.role]}`
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()),
+        ),
+    [rows, filter, searchTerm],
+  )
 
   const form = useForm<InviteStaffForm>({
     resolver: zodResolver(inviteStaffSchema),
-    defaultValues: {
-      centerId: centerId || '',
-      emails: [''],
-      role: 'NURSE',
-      fullName: '',
-    },
+    defaultValues: { emails: [''], role: 'NURSE', fullName: '' },
   })
+  const emailFields = form.watch('emails')
+  const appendEmail = () =>
+    form.setValue('emails', [...(form.getValues('emails') || []), ''])
+  const removeEmail = (index: number) => {
+    const next = (form.getValues('emails') || []).filter((_, i) => i !== index)
+    form.setValue('emails', next.length ? next : [''])
+  }
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: 'emails' as any,
-  })
-
-  useEffect(() => {
-    if (centerId) {
-      form.setValue('centerId', centerId)
-    }
-  }, [centerId, form])
-
-  const onInviteStaff = async (data: InviteStaffForm) => {
+  const onInviteStaff = (data: InviteStaffForm) => {
     const validEmails = data.emails.filter((email) => email.trim())
     if (validEmails.length === 0) {
       toast.error('Please add at least one email address')
       return
     }
-
     inviteStaffMutation.mutate(
       {
-        centerId: data.centerId,
         emails: validEmails,
         role: data.role || 'NURSE',
         fullName: data.fullName || undefined,
       },
       {
-        onSuccess: () => {
-          toast.success(`Successfully sent ${validEmails.length} invitation(s)`)
-          form.reset({
-            centerId: data.centerId,
-            emails: [''],
-            role: 'NURSE',
-            fullName: '',
-          })
-          setInviteDialogOpen(false)
-          queryClient.invalidateQueries({ queryKey: ['staffInvites'] })
-          queryClient.invalidateQueries({ queryKey: ['centerById'] })
-        },
-        onError: (error: any) => {
-          toast.error(
-            error?.response?.data?.error || 'Failed to send invitations',
+        onSuccess: (res) => {
+          const sent = res.data?.invites?.length || 0
+          const skipped = res.data?.skipped || []
+          toast.success(`Sent ${sent} invitation${sent === 1 ? '' : 's'}`)
+          if (skipped.length) {
+            toast.info(
+              `Skipped ${skipped.map((s) => s.email).join(', ')}: already on your team`,
+            )
+          }
+          setSentInvites(
+            (res.data?.invites || []).map((invite) => ({
+              email: invite.email,
+              token: invite.token,
+            })),
           )
+          form.reset({ emails: [''], role: 'NURSE', fullName: '' })
+          setInviteDialogOpen(false)
         },
+        onError: (error) =>
+          toast.error(errorMessage(error, 'Failed to send invitations')),
       },
     )
   }
 
-  const addEmailField = () => append('')
-  const removeEmailField = (index: number) => {
-    if (fields.length > 1) remove(index)
+  const changeRole = (row: Row, role: StaffRole) =>
+    updateMember.mutate(
+      { staffId: row.id, role },
+      {
+        onSuccess: () =>
+          toast.success(`${row.name} is now ${roleLabel[role].toLowerCase()}`),
+        onError: (error) => toast.error(errorMessage(error, 'Could not change role')),
+      },
+    )
+
+  const setStatus = (row: Row, status: 'ACTIVE' | 'SUSPENDED') =>
+    updateMember.mutate(
+      { staffId: row.id, status },
+      {
+        onSuccess: () =>
+          toast.success(
+            status === 'SUSPENDED'
+              ? `${row.name} can no longer sign in`
+              : `${row.name} can sign in again`,
+          ),
+        onError: (error) =>
+          toast.error(errorMessage(error, 'Could not update status')),
+      },
+    )
+
+  const confirmRemoval = () => {
+    if (!pendingRemoval) return
+    const row = pendingRemoval
+    const onDone = {
+      onSuccess: () => {
+        toast.success(
+          row.kind === 'invite'
+            ? `Invite to ${row.email} cancelled`
+            : `${row.name} removed from your facility`,
+        )
+        setPendingRemoval(null)
+      },
+      onError: (error: unknown) =>
+        toast.error(errorMessage(error, 'Could not remove')),
+    }
+    if (row.kind === 'invite') cancelInvite.mutate(row.id, onDone)
+    else removeMember.mutate(row.id, onDone)
   }
 
-  const stats = [
-    {
-      title: 'Total Staff',
-      value: allStaff.length,
-      description: 'People',
-      icon: peopleIcon,
-      color: 'bg-red-100',
-    },
-    {
-      title: 'Total Active Staff',
-      value: activeStaff.length,
-      description: 'People',
-      icon: peopleIcon,
-      color: 'bg-blue-100',
-    },
-    {
-      title: 'Pending Invites',
-      value: pendingInvites.length,
-      description: 'People',
-      icon: megaphoneIcon,
-      color: 'bg-purple-100',
-    },
-  ]
+  const resend = (row: Row) =>
+    resendInvite.mutate(row.id, {
+      onSuccess: () => toast.success(`New invite link sent to ${row.email}`),
+      onError: (error) => toast.error(errorMessage(error, 'Could not resend')),
+    })
 
-  const quickActions = [
-    { label: 'Invite Staff', icon: UserPlus, primary: true },
-  ]
-
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'Active':
-        return 'bg-green-500'
-      case 'Invited':
-        return 'bg-gray-400'
-      case 'Expired':
-      case 'Suspended':
-        return 'bg-red-500'
-      default:
-        return 'bg-gray-300'
+  const copyInviteLink = async (token: string) => {
+    const url = `${window.location.origin}/staff/create-new-password?token=${token}`
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success('Invite link copied. Share it with your teammate.')
+    } catch {
+      toast.error('Could not copy link')
     }
   }
 
+  const activeCount = members.filter((m) => m.status === 'ACTIVE').length
+  const nurseCount = members.filter(
+    (m) => m.role === 'NURSE' && m.status === 'ACTIVE',
+  ).length
+  const stats = [
+    { title: 'Active team', value: activeCount, icon: peopleIcon, color: 'bg-blue-100' },
+    { title: 'Active nurses', value: nurseCount, icon: peopleIcon, color: 'bg-red-100' },
+    { title: 'Pending invites', value: invites.length, icon: megaphoneIcon, color: 'bg-purple-100' },
+  ]
+
+  const statusClass: Record<Row['status'], string> = {
+    Active: 'bg-green-500',
+    Invited: 'bg-gray-400',
+    Expired: 'bg-red-500',
+    Suspended: 'bg-amber-500',
+  }
+
+  const loading = membersLoading || invitesLoading
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Nurses & staff</h1>
           <p className="text-muted-foreground">
-            Invite nurses who can register patients at{' '}
-            {center?.centerName || 'your center'}. Existing center tools stay
-            available for every role.
+            Manage the health care providers who work at{' '}
+            {centerName || 'your health facility'}.
           </p>
         </div>
+        <Button
+          className="bg-primary text-white hover:bg-primary/80"
+          onClick={() => setInviteDialogOpen(true)}
+        >
+          <UserPlus className="mr-2 h-4 w-4" />
+          Invite staff
+        </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3">
         {stats.map((stat) => (
           <Card key={stat.title} className={cn('border-0', stat.color)}>
             <CardContent className="p-4 flex items-center gap-4">
               <div className="p-3 bg-white rounded-full">
-                <img src={stat.icon} alt={stat.title} className="h-6 w-6" />
+                <img src={stat.icon} alt="" className="h-6 w-6" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{stat.title}</p>
                 <p className="text-2xl font-bold">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">
-                  {stat.description}
-                </p>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        {quickActions.map((action) => (
-          <Button
-            key={action.label}
-            variant={action.primary ? 'default' : 'outline'}
-            className={cn('h-24 flex-col gap-2', {
-              'bg-primary text-white hover:bg-primary/80': action.primary,
-              'bg-gray-100 hover:bg-gray-200': !action.primary,
-            })}
-            onClick={() =>
-              action.label === 'Invite Staff' && setInviteDialogOpen(true)
-            }
-            disabled={action.label !== 'Invite Staff'}
-          >
-            <action.icon className="h-6 w-6" />
-            <span>{action.label}</span>
-          </Button>
-        ))}
-      </div>
-
-      {/* Replaced inline Tabs + Search with CenterStaffFilters */}
       <CenterStaffFilters
         filter={filter}
         onFilterChange={setFilter}
@@ -303,109 +369,187 @@ export function CenterStaffPage() {
         onSearchChange={setSearchTerm}
       />
 
-      <p className="text-sm text-muted-foreground">
-        Showing {filteredStaff.length} of {allStaff.length} staff members
-      </p>
-
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-blue-50 hover:bg-blue-100">
-            <TableHead>Staff Name</TableHead>
-            <TableHead>Staff ID</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Staff Email</TableHead>
-            <TableHead>Last Check-in</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Action</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {(centerLoading || invitesLoading) && (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center py-8">
-                Loading staff...
-              </TableCell>
+      <div className="overflow-x-auto rounded-lg border bg-white">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-blue-50 hover:bg-blue-100">
+              <TableHead>Name</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead className="text-right">Patients registered</TableHead>
+              <TableHead>Joined</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Action</TableHead>
             </TableRow>
-          )}
-          {!centerLoading && !invitesLoading && filteredStaff.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center py-8">
-                No staff members found.
-              </TableCell>
-            </TableRow>
-          )}
-          {filteredStaff.map((member) => (
-            <TableRow key={member.id}>
-              <TableCell className="font-medium">{member.name}</TableCell>
-              <TableCell className="text-muted-foreground">
-                {member.staffId}
-              </TableCell>
-              <TableCell className="capitalize">
-                {member.role.toLowerCase()}
-              </TableCell>
-              <TableCell>{member.email}</TableCell>
-              <TableCell>{member.lastCheckin}</TableCell>
-              <TableCell>
-                <Badge
-                  className={cn(
-                    'text-white border-transparent',
-                    getStatusBadgeClass(member.status),
-                  )}
-                >
-                  {member.status}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 p-0">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      className="text-destructive"
-                      disabled={member.status === 'Active'}
+          </TableHeader>
+          <TableBody>
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8">
+                  Loading staff...
+                </TableCell>
+              </TableRow>
+            )}
+            {!loading && filteredRows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-10">
+                  <p className="font-medium">No staff here yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    Invite nurses so they can register and screen patients.
+                  </p>
+                </TableCell>
+              </TableRow>
+            )}
+            {filteredRows.map((row) => {
+              const isMe = row.kind === 'member' && row.id === myStaffId
+              const isOwner = row.kind === 'member' && row.isOwner
+              const locked = isMe || isOwner
+              return (
+                <TableRow key={`${row.kind}-${row.id}`}>
+                  <TableCell className="font-medium">
+                    {row.name}
+                    {isMe && (
+                      <span className="ml-2 text-xs text-muted-foreground">(you)</span>
+                    )}
+                    {isOwner && !isMe && (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        (facility owner)
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>{roleLabel[row.role]}</TableCell>
+                  <TableCell>{row.email}</TableCell>
+                  <TableCell className="text-right">
+                    {row.patientsRegistered ?? '—'}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {row.joined}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      className={cn('text-white border-transparent', statusClass[row.status])}
                     >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Remove
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                      {row.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {locked ? null : (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0" aria-label="Actions">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52">
+                          {row.kind === 'member' ? (
+                            <>
+                              <DropdownMenuLabel>Change role</DropdownMenuLabel>
+                              {(['NURSE', 'ADMIN', 'STAFF'] as StaffRole[])
+                                .filter((r) => r !== row.role)
+                                .map((r) => (
+                                  <DropdownMenuItem key={r} onClick={() => changeRole(row, r)}>
+                                    <UserCog className="mr-2 h-4 w-4" />
+                                    Make {roleLabel[r].toLowerCase()}
+                                  </DropdownMenuItem>
+                                ))}
+                              <DropdownMenuSeparator />
+                              {row.status === 'Active' ? (
+                                <DropdownMenuItem onClick={() => setStatus(row, 'SUSPENDED')}>
+                                  <Ban className="mr-2 h-4 w-4" />
+                                  Suspend access
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => setStatus(row, 'ACTIVE')}>
+                                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                                  Reactivate
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => setPendingRemoval(row)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Remove from facility
+                              </DropdownMenuItem>
+                            </>
+                          ) : (
+                            <>
+                              <DropdownMenuItem onClick={() => resend(row)}>
+                                <Mail className="mr-2 h-4 w-4" />
+                                Resend invite
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={row.status === 'Expired'}
+                                onClick={() => copyInviteLink(row.id)}
+                              >
+                                <Copy className="mr-2 h-4 w-4" />
+                                Copy invite link
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => setPendingRemoval(row)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Cancel invite
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      <Dialog
+        open={!!pendingRemoval}
+        onOpenChange={(open) => !open && setPendingRemoval(null)}
+      >
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>
+              {pendingRemoval?.kind === 'invite'
+                ? 'Cancel this invite?'
+                : `Remove ${pendingRemoval?.name}?`}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingRemoval?.kind === 'invite'
+                ? `The link sent to ${pendingRemoval?.email} will stop working.`
+                : 'They will no longer be able to sign in to this facility. Patients they registered stay with your facility. You can invite them again later.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingRemoval(null)}>
+              Keep
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmRemoval}
+              disabled={removeMember.isPending || cancelInvite.isPending}
+            >
+              {pendingRemoval?.kind === 'invite' ? 'Cancel invite' : 'Remove'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Invite nurses & staff</DialogTitle>
             <DialogDescription>
-              Invite a nurse to register patients at this hospital. They can
-              also verify check-ins, upload results, and use the existing
-              center tools.
+              Each person gets an email link to set a password and join{' '}
+              {centerName || 'your facility'}.
             </DialogDescription>
           </DialogHeader>
 
           <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onInviteStaff)}
-              className="space-y-6"
-            >
-              <FormField
-                control={form.control}
-                name="centerId"
-                render={({ field }) => (
-                  <FormItem className="hidden">
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
+            <form onSubmit={form.handleSubmit(onInviteStaff)} className="space-y-6">
               <FormField
                 control={form.control}
                 name="fullName"
@@ -430,10 +574,7 @@ export function CenterStaffPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Role</FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                    >
+                    <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a role" />
@@ -441,13 +582,14 @@ export function CenterStaffPage() {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="NURSE">Nurse</SelectItem>
-                        <SelectItem value="ADMIN">Hospital admin</SelectItem>
+                        <SelectItem value="ADMIN">Facility admin</SelectItem>
                         <SelectItem value="STAFF">Staff</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Nurses register and screen patients. Hospital admins can
-                      also invite teammates.
+                      Nurses register and screen patients and get their own
+                      referral link. Facility admins can also manage the team,
+                      wallet and kit orders.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -456,40 +598,30 @@ export function CenterStaffPage() {
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <FormLabel>Email Addresses</FormLabel>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addEmailField}
-                  >
+                  <FormLabel>Email addresses</FormLabel>
+                  <Button type="button" variant="outline" size="sm" onClick={appendEmail}>
                     <Plus className="h-4 w-4 mr-1" />
-                    Add Email
+                    Add email
                   </Button>
                 </div>
-
                 <div className="space-y-3">
-                  {fields.map((field, index) => (
+                  {emailFields.map((_, index) => (
                     <FormField
-                      key={field.id}
+                      key={index}
                       control={form.control}
                       name={`emails.${index}`}
                       render={({ field }) => (
                         <FormItem>
                           <div className="flex gap-2">
                             <FormControl>
-                              <Input
-                                placeholder="Enter email address"
-                                type="email"
-                                {...field}
-                              />
+                              <Input placeholder="Enter email address" type="email" {...field} />
                             </FormControl>
-                            {fields.length > 1 && (
+                            {emailFields.length > 1 && (
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => removeEmailField(index)}
+                                onClick={() => removeEmail(index)}
                               >
                                 <X className="h-4 w-4" />
                               </Button>
@@ -501,32 +633,58 @@ export function CenterStaffPage() {
                     />
                   ))}
                 </div>
-
-                <FormDescription>
-                  They will be able to register patients, verify check-ins,
-                  upload results, and access existing center tools.
-                </FormDescription>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setInviteDialogOpen(false)}
-                >
+                <Button type="button" variant="outline" onClick={() => setInviteDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={inviteStaffMutation.status === 'pending'}
-                >
-                  {inviteStaffMutation.status === 'pending'
-                    ? 'Sending...'
-                    : 'Send Invitations'}
+                <Button type="submit" disabled={inviteStaffMutation.isPending}>
+                  {inviteStaffMutation.isPending ? 'Sending...' : 'Send invitations'}
                 </Button>
               </div>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={sentInvites.length > 0}
+        onOpenChange={(open) => !open && setSentInvites([])}
+      >
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Invites are ready</DialogTitle>
+            <DialogDescription>
+              We emailed each person a link to set a password and join{' '}
+              {centerName || 'your facility'}. If email is delayed, copy a link
+              and send it yourself.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {sentInvites.map((invite) => (
+              <div
+                key={invite.token}
+                className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2"
+              >
+                <p className="truncate text-sm">{invite.email}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyInviteLink(invite.token)}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy link
+                </Button>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button type="button" onClick={() => setSentInvites([])}>
+              Done
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

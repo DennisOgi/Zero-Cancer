@@ -1,10 +1,24 @@
 import { z } from "zod";
 
 export const inviteStaffSchema = z.object({
-  centerId: z.string().min(1),
-  emails: z.array(z.string().email()).min(1),
+  centerId: z.string().optional(),
+  emails: z
+    .array(z.string())
+    .transform((emails) =>
+      Array.from(
+        new Set(
+          emails.map((email) => email.trim().toLowerCase()).filter(Boolean),
+        ),
+      ),
+    )
+    .pipe(z.array(z.string().email()).min(1, "Add at least one email")),
   role: z.enum(["ADMIN", "NURSE", "STAFF"]).optional(),
-  fullName: z.string().trim().max(120).optional(),
+  fullName: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .transform((value) => value || undefined),
 });
 
 export const getCentersQuerySchema = z.object({

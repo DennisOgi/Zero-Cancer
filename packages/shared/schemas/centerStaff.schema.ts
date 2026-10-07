@@ -25,6 +25,20 @@ export const validateStaffInviteSchema = z.object({
   token: z.string().min(10),
 });
 
+export const updateCenterStaffMemberSchema = z
+  .object({
+    role: z.enum(["ADMIN", "NURSE", "STAFF"]).optional(),
+    status: z.enum(["ACTIVE", "SUSPENDED"]).optional(),
+    fullName: z.string().trim().min(1).max(120).optional(),
+  })
+  .refine((v) => v.role || v.status || v.fullName, {
+    message: "Nothing to update",
+  });
+
+export type TUpdateCenterStaffMemberParams = z.infer<
+  typeof updateCenterStaffMemberSchema
+>;
+
 export type TValidateStaffInviteParams = z.infer<
   typeof validateStaffInviteSchema
 >;

@@ -16,12 +16,13 @@ export function CenterStaffFilters({
   onSearchChange,
 }: CenterStaffFiltersProps) {
   return (
-    <div className="flex justify-between items-center">
+    <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-center">
       <Tabs value={filter} onValueChange={onFilterChange}>
         <TabsList>
           <TabsTrigger value="All Staff">All Staff</TabsTrigger>
           <TabsTrigger value="Active">Active</TabsTrigger>
           <TabsTrigger value="Invited">Invited</TabsTrigger>
+          <TabsTrigger value="Suspended">Suspended</TabsTrigger>
         </TabsList>
       </Tabs>
       <div className="relative w-full max-w-sm">

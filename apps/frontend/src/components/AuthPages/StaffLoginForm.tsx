@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/shared/ui/input'
 import PasswordInput from '@/components/shared/ui/password-input'
 import {
+  centerById,
   centers,
   useCenterStaffLogin,
 } from '@/services/providers/center.provider'
@@ -27,7 +28,13 @@ import {
 } from '@zerocancer/shared/schemas/centerStaff.schema'
 import { Loader2 } from 'lucide-react'
 
-export function StaffLoginForm() {
+export function StaffLoginForm({
+  defaultCenterId,
+  defaultEmail,
+}: {
+  defaultCenterId?: string
+  defaultEmail?: string
+} = {}) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -43,17 +50,35 @@ export function StaffLoginForm() {
     }),
   )
 
+  const { data: invitedCenter } = useQuery({
+    ...centerById(defaultCenterId || ''),
+    enabled: Boolean(defaultCenterId),
+    retry: false,
+  })
+
   const centersList = centersData?.data?.centers || []
-  const centerOptions = centersList.map((center) => ({
-    value: center.id,
-    label: center.centerName,
-  }))
+  const centerOptions = [
+    ...centersList.map((center) => ({
+      value: center.id,
+      label: center.centerName,
+    })),
+    ...(defaultCenterId &&
+    invitedCenter?.data?.centerName &&
+    !centersList.some((center) => center.id === defaultCenterId)
+      ? [
+          {
+            value: defaultCenterId,
+            label: invitedCenter.data.centerName,
+          },
+        ]
+      : []),
+  ]
 
   const loginForm = useForm<TCenterStaffLoginParams>({
     resolver: zodResolver(centerStaffLoginSchema),
     defaultValues: {
-      centerId: '',
-      email: '',
+      centerId: defaultCenterId || '',
+      email: defaultEmail || '',
       password: '',
     },
   })
@@ -83,9 +108,9 @@ export function StaffLoginForm() {
     <div className="w-full max-w-md space-y-6 mx-auto">
       {/* <div className="space-y-6"> */}
       <div className="space-y-2">
-        <h2 className="text-3xl font-bold">Health Facility Portal</h2>
+        <h2 className="text-3xl font-bold">Staff sign in</h2>
         <p className="text-muted-foreground">
-          Sign in to access your health facility&apos;s staff portal.
+          Nurses and health care providers sign in under their health facility.
         </p>
       </div>
 

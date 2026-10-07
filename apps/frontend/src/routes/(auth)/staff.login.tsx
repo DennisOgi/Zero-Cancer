@@ -1,9 +1,14 @@
 import { StaffLoginForm } from '@/components/AuthPages/StaffLoginForm'
 import { centers } from '@/services/providers/center.provider'
 import { createFileRoute } from '@tanstack/react-router'
+import { z } from 'zod'
 
 export const Route = createFileRoute('/(auth)/staff/login')({
-  component: StaffLoginForm,
+  validateSearch: z.object({
+    center: z.string().uuid().optional().catch(undefined),
+    email: z.string().email().optional().catch(undefined),
+  }),
+  component: RouteComponent,
   loader: ({ context }) => {
     context.queryClient.prefetchQuery(
       centers({
@@ -14,3 +19,8 @@ export const Route = createFileRoute('/(auth)/staff/login')({
     )
   },
 })
+
+function RouteComponent() {
+  const { center, email } = Route.useSearch()
+  return <StaffLoginForm defaultCenterId={center} defaultEmail={email} />
+}

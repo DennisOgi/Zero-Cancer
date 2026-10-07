@@ -16,11 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/ui/select'
+import { useAuthUser } from '@/services/providers/auth.provider'
 import {
   centerMyServices,
   kitOrders,
   kitStats,
   kitsList,
+  useCancelKitOrder,
   useCreateKitOrder,
 } from '@/services/providers/center.provider'
 import { useQuery } from '@tanstack/react-query'
@@ -28,7 +30,28 @@ import { Loader2, Package } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
+export const kitOrderStatusStyle: Record<string, string> = {
+  PENDING: 'bg-amber-100 text-amber-900',
+  APPROVED: 'bg-blue-100 text-blue-900',
+  SHIPPED: 'bg-indigo-100 text-indigo-900',
+  DELIVERED: 'bg-emerald-100 text-emerald-900',
+  REJECTED: 'bg-red-100 text-red-900',
+  CANCELLED: 'bg-slate-100 text-slate-700',
+}
+
+const kitOrderStatusHint: Record<string, string> = {
+  PENDING: 'Waiting for ZeroCancer to confirm',
+  APPROVED: 'Confirmed, preparing delivery',
+  SHIPPED: 'On the way',
+  DELIVERED: 'Delivered and added to your inventory',
+  REJECTED: 'Not approved',
+  CANCELLED: 'Cancelled by your facility',
+}
+
 export function CenterKitsPage() {
+  const { data: authData } = useQuery(useAuthUser())
+  const canOrder = authData?.data?.user?.profile === 'CENTER'
+  const cancelOrder = useCancelKitOrder()
   const { data: statsData, isLoading: statsLoading } = useQuery(kitStats())
   const { data: kitsData, isLoading: kitsLoading } = useQuery(
     kitsList({ page: 1, pageSize: 20 }),
@@ -106,6 +129,7 @@ export function CenterKitsPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        {canOrder ? (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -173,12 +197,26 @@ export function CenterKitsPage() {
             </Button>
           </CardContent>
         </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Need more kits?
+              </CardTitle>
+              <CardDescription>
+                Ask your facility admin to place a kit order. You can see the
+                stock and orders for this facility here.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
             <CardTitle>Your kit orders</CardTitle>
             <CardDescription>
-              Pending requests waiting for ZeroCancer fulfillment.
+              Track each order from request to delivery.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -203,13 +241,46 @@ export function CenterKitsPage() {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {order.requestedAt
-                        ? new Date(order.requestedAt).toLocaleString()
+                        ? new Date(order.requestedAt).toLocaleDateString()
                         : ''}
+                      {' · '}
+                      {kitOrderStatusHint[order.status] || order.status}
                     </p>
+                    {order.reviewNotes ? (
+                      <p className="mt-0.5 text-xs text-slate-700">
+                        ZeroCancer: {order.reviewNotes}
+                      </p>
+                    ) : null}
                   </div>
-                  <Badge className="border-transparent bg-amber-100 text-amber-900">
-                    {order.status}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {canOrder && order.status === 'PENDING' ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={cancelOrder.isPending}
+                        onClick={() =>
+                          cancelOrder.mutate(order.id, {
+                            onSuccess: () => toast.success('Order cancelled'),
+                            onError: (error: any) =>
+                              toast.error(
+                                error?.response?.data?.error ||
+                                  'Could not cancel order',
+                              ),
+                          })
+                        }
+                      >
+                        Cancel
+                      </Button>
+                    ) : null}
+                    <Badge
+                      className={`border-transparent ${
+                        kitOrderStatusStyle[order.status] ||
+                        'bg-slate-100 text-slate-800'
+                      }`}
+                    >
+                      {order.status}
+                    </Badge>
+                  </div>
                 </div>
               ))
             )}

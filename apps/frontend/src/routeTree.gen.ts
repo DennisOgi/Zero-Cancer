@@ -43,8 +43,8 @@ import { Route as CenterReceiptHistoryRouteImport } from './routes/center/receip
 import { Route as CenterProfileRouteImport } from './routes/center/profile'
 import { Route as CenterPatientsRouteImport } from './routes/center/patients'
 import { Route as CenterNotificationsRouteImport } from './routes/center/notifications'
-import { Route as CenterEarningsRouteImport } from './routes/center/earnings'
 import { Route as CenterKitsRouteImport } from './routes/center/kits'
+import { Route as CenterEarningsRouteImport } from './routes/center/earnings'
 import { Route as CenterAppointmentsRouteImport } from './routes/center/appointments'
 import { Route as AdminWaitlistRouteImport } from './routes/admin/waitlist'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
@@ -55,6 +55,7 @@ import { Route as AdminResultsRouteImport } from './routes/admin/results'
 import { Route as AdminResetPasswordRouteImport } from './routes/admin/reset-password'
 import { Route as AdminNotificationsRouteImport } from './routes/admin/notifications'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
+import { Route as AdminKitOrdersRouteImport } from './routes/admin/kit-orders'
 import { Route as AdminForgotPasswordRouteImport } from './routes/admin/forgot-password'
 import { Route as AdminCentersRouteImport } from './routes/admin/centers'
 import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
@@ -87,6 +88,7 @@ import { Route as AdminBlogNewRouteImport } from './routes/admin/blog/new'
 import { Route as publicDonationPaymentStatusRouteImport } from './routes/(public)/donation/payment-status'
 import { Route as publicCentersCenterIdRouteImport } from './routes/(public)/centers/$centerId'
 import { Route as publicBlogSlugRouteImport } from './routes/(public)/blog/$slug'
+import { Route as authStaffResetPasswordRouteImport } from './routes/(auth)/staff.reset-password'
 import { Route as authStaffLoginRouteImport } from './routes/(auth)/staff.login'
 import { Route as authStaffForgotPasswordRouteImport } from './routes/(auth)/staff.forgot-password'
 import { Route as authStaffCreateNewPasswordRouteImport } from './routes/(auth)/staff.create-new-password'
@@ -267,14 +269,14 @@ const CenterNotificationsRoute = CenterNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => CenterRouteRoute,
 } as any)
-const CenterEarningsRoute = CenterEarningsRouteImport.update({
-  id: '/earnings',
-  path: '/earnings',
-  getParentRoute: () => CenterRouteRoute,
-} as any)
 const CenterKitsRoute = CenterKitsRouteImport.update({
   id: '/kits',
   path: '/kits',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterEarningsRoute = CenterEarningsRouteImport.update({
+  id: '/earnings',
+  path: '/earnings',
   getParentRoute: () => CenterRouteRoute,
 } as any)
 const CenterAppointmentsRoute = CenterAppointmentsRouteImport.update({
@@ -325,6 +327,11 @@ const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminKitOrdersRoute = AdminKitOrdersRouteImport.update({
+  id: '/kit-orders',
+  path: '/kit-orders',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminForgotPasswordRoute = AdminForgotPasswordRouteImport.update({
@@ -493,6 +500,11 @@ const publicBlogSlugRoute = publicBlogSlugRouteImport.update({
   path: '/blog/$slug',
   getParentRoute: () => publicRouteRoute,
 } as any)
+const authStaffResetPasswordRoute = authStaffResetPasswordRouteImport.update({
+  id: '/staff/reset-password',
+  path: '/staff/reset-password',
+  getParentRoute: () => authRouteRoute,
+} as any)
 const authStaffLoginRoute = authStaffLoginRouteImport.update({
   id: '/staff/login',
   path: '/staff/login',
@@ -573,6 +585,7 @@ export interface FileRoutesByFullPath {
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/centers': typeof AdminCentersRoute
   '/admin/forgot-password': typeof AdminForgotPasswordRoute
+  '/admin/kit-orders': typeof AdminKitOrdersRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/reset-password': typeof AdminResetPasswordRoute
@@ -618,6 +631,7 @@ export interface FileRoutesByFullPath {
   '/staff/create-new-password': typeof authStaffCreateNewPasswordRoute
   '/staff/forgot-password': typeof authStaffForgotPasswordRoute
   '/staff/login': typeof authStaffLoginRoute
+  '/staff/reset-password': typeof authStaffResetPasswordRoute
   '/blog/$slug': typeof publicBlogSlugRoute
   '/centers/$centerId': typeof publicCentersCenterIdRoute
   '/donation/payment-status': typeof publicDonationPaymentStatusRoute
@@ -658,6 +672,7 @@ export interface FileRoutesByTo {
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/centers': typeof AdminCentersRoute
   '/admin/forgot-password': typeof AdminForgotPasswordRoute
+  '/admin/kit-orders': typeof AdminKitOrdersRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/reset-password': typeof AdminResetPasswordRoute
@@ -703,6 +718,7 @@ export interface FileRoutesByTo {
   '/staff/create-new-password': typeof authStaffCreateNewPasswordRoute
   '/staff/forgot-password': typeof authStaffForgotPasswordRoute
   '/staff/login': typeof authStaffLoginRoute
+  '/staff/reset-password': typeof authStaffResetPasswordRoute
   '/blog/$slug': typeof publicBlogSlugRoute
   '/centers/$centerId': typeof publicCentersCenterIdRoute
   '/donation/payment-status': typeof publicDonationPaymentStatusRoute
@@ -750,6 +766,7 @@ export interface FileRoutesById {
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/centers': typeof AdminCentersRoute
   '/admin/forgot-password': typeof AdminForgotPasswordRoute
+  '/admin/kit-orders': typeof AdminKitOrdersRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/reset-password': typeof AdminResetPasswordRoute
@@ -795,6 +812,7 @@ export interface FileRoutesById {
   '/(auth)/staff/create-new-password': typeof authStaffCreateNewPasswordRoute
   '/(auth)/staff/forgot-password': typeof authStaffForgotPasswordRoute
   '/(auth)/staff/login': typeof authStaffLoginRoute
+  '/(auth)/staff/reset-password': typeof authStaffResetPasswordRoute
   '/(public)/blog/$slug': typeof publicBlogSlugRoute
   '/(public)/centers/$centerId': typeof publicCentersCenterIdRoute
   '/(public)/donation/payment-status': typeof publicDonationPaymentStatusRoute
@@ -841,6 +859,7 @@ export interface FileRouteTypes {
     | '/admin/campaigns'
     | '/admin/centers'
     | '/admin/forgot-password'
+    | '/admin/kit-orders'
     | '/admin/login'
     | '/admin/notifications'
     | '/admin/reset-password'
@@ -886,6 +905,7 @@ export interface FileRouteTypes {
     | '/staff/create-new-password'
     | '/staff/forgot-password'
     | '/staff/login'
+    | '/staff/reset-password'
     | '/blog/$slug'
     | '/centers/$centerId'
     | '/donation/payment-status'
@@ -926,6 +946,7 @@ export interface FileRouteTypes {
     | '/admin/campaigns'
     | '/admin/centers'
     | '/admin/forgot-password'
+    | '/admin/kit-orders'
     | '/admin/login'
     | '/admin/notifications'
     | '/admin/reset-password'
@@ -971,6 +992,7 @@ export interface FileRouteTypes {
     | '/staff/create-new-password'
     | '/staff/forgot-password'
     | '/staff/login'
+    | '/staff/reset-password'
     | '/blog/$slug'
     | '/centers/$centerId'
     | '/donation/payment-status'
@@ -1017,6 +1039,7 @@ export interface FileRouteTypes {
     | '/admin/campaigns'
     | '/admin/centers'
     | '/admin/forgot-password'
+    | '/admin/kit-orders'
     | '/admin/login'
     | '/admin/notifications'
     | '/admin/reset-password'
@@ -1062,6 +1085,7 @@ export interface FileRouteTypes {
     | '/(auth)/staff/create-new-password'
     | '/(auth)/staff/forgot-password'
     | '/(auth)/staff/login'
+    | '/(auth)/staff/reset-password'
     | '/(public)/blog/$slug'
     | '/(public)/centers/$centerId'
     | '/(public)/donation/payment-status'
@@ -1338,18 +1362,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CenterNotificationsRouteImport
       parentRoute: typeof CenterRouteRoute
     }
-    '/center/earnings': {
-      id: '/center/earnings'
-      path: '/earnings'
-      fullPath: '/center/earnings'
-      preLoaderRoute: typeof CenterEarningsRouteImport
-      parentRoute: typeof CenterRouteRoute
-    }
     '/center/kits': {
       id: '/center/kits'
       path: '/kits'
       fullPath: '/center/kits'
       preLoaderRoute: typeof CenterKitsRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/earnings': {
+      id: '/center/earnings'
+      path: '/earnings'
+      fullPath: '/center/earnings'
+      preLoaderRoute: typeof CenterEarningsRouteImport
       parentRoute: typeof CenterRouteRoute
     }
     '/center/appointments': {
@@ -1420,6 +1444,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/admin/login'
       preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/kit-orders': {
+      id: '/admin/kit-orders'
+      path: '/kit-orders'
+      fullPath: '/admin/kit-orders'
+      preLoaderRoute: typeof AdminKitOrdersRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/forgot-password': {
@@ -1646,6 +1677,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof publicBlogSlugRouteImport
       parentRoute: typeof publicRouteRoute
     }
+    '/(auth)/staff/reset-password': {
+      id: '/(auth)/staff/reset-password'
+      path: '/staff/reset-password'
+      fullPath: '/staff/reset-password'
+      preLoaderRoute: typeof authStaffResetPasswordRouteImport
+      parentRoute: typeof authRouteRoute
+    }
     '/(auth)/staff/login': {
       id: '/(auth)/staff/login'
       path: '/staff/login'
@@ -1750,6 +1788,7 @@ interface authRouteRouteChildren {
   authStaffCreateNewPasswordRoute: typeof authStaffCreateNewPasswordRoute
   authStaffForgotPasswordRoute: typeof authStaffForgotPasswordRoute
   authStaffLoginRoute: typeof authStaffLoginRoute
+  authStaffResetPasswordRoute: typeof authStaffResetPasswordRoute
   authSignUpIndexRoute: typeof authSignUpIndexRoute
 }
 
@@ -1766,6 +1805,7 @@ const authRouteRouteChildren: authRouteRouteChildren = {
   authStaffCreateNewPasswordRoute: authStaffCreateNewPasswordRoute,
   authStaffForgotPasswordRoute: authStaffForgotPasswordRoute,
   authStaffLoginRoute: authStaffLoginRoute,
+  authStaffResetPasswordRoute: authStaffResetPasswordRoute,
   authSignUpIndexRoute: authSignUpIndexRoute,
 }
 
@@ -1819,6 +1859,7 @@ interface AdminRouteRouteChildren {
   AdminCampaignsRoute: typeof AdminCampaignsRoute
   AdminCentersRoute: typeof AdminCentersRoute
   AdminForgotPasswordRoute: typeof AdminForgotPasswordRoute
+  AdminKitOrdersRoute: typeof AdminKitOrdersRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminResetPasswordRoute: typeof AdminResetPasswordRoute
@@ -1839,6 +1880,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminCampaignsRoute: AdminCampaignsRoute,
   AdminCentersRoute: AdminCentersRoute,
   AdminForgotPasswordRoute: AdminForgotPasswordRoute,
+  AdminKitOrdersRoute: AdminKitOrdersRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,
   AdminResetPasswordRoute: AdminResetPasswordRoute,

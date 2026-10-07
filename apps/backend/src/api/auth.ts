@@ -136,10 +136,23 @@ authApp.post(
           ? actor.toUpperCase()
           : user.profiles[0]; // Use first profile for non-center actors
 
+      let staffId: string | undefined;
+      let staffRole: "ADMIN" | "NURSE" | "STAFF" | undefined;
+      if (actor === "center" && id) {
+        const ownerStaff = await db.centerStaff.findFirst({
+          where: { centerId: id, email: normalizedEmail },
+        });
+        if (ownerStaff) {
+          staffId = ownerStaff.id;
+          staffRole = "ADMIN";
+        }
+      }
+
       const payload = {
         id: id!,
         email: user.email!,
         profile: authProfile,
+        ...(staffId ? { staffId, staffRole } : {}),
       };
 
       const token = await sign(
@@ -166,9 +179,10 @@ authApp.post(
           token,
           user: {
             userId: id!,
-            fullName: user.fullName!,
+            fullName: user.fullName || user.centerName || "",
             email: user.email!,
             profile: payload.profile,
+            ...(staffId ? { staffId, staffRole } : {}),
           },
         },
       });
@@ -262,6 +276,19 @@ authApp.get(
         staff = await db.centerStaff.findFirst({
           where: { centerId: jwtPayload.id, email: jwtPayload.email },
         });
+      }
+      if (
+        jwtPayload.staffId &&
+        (!staff || String(staff.status || "ACTIVE").toUpperCase() !== "ACTIVE")
+      ) {
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            err_code: "account_suspended",
+            error: "Your facility account is no longer active.",
+          },
+          403
+        );
       }
       if (staff) {
         staffId = staff.id;
@@ -613,6 +640,28 @@ authApp.post("/refresh", async (c) => {
 
   try {
     const payload = await verify(refreshToken, JWT_TOKEN_SECRET);
+    if (payload.staffId) {
+      const staff = await getDB(c).centerStaff.findUnique({
+        where: { id: String(payload.staffId) },
+      });
+      if (!staff || String(staff.status || "ACTIVE").toUpperCase() !== "ACTIVE") {
+        setCookie(c, "refreshToken", "", {
+          httpOnly: true,
+          secure: true,
+          sameSite: "None",
+          path: "/",
+          maxAge: 0,
+        });
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            err_code: "account_suspended",
+            error: "Your facility account is no longer active.",
+          },
+          401
+        );
+      }
+    }
     const tokenBody = {
       id: payload.id!,
       email: payload.email!,

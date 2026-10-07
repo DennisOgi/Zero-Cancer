@@ -98,7 +98,8 @@ export function CenterDashboard() {
     ) ?? 0
 
   const appointmentsForTable = todaysAppointments.slice(0, 5)
-  const centerName = user?.fullName || 'Acme Center'
+  const centerName = user?.fullName || 'your health facility'
+  const isAdmin = user?.profile === 'CENTER'
 
   const metricsLoading =
     appointmentsLoading ||
@@ -161,7 +162,9 @@ export function CenterDashboard() {
       link: '/center/appointments',
       icon: appointmentIcon,
     },
-    { label: 'Invite Staff', link: '/center/staff', icon: peopleIcon },
+    ...(isAdmin
+      ? [{ label: 'Invite Staff', link: '/center/staff', icon: peopleIcon }]
+      : []),
     {
       label: 'Upload Results',
       link: '/center/upload-results',
@@ -175,12 +178,29 @@ export function CenterDashboard() {
         <div>
           <h1 className="text-3xl font-bold">Welcome, {centerName} 👋</h1>
           <p className="text-muted-foreground">
-            Here's an overview of your center's activity.
+            Here&apos;s an overview of your health facility&apos;s activity.
           </p>
         </div>
       </div>
 
       <DashboardStats stats={stats} isLoading={metricsLoading} />
+
+      {isAdmin && totalStaff < 2 && !centerLoading ? (
+        <Card className="border-emerald-200 bg-emerald-50">
+          <CardHeader>
+            <CardTitle>Invite your nurses</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-emerald-950">
+              Add nurses and health care providers so they can register
+              patients, verify check-ins, and work under this facility.
+            </p>
+            <Button asChild className="bg-primary text-white shrink-0">
+              <Link to="/center/staff">Invite staff</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <QuickActions actions={quickActions} />
 

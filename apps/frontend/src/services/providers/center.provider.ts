@@ -346,3 +346,67 @@ export const useCreateKitOrder = () => {
     },
   })
 }
+
+export const useCancelKitOrder = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: [MutationKeys.cancelKitOrder],
+    mutationFn: kitService.cancelKitOrder,
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.kitOrders] })
+    },
+  })
+}
+
+export const adminKitOrders = (params?: { status?: string }) =>
+  queryOptions({
+    queryKey: [QueryKeys.adminKitOrders, params],
+    queryFn: () => kitService.getAdminKitOrders(params),
+  })
+
+export const useUpdateAdminKitOrder = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: [MutationKeys.updateAdminKitOrder],
+    mutationFn: kitService.updateAdminKitOrder,
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.adminKitOrders] })
+    },
+  })
+}
+
+// --- Facility team management ---
+
+export const staffMembers = () =>
+  queryOptions({
+    queryKey: [QueryKeys.centerStaffMembers],
+    queryFn: () => centerService.getStaffMembers(),
+  })
+
+const useTeamMutation = <TArgs,>(
+  key: MutationKeys,
+  fn: (args: TArgs) => Promise<unknown>,
+) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: [key],
+    mutationFn: fn,
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.centerStaffMembers] })
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.centerStaffInvites] })
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.centerById] })
+    },
+  })
+}
+
+export const useUpdateStaffMember = () =>
+  useTeamMutation(MutationKeys.updateStaffMember, centerService.updateStaffMember)
+
+export const useRemoveStaffMember = () =>
+  useTeamMutation(MutationKeys.removeStaffMember, centerService.removeStaffMember)
+
+export const useCancelStaffInvite = () =>
+  useTeamMutation(MutationKeys.cancelStaffInvite, centerService.cancelStaffInvite)
+
+export const useResendStaffInvite = () =>
+  useTeamMutation(MutationKeys.resendStaffInvite, centerService.resendStaffInvite)

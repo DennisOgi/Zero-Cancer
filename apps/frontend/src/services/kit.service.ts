@@ -50,9 +50,63 @@ export const getKitOrders = async () => {
         urgency: string
         status: string
         reason?: string | null
+        reviewNotes?: string | null
+        reviewedAt?: string | null
         requestedAt: string
       }>
     }
+  }>
+}
+
+export const cancelKitOrder = async (id: string) => {
+  return request.post(endpoints.cancelKitOrder(id), {})
+}
+
+export type TAdminKitOrder = {
+  id: string
+  centerId: string
+  screeningTypeId: string
+  screeningTypeName: string
+  requestedQuantity: number
+  urgency: string
+  status: string
+  reason?: string | null
+  requestedBy: string
+  requestedAt: string
+  reviewedBy?: string | null
+  reviewedAt?: string | null
+  reviewNotes?: string | null
+  center: {
+    id: string
+    centerName: string
+    state?: string
+    lga?: string
+    phone?: string | null
+    email?: string
+  } | null
+}
+
+export const getAdminKitOrders = async (params?: { status?: string }) => {
+  return request.get(endpoints.adminKitOrders(params)) as Promise<{
+    ok: boolean
+    data: { orders: TAdminKitOrder[] }
+  }>
+}
+
+export const updateAdminKitOrder = async ({
+  id,
+  ...data
+}: {
+  id: string
+  status: 'APPROVED' | 'SHIPPED' | 'DELIVERED' | 'REJECTED'
+  reviewNotes?: string
+  trackingNumber?: string
+  batchNumber?: string
+  serialNumbers?: string[]
+}) => {
+  return request.patch(endpoints.adminKitOrder(id), data) as Promise<{
+    ok: boolean
+    data: { kitsAdded: number }
   }>
 }
 

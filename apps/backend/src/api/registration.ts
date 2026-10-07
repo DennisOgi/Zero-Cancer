@@ -648,9 +648,15 @@ registerApp.post(
         centerId: center.id,
         email: data.email!,
         passwordHash: hashedPassword,
-        role: "ADMIN", // Default role for the center admin
+        role: "ADMIN",
+        fullName: data.centerName!,
+        status: "ACTIVE",
       },
     });
+
+    const serviceIds = Array.isArray(center.services)
+      ? center.services.map((s: { id: string }) => s.id)
+      : data.services || [];
 
     return c.json<TScreeningCenterRegisterResponse>(
       {
@@ -664,7 +670,7 @@ registerApp.post(
           address: center.address,
           state: center.state,
           localGovernment: center.lga,
-          services: center.services.map((s: { id: string }) => s.id),
+          services: serviceIds,
         },
       },
       201

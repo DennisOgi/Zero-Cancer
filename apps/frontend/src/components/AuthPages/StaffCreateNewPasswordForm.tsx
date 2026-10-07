@@ -57,6 +57,30 @@ const createPasswordFormSchema = createCenterStaffPasswordSchema
     path: ['confirmPassword'],
   })
 
+const roleIntro = (role?: string) =>
+  role === 'ADMIN'
+    ? 'a facility admin'
+    : role === 'NURSE'
+      ? 'a nurse'
+      : 'a staff member'
+
+const roleAbilities = (role?: string) => {
+  const shared = [
+    'Verify patient check-ins',
+    'Upload screening results',
+    'Manage facility appointments',
+  ]
+  if (role === 'ADMIN')
+    return [...shared, 'Invite and manage nurses & staff', 'Order screening kits']
+  if (role === 'NURSE')
+    return [
+      'Register and screen patients',
+      ...shared,
+      'Share your own referral link and earn privately',
+    ]
+  return shared
+}
+
 export function CreateStaffPassword({ token }: { token: string }) {
   const navigate = useNavigate()
   const [isSuccess, setIsSuccess] = useState(false)
@@ -65,6 +89,12 @@ export function CreateStaffPassword({ token }: { token: string }) {
   const staffInviteQuery = useQuery(validateStaffInvite(token))
 
   const createPasswordMutation = useCreateCenterStaffPassword()
+  const invite = staffInviteQuery.data?.data
+  const goToLogin = () =>
+    navigate({
+      to: '/staff/login',
+      search: { center: invite?.centerId, email: invite?.email || undefined },
+    })
 
   const form = useForm<CreatePasswordForm>({
     resolver: zodResolver(createPasswordFormSchema),
@@ -85,10 +115,7 @@ export function CreateStaffPassword({ token }: { token: string }) {
       setIsSuccess(true)
       toast.success('Password created successfully!')
 
-      // Redirect to login after 3 seconds
-      setTimeout(() => {
-        navigate({ to: '/login', search: { actor: 'center' } })
-      }, 3000)
+      setTimeout(goToLogin, 3000)
     } catch (error: any) {
       console.error('Create password error:', error)
       const errorMessage =
@@ -106,12 +133,20 @@ export function CreateStaffPassword({ token }: { token: string }) {
     }
   }
 
-  // Validate token on component mount
-  if (!token || token.length < 10 || staffInviteQuery.isError) {
-    const errorMessage =
-      staffInviteQuery.error?.message ||
-      'The invitation link appears to be invalid or incomplete.'
-    const isExpired = staffInviteQuery.error?.message?.includes('expired')
+  const inviteRejected =
+    !isSuccess && !!invite && invite.isValid === false
+  if (
+    !token ||
+    token.length < 10 ||
+    staffInviteQuery.isError ||
+    inviteRejected
+  ) {
+    const isExpired = !!invite?.isExpired
+    const errorMessage = isExpired
+      ? `This invitation to ${invite?.centerName || 'the facility'} has expired.`
+      : invite
+        ? 'This invitation has already been used or was cancelled. If you already set a password, sign in instead.'
+        : 'The invitation link appears to be invalid or incomplete.'
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -130,11 +165,18 @@ export function CreateStaffPassword({ token }: { token: string }) {
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>What to do next</AlertTitle>
               <AlertDescription>
-                Please contact your center administrator to request a new
-                invitation link. Make sure you're using the complete URL from
-                your invitation email.
+                Ask your health facility admin to resend your invitation from
+                the Nurses &amp; staff page. Make sure you&apos;re using the
+                complete link from your invitation email.
               </AlertDescription>
             </Alert>
+            <Button
+              variant="outline"
+              className="mt-4 w-full"
+              onClick={goToLogin}
+            >
+              Go to staff sign in
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -186,10 +228,7 @@ export function CreateStaffPassword({ token }: { token: string }) {
               </AlertDescription>
             </Alert>
 
-            <Button
-              onClick={() => navigate({ to: '/staff/login' })}
-              className="w-full"
-            >
+            <Button onClick={goToLogin} className="w-full">
               Continue to Login
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
@@ -230,10 +269,12 @@ export function CreateStaffPassword({ token }: { token: string }) {
                 <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
                 {centerDetails.centerAddress}
               </div>
-              {/* <div className="flex items-center gap-2">
-                <Users className="w-3 h-3" />
-                Staff Role: {centerDetails.}
-              </div> */}
+              {centerDetails.email ? (
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
+                  Signing in as {centerDetails.email}
+                </div>
+              ) : null}
             </div>
           </div>
         )}
@@ -303,25 +344,15 @@ export function CreateStaffPassword({ token }: { token: string }) {
           {/* Information about staff access */}
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <h4 className="text-sm font-medium text-gray-900 mb-3">
-              As a staff member, you'll be able to:
+              As {roleIntro(centerDetails?.role)}, you&apos;ll be able to:
             </h4>
             <ul className="text-sm text-gray-600 space-y-1">
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-3 w-3 text-green-600" />
-                Verify patient check-ins
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-3 w-3 text-green-600" />
-                Upload screening results
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-3 w-3 text-green-600" />
-                Manage center appointments
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-3 w-3 text-green-600" />
-                Access results history
-              </li>
+              {roleAbilities(centerDetails?.role).map((ability) => (
+                <li key={ability} className="flex items-center gap-2">
+                  <CheckCircle className="h-3 w-3 text-green-600" />
+                  {ability}
+                </li>
+              ))}
             </ul>
           </div>
         </CardContent>
