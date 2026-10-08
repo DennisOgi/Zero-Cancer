@@ -106,6 +106,7 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-8 text-white">
           <a href="#" className="hover:text-secondary transition-colors">How it Works</a>
           <Link to="/blog" className="hover:text-secondary transition-colors">Blog</Link>
+          <Link to="/events" className="hover:text-secondary transition-colors">Events</Link>
           <Link to="/about" className="hover:text-secondary transition-colors">About</Link>
           <a href="#" className="hover:text-secondary transition-colors">Contact Us</a>
           
@@ -243,6 +244,9 @@ export default function Navbar() {
             </a>
             <Link to="/blog" onClick={() => setIsOpen(false)}>
               Blog
+            </Link>
+            <Link to="/events" onClick={() => setIsOpen(false)}>
+              Events
             </Link>
             <Link to="/about" onClick={() => setIsOpen(false)}>
               About

@@ -6,6 +6,7 @@ import {
   FileText,
   HeartHandshake,
   Home,
+  Images,
   LineChart,
   LogOut,
   Package,
@@ -130,6 +131,22 @@ export function AdminLayout() {
               >
                 <Package className="h-4 w-4" />
                 Kit orders
+              </Link>
+              <Link
+                to="/admin/events"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+                activeProps={{ className: 'bg-muted text-primary' }}
+              >
+                <Images className="h-4 w-4" />
+                Events
+              </Link>
+              <Link
+                to="/admin/blog"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+                activeProps={{ className: 'bg-muted text-primary' }}
+              >
+                <FileText className="h-4 w-4" />
+                Blog
               </Link>
               <Link
                 to="/admin/analytics"

@@ -60,6 +60,7 @@ export default function CenterFilters({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Statuses</SelectItem>
+              <SelectItem value="PENDING">Pending approval</SelectItem>
               <SelectItem value="ACTIVE">Active</SelectItem>
               <SelectItem value="INACTIVE">Inactive</SelectItem>
               <SelectItem value="SUSPENDED">Suspended</SelectItem>

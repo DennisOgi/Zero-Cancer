@@ -33,7 +33,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import CenterFilters from './CenterFilters'
 
-export type CenterStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
+export type CenterStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING'
 
 export function AdminCentersPage() {
   // Filters state
@@ -106,6 +106,8 @@ export function AdminCentersPage() {
     switch (status) {
       case 'ACTIVE':
         return 'default'
+      case 'PENDING':
+        return 'outline'
       case 'INACTIVE':
         return 'secondary'
       case 'SUSPENDED':

@@ -575,3 +575,31 @@ export const adminActivateAgent = (id: string) =>
   `/api/admin/agents/${id}/activate`
 export const adminVoidCommission = (id: string) =>
   `/api/admin/agents/commissions/${id}/void`
+
+export const listCommunityEvents = (params?: {
+  page?: number
+  pageSize?: number
+  publisherType?: string
+}) =>
+  `/api/events${buildQuery({
+    page: params?.page ?? 1,
+    pageSize: params?.pageSize ?? 12,
+    publisherType: params?.publisherType,
+  })}`
+export const featuredCommunityEvents = () => '/api/events/featured'
+export const myCommunityEvents = () => '/api/events/mine'
+export const adminCommunityEvents = (params?: {
+  page?: number
+  pageSize?: number
+  status?: string
+}) =>
+  `/api/events/admin${buildQuery({
+    page: params?.page ?? 1,
+    pageSize: params?.pageSize ?? 20,
+    status: params?.status,
+  })}`
+export const communityEventById = (id: string) => `/api/events/${id}`
+export const createCommunityEvent = () => '/api/events'
+export const uploadCommunityEventPhoto = () => '/api/events/photo'
+export const reviewCommunityEvent = (id: string) => `/api/events/${id}/review`
+export const deleteCommunityEvent = (id: string) => `/api/events/${id}`

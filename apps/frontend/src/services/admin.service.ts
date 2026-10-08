@@ -22,7 +22,7 @@ import { z } from 'zod'
 const getCentersSchema = z.object({
   page: z.number().min(1).default(1).optional(),
   pageSize: z.number().min(1).max(100).default(20).optional(),
-  status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED']).optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'PENDING']).optional(),
   state: z.string().optional(),
   search: z.string().optional(),
 })
@@ -183,7 +183,7 @@ type TAdminCenter = {
   address: string
   state: string
   lga: string
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING'
   phone?: string
   bankAccount?: string
   bankName?: string

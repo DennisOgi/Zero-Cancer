@@ -610,70 +610,86 @@ registerApp.post(
       );
   }),
   async (c) => {
-    const db = getDB(c);
-    const data = c.req.valid("json");
-    const existingUser = await db.serviceCenter.findUnique({
-      where: { email: data.email! },
-    });
-    if (existingUser)
-      return c.json<TErrorResponse>(
-        {
-          ok: false,
-          err_code: "center_already_registered",
-          error: "Email already registered",
-        },
-        409
-      );
-    const hashedPassword = await bcrypt.hash(data.password!, 10);
-    const center = await db.serviceCenter.create({
-      data: {
-        email: data.email!,
-        passwordHash: hashedPassword!,
-        centerName: data.centerName!,
-        phone: data.phoneNumber!,
-        whatsappNumber: data.phoneNumber!,
-        address: data.address!,
-        state: data.state!,
-        lga: data.localGovernment!,
-        bankAccount: "",
-        services: {
-          connect: (data.services || []).map((id: string) => ({ id })),
-        },
-      },
-      include: { services: { select: { id: true } } },
-    });
-
-    await db.centerStaff.create({
-      data: {
-        centerId: center.id,
-        email: data.email!,
-        passwordHash: hashedPassword,
-        role: "ADMIN",
-        fullName: data.centerName!,
-        status: "ACTIVE",
-      },
-    });
-
-    const serviceIds = Array.isArray(center.services)
-      ? center.services.map((s: { id: string }) => s.id)
-      : data.services || [];
-
-    return c.json<TScreeningCenterRegisterResponse>(
-      {
-        ok: true,
-        message: "Center registered successfully",
+    try {
+      const db = getDB(c);
+      const data = c.req.valid("json");
+      const existingUser = await db.serviceCenter.findUnique({
+        where: { email: data.email! },
+      });
+      if (existingUser)
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            err_code: "center_already_registered",
+            error: "Email already registered",
+          },
+          409
+        );
+      const hashedPassword = await bcrypt.hash(data.password!, 10);
+      const serviceIds = (data.services || []).filter(Boolean);
+      const center = await db.serviceCenter.create({
         data: {
-          centerId: center.id,
-          centerName: center.centerName,
-          email: center.email,
-          phoneNumber: center.phone ?? "",
-          address: center.address,
-          state: center.state,
-          localGovernment: center.lga,
-          services: serviceIds,
+          email: data.email!,
+          passwordHash: hashedPassword!,
+          centerName: data.centerName!,
+          phone: data.phoneNumber!,
+          whatsappNumber: data.phoneNumber!,
+          address: data.address!,
+          state: data.state!,
+          lga: data.localGovernment!,
+          bankAccount: "",
+          services: {
+            connect: serviceIds.map((id: string) => ({ id })),
+          },
         },
-      },
-      201
-    );
+        include: { services: { select: { id: true } } },
+      });
+
+      try {
+        await db.centerStaff.create({
+          data: {
+            centerId: center.id,
+            email: data.email!,
+            passwordHash: hashedPassword,
+            role: "ADMIN",
+            fullName: data.centerName!,
+            status: "ACTIVE",
+          },
+        });
+      } catch (staffError) {
+        console.error("[CENTER_REG] Owner staff create failed:", staffError);
+      }
+
+      return c.json<TScreeningCenterRegisterResponse>(
+        {
+          ok: true,
+          message: "Center registered successfully",
+          data: {
+            centerId: center.id,
+            centerName: center.centerName,
+            email: center.email,
+            phoneNumber: center.phone ?? "",
+            address: center.address,
+            state: center.state,
+            localGovernment: center.lga,
+            services: serviceIds,
+          },
+        },
+        201
+      );
+    } catch (error) {
+      console.error(
+        "[CENTER_REG] Registration error:",
+        error instanceof Error ? error.message : error
+      );
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unknown error during registration";
+      return c.json<TErrorResponse>(
+        { ok: false, error: message },
+        500
+      );
+    }
   }
 );

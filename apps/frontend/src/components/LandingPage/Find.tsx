@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 
 type ServiceType = 'vaccination' | 'screening' | 'treatment'
 
@@ -85,7 +86,7 @@ export default function Find() {
 
   const handleFindCenters = () => {
     if (!selectedState) {
-      alert('Please select a state')
+      toast.error('Please select a state')
       return
     }
 

@@ -31,6 +31,7 @@ import { Route as PatientChangeCenterRouteImport } from './routes/patient/change
 import { Route as PatientAppointmentsRouteImport } from './routes/patient/appointments'
 import { Route as PatientAgentRouteImport } from './routes/patient/agent'
 import { Route as DonorFundRouteImport } from './routes/donor/fund'
+import { Route as DonorEventsRouteImport } from './routes/donor/events'
 import { Route as CenterWalletRouteImport } from './routes/center/wallet'
 import { Route as CenterVerifyCodeRouteImport } from './routes/center/verify-code'
 import { Route as CenterUploadResultsRouteImport } from './routes/center/upload-results'
@@ -44,6 +45,7 @@ import { Route as CenterProfileRouteImport } from './routes/center/profile'
 import { Route as CenterPatientsRouteImport } from './routes/center/patients'
 import { Route as CenterNotificationsRouteImport } from './routes/center/notifications'
 import { Route as CenterKitsRouteImport } from './routes/center/kits'
+import { Route as CenterEventsRouteImport } from './routes/center/events'
 import { Route as CenterEarningsRouteImport } from './routes/center/earnings'
 import { Route as CenterAppointmentsRouteImport } from './routes/center/appointments'
 import { Route as AdminWaitlistRouteImport } from './routes/admin/waitlist'
@@ -57,6 +59,7 @@ import { Route as AdminNotificationsRouteImport } from './routes/admin/notificat
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminKitOrdersRouteImport } from './routes/admin/kit-orders'
 import { Route as AdminForgotPasswordRouteImport } from './routes/admin/forgot-password'
+import { Route as AdminEventsRouteImport } from './routes/admin/events'
 import { Route as AdminCentersRouteImport } from './routes/admin/centers'
 import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
 import { Route as AdminBlogRouteImport } from './routes/admin/blog'
@@ -72,6 +75,7 @@ import { Route as authForgotPasswordCenterRouteImport } from './routes/(auth)/fo
 import { Route as authForgotPasswordRouteImport } from './routes/(auth)/forgot-password'
 import { Route as PatientBookIndexRouteImport } from './routes/patient/book/index'
 import { Route as DonorCampaignsIndexRouteImport } from './routes/donor/campaigns/index'
+import { Route as publicEventsIndexRouteImport } from './routes/(public)/events/index'
 import { Route as publicCentersIndexRouteImport } from './routes/(public)/centers/index'
 import { Route as publicBlogIndexRouteImport } from './routes/(public)/blog/index'
 import { Route as authSignUpIndexRouteImport } from './routes/(auth)/sign-up/index'
@@ -85,6 +89,7 @@ import { Route as DonorCampaignsPaymentStatusRouteImport } from './routes/donor/
 import { Route as DonorCampaignsCreateRouteImport } from './routes/donor/campaigns/create'
 import { Route as DonorCampaignsCampaignIdRouteImport } from './routes/donor/campaigns/$campaignId'
 import { Route as AdminBlogNewRouteImport } from './routes/admin/blog/new'
+import { Route as publicEventsEventIdRouteImport } from './routes/(public)/events/$eventId'
 import { Route as publicDonationPaymentStatusRouteImport } from './routes/(public)/donation/payment-status'
 import { Route as publicCentersCenterIdRouteImport } from './routes/(public)/centers/$centerId'
 import { Route as publicBlogSlugRouteImport } from './routes/(public)/blog/$slug'
@@ -209,6 +214,11 @@ const DonorFundRoute = DonorFundRouteImport.update({
   path: '/fund',
   getParentRoute: () => DonorRouteRoute,
 } as any)
+const DonorEventsRoute = DonorEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => DonorRouteRoute,
+} as any)
 const CenterWalletRoute = CenterWalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
@@ -274,6 +284,11 @@ const CenterKitsRoute = CenterKitsRouteImport.update({
   path: '/kits',
   getParentRoute: () => CenterRouteRoute,
 } as any)
+const CenterEventsRoute = CenterEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
 const CenterEarningsRoute = CenterEarningsRouteImport.update({
   id: '/earnings',
   path: '/earnings',
@@ -337,6 +352,11 @@ const AdminKitOrdersRoute = AdminKitOrdersRouteImport.update({
 const AdminForgotPasswordRoute = AdminForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminEventsRoute = AdminEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminCentersRoute = AdminCentersRouteImport.update({
@@ -415,6 +435,11 @@ const DonorCampaignsIndexRoute = DonorCampaignsIndexRouteImport.update({
   path: '/campaigns/',
   getParentRoute: () => DonorRouteRoute,
 } as any)
+const publicEventsIndexRoute = publicEventsIndexRouteImport.update({
+  id: '/events/',
+  path: '/events/',
+  getParentRoute: () => publicRouteRoute,
+} as any)
 const publicCentersIndexRoute = publicCentersIndexRouteImport.update({
   id: '/centers/',
   path: '/centers/',
@@ -483,6 +508,11 @@ const AdminBlogNewRoute = AdminBlogNewRouteImport.update({
   id: '/new',
   path: '/new',
   getParentRoute: () => AdminBlogRoute,
+} as any)
+const publicEventsEventIdRoute = publicEventsEventIdRouteImport.update({
+  id: '/events/$eventId',
+  path: '/events/$eventId',
+  getParentRoute: () => publicRouteRoute,
 } as any)
 const publicDonationPaymentStatusRoute =
   publicDonationPaymentStatusRouteImport.update({
@@ -584,6 +614,7 @@ export interface FileRoutesByFullPath {
   '/admin/blog': typeof AdminBlogRouteWithChildren
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/centers': typeof AdminCentersRoute
+  '/admin/events': typeof AdminEventsRoute
   '/admin/forgot-password': typeof AdminForgotPasswordRoute
   '/admin/kit-orders': typeof AdminKitOrdersRoute
   '/admin/login': typeof AdminLoginRoute
@@ -597,6 +628,7 @@ export interface FileRoutesByFullPath {
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/earnings': typeof CenterEarningsRoute
+  '/center/events': typeof CenterEventsRoute
   '/center/kits': typeof CenterKitsRoute
   '/center/notifications': typeof CenterNotificationsRoute
   '/center/patients': typeof CenterPatientsRoute
@@ -610,6 +642,7 @@ export interface FileRoutesByFullPath {
   '/center/upload-results': typeof CenterUploadResultsRoute
   '/center/verify-code': typeof CenterVerifyCodeRoute
   '/center/wallet': typeof CenterWalletRoute
+  '/donor/events': typeof DonorEventsRoute
   '/donor/fund': typeof DonorFundRoute
   '/patient/agent': typeof PatientAgentRoute
   '/patient/appointments': typeof PatientAppointmentsRoute
@@ -635,6 +668,7 @@ export interface FileRoutesByFullPath {
   '/blog/$slug': typeof publicBlogSlugRoute
   '/centers/$centerId': typeof publicCentersCenterIdRoute
   '/donation/payment-status': typeof publicDonationPaymentStatusRoute
+  '/events/$eventId': typeof publicEventsEventIdRoute
   '/admin/blog/new': typeof AdminBlogNewRoute
   '/donor/campaigns/$campaignId': typeof DonorCampaignsCampaignIdRouteWithChildren
   '/donor/campaigns/create': typeof DonorCampaignsCreateRoute
@@ -648,6 +682,7 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof authSignUpIndexRoute
   '/blog': typeof publicBlogIndexRoute
   '/centers': typeof publicCentersIndexRoute
+  '/events': typeof publicEventsIndexRoute
   '/donor/campaigns': typeof DonorCampaignsIndexRoute
   '/patient/book': typeof PatientBookIndexRoute
   '/sign-up/patient/centers': typeof authSignUpPatientCentersRoute
@@ -671,6 +706,7 @@ export interface FileRoutesByTo {
   '/admin/blog': typeof AdminBlogRouteWithChildren
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/centers': typeof AdminCentersRoute
+  '/admin/events': typeof AdminEventsRoute
   '/admin/forgot-password': typeof AdminForgotPasswordRoute
   '/admin/kit-orders': typeof AdminKitOrdersRoute
   '/admin/login': typeof AdminLoginRoute
@@ -684,6 +720,7 @@ export interface FileRoutesByTo {
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/earnings': typeof CenterEarningsRoute
+  '/center/events': typeof CenterEventsRoute
   '/center/kits': typeof CenterKitsRoute
   '/center/notifications': typeof CenterNotificationsRoute
   '/center/patients': typeof CenterPatientsRoute
@@ -697,6 +734,7 @@ export interface FileRoutesByTo {
   '/center/upload-results': typeof CenterUploadResultsRoute
   '/center/verify-code': typeof CenterVerifyCodeRoute
   '/center/wallet': typeof CenterWalletRoute
+  '/donor/events': typeof DonorEventsRoute
   '/donor/fund': typeof DonorFundRoute
   '/patient/agent': typeof PatientAgentRoute
   '/patient/appointments': typeof PatientAppointmentsRoute
@@ -722,6 +760,7 @@ export interface FileRoutesByTo {
   '/blog/$slug': typeof publicBlogSlugRoute
   '/centers/$centerId': typeof publicCentersCenterIdRoute
   '/donation/payment-status': typeof publicDonationPaymentStatusRoute
+  '/events/$eventId': typeof publicEventsEventIdRoute
   '/admin/blog/new': typeof AdminBlogNewRoute
   '/donor/campaigns/$campaignId': typeof DonorCampaignsCampaignIdRouteWithChildren
   '/donor/campaigns/create': typeof DonorCampaignsCreateRoute
@@ -735,6 +774,7 @@ export interface FileRoutesByTo {
   '/sign-up': typeof authSignUpIndexRoute
   '/blog': typeof publicBlogIndexRoute
   '/centers': typeof publicCentersIndexRoute
+  '/events': typeof publicEventsIndexRoute
   '/donor/campaigns': typeof DonorCampaignsIndexRoute
   '/patient/book': typeof PatientBookIndexRoute
   '/sign-up/patient/centers': typeof authSignUpPatientCentersRoute
@@ -765,6 +805,7 @@ export interface FileRoutesById {
   '/admin/blog': typeof AdminBlogRouteWithChildren
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/centers': typeof AdminCentersRoute
+  '/admin/events': typeof AdminEventsRoute
   '/admin/forgot-password': typeof AdminForgotPasswordRoute
   '/admin/kit-orders': typeof AdminKitOrdersRoute
   '/admin/login': typeof AdminLoginRoute
@@ -778,6 +819,7 @@ export interface FileRoutesById {
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/earnings': typeof CenterEarningsRoute
+  '/center/events': typeof CenterEventsRoute
   '/center/kits': typeof CenterKitsRoute
   '/center/notifications': typeof CenterNotificationsRoute
   '/center/patients': typeof CenterPatientsRoute
@@ -791,6 +833,7 @@ export interface FileRoutesById {
   '/center/upload-results': typeof CenterUploadResultsRoute
   '/center/verify-code': typeof CenterVerifyCodeRoute
   '/center/wallet': typeof CenterWalletRoute
+  '/donor/events': typeof DonorEventsRoute
   '/donor/fund': typeof DonorFundRoute
   '/patient/agent': typeof PatientAgentRoute
   '/patient/appointments': typeof PatientAppointmentsRoute
@@ -816,6 +859,7 @@ export interface FileRoutesById {
   '/(public)/blog/$slug': typeof publicBlogSlugRoute
   '/(public)/centers/$centerId': typeof publicCentersCenterIdRoute
   '/(public)/donation/payment-status': typeof publicDonationPaymentStatusRoute
+  '/(public)/events/$eventId': typeof publicEventsEventIdRoute
   '/admin/blog/new': typeof AdminBlogNewRoute
   '/donor/campaigns/$campaignId': typeof DonorCampaignsCampaignIdRouteWithChildren
   '/donor/campaigns/create': typeof DonorCampaignsCreateRoute
@@ -829,6 +873,7 @@ export interface FileRoutesById {
   '/(auth)/sign-up/': typeof authSignUpIndexRoute
   '/(public)/blog/': typeof publicBlogIndexRoute
   '/(public)/centers/': typeof publicCentersIndexRoute
+  '/(public)/events/': typeof publicEventsIndexRoute
   '/donor/campaigns/': typeof DonorCampaignsIndexRoute
   '/patient/book/': typeof PatientBookIndexRoute
   '/(auth)/sign-up/patient/centers': typeof authSignUpPatientCentersRoute
@@ -858,6 +903,7 @@ export interface FileRouteTypes {
     | '/admin/blog'
     | '/admin/campaigns'
     | '/admin/centers'
+    | '/admin/events'
     | '/admin/forgot-password'
     | '/admin/kit-orders'
     | '/admin/login'
@@ -871,6 +917,7 @@ export interface FileRouteTypes {
     | '/admin/waitlist'
     | '/center/appointments'
     | '/center/earnings'
+    | '/center/events'
     | '/center/kits'
     | '/center/notifications'
     | '/center/patients'
@@ -884,6 +931,7 @@ export interface FileRouteTypes {
     | '/center/upload-results'
     | '/center/verify-code'
     | '/center/wallet'
+    | '/donor/events'
     | '/donor/fund'
     | '/patient/agent'
     | '/patient/appointments'
@@ -909,6 +957,7 @@ export interface FileRouteTypes {
     | '/blog/$slug'
     | '/centers/$centerId'
     | '/donation/payment-status'
+    | '/events/$eventId'
     | '/admin/blog/new'
     | '/donor/campaigns/$campaignId'
     | '/donor/campaigns/create'
@@ -922,6 +971,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/blog'
     | '/centers'
+    | '/events'
     | '/donor/campaigns'
     | '/patient/book'
     | '/sign-up/patient/centers'
@@ -945,6 +995,7 @@ export interface FileRouteTypes {
     | '/admin/blog'
     | '/admin/campaigns'
     | '/admin/centers'
+    | '/admin/events'
     | '/admin/forgot-password'
     | '/admin/kit-orders'
     | '/admin/login'
@@ -958,6 +1009,7 @@ export interface FileRouteTypes {
     | '/admin/waitlist'
     | '/center/appointments'
     | '/center/earnings'
+    | '/center/events'
     | '/center/kits'
     | '/center/notifications'
     | '/center/patients'
@@ -971,6 +1023,7 @@ export interface FileRouteTypes {
     | '/center/upload-results'
     | '/center/verify-code'
     | '/center/wallet'
+    | '/donor/events'
     | '/donor/fund'
     | '/patient/agent'
     | '/patient/appointments'
@@ -996,6 +1049,7 @@ export interface FileRouteTypes {
     | '/blog/$slug'
     | '/centers/$centerId'
     | '/donation/payment-status'
+    | '/events/$eventId'
     | '/admin/blog/new'
     | '/donor/campaigns/$campaignId'
     | '/donor/campaigns/create'
@@ -1009,6 +1063,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/blog'
     | '/centers'
+    | '/events'
     | '/donor/campaigns'
     | '/patient/book'
     | '/sign-up/patient/centers'
@@ -1038,6 +1093,7 @@ export interface FileRouteTypes {
     | '/admin/blog'
     | '/admin/campaigns'
     | '/admin/centers'
+    | '/admin/events'
     | '/admin/forgot-password'
     | '/admin/kit-orders'
     | '/admin/login'
@@ -1051,6 +1107,7 @@ export interface FileRouteTypes {
     | '/admin/waitlist'
     | '/center/appointments'
     | '/center/earnings'
+    | '/center/events'
     | '/center/kits'
     | '/center/notifications'
     | '/center/patients'
@@ -1064,6 +1121,7 @@ export interface FileRouteTypes {
     | '/center/upload-results'
     | '/center/verify-code'
     | '/center/wallet'
+    | '/donor/events'
     | '/donor/fund'
     | '/patient/agent'
     | '/patient/appointments'
@@ -1089,6 +1147,7 @@ export interface FileRouteTypes {
     | '/(public)/blog/$slug'
     | '/(public)/centers/$centerId'
     | '/(public)/donation/payment-status'
+    | '/(public)/events/$eventId'
     | '/admin/blog/new'
     | '/donor/campaigns/$campaignId'
     | '/donor/campaigns/create'
@@ -1102,6 +1161,7 @@ export interface FileRouteTypes {
     | '/(auth)/sign-up/'
     | '/(public)/blog/'
     | '/(public)/centers/'
+    | '/(public)/events/'
     | '/donor/campaigns/'
     | '/patient/book/'
     | '/(auth)/sign-up/patient/centers'
@@ -1278,6 +1338,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DonorFundRouteImport
       parentRoute: typeof DonorRouteRoute
     }
+    '/donor/events': {
+      id: '/donor/events'
+      path: '/events'
+      fullPath: '/donor/events'
+      preLoaderRoute: typeof DonorEventsRouteImport
+      parentRoute: typeof DonorRouteRoute
+    }
     '/center/wallet': {
       id: '/center/wallet'
       path: '/wallet'
@@ -1369,6 +1436,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CenterKitsRouteImport
       parentRoute: typeof CenterRouteRoute
     }
+    '/center/events': {
+      id: '/center/events'
+      path: '/events'
+      fullPath: '/center/events'
+      preLoaderRoute: typeof CenterEventsRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
     '/center/earnings': {
       id: '/center/earnings'
       path: '/earnings'
@@ -1458,6 +1532,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/admin/forgot-password'
       preLoaderRoute: typeof AdminForgotPasswordRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/events': {
+      id: '/admin/events'
+      path: '/events'
+      fullPath: '/admin/events'
+      preLoaderRoute: typeof AdminEventsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/centers': {
@@ -1565,6 +1646,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DonorCampaignsIndexRouteImport
       parentRoute: typeof DonorRouteRoute
     }
+    '/(public)/events/': {
+      id: '/(public)/events/'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof publicEventsIndexRouteImport
+      parentRoute: typeof publicRouteRoute
+    }
     '/(public)/centers/': {
       id: '/(public)/centers/'
       path: '/centers'
@@ -1655,6 +1743,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/blog/new'
       preLoaderRoute: typeof AdminBlogNewRouteImport
       parentRoute: typeof AdminBlogRoute
+    }
+    '/(public)/events/$eventId': {
+      id: '/(public)/events/$eventId'
+      path: '/events/$eventId'
+      fullPath: '/events/$eventId'
+      preLoaderRoute: typeof publicEventsEventIdRouteImport
+      parentRoute: typeof publicRouteRoute
     }
     '/(public)/donation/payment-status': {
       id: '/(public)/donation/payment-status'
@@ -1818,8 +1913,10 @@ interface publicRouteRouteChildren {
   publicBlogSlugRoute: typeof publicBlogSlugRoute
   publicCentersCenterIdRoute: typeof publicCentersCenterIdRoute
   publicDonationPaymentStatusRoute: typeof publicDonationPaymentStatusRoute
+  publicEventsEventIdRoute: typeof publicEventsEventIdRoute
   publicBlogIndexRoute: typeof publicBlogIndexRoute
   publicCentersIndexRoute: typeof publicCentersIndexRoute
+  publicEventsIndexRoute: typeof publicEventsIndexRoute
   publicReportsViewTokenRoute: typeof publicReportsViewTokenRoute
 }
 
@@ -1828,8 +1925,10 @@ const publicRouteRouteChildren: publicRouteRouteChildren = {
   publicBlogSlugRoute: publicBlogSlugRoute,
   publicCentersCenterIdRoute: publicCentersCenterIdRoute,
   publicDonationPaymentStatusRoute: publicDonationPaymentStatusRoute,
+  publicEventsEventIdRoute: publicEventsEventIdRoute,
   publicBlogIndexRoute: publicBlogIndexRoute,
   publicCentersIndexRoute: publicCentersIndexRoute,
+  publicEventsIndexRoute: publicEventsIndexRoute,
   publicReportsViewTokenRoute: publicReportsViewTokenRoute,
 }
 
@@ -1858,6 +1957,7 @@ interface AdminRouteRouteChildren {
   AdminBlogRoute: typeof AdminBlogRouteWithChildren
   AdminCampaignsRoute: typeof AdminCampaignsRoute
   AdminCentersRoute: typeof AdminCentersRoute
+  AdminEventsRoute: typeof AdminEventsRoute
   AdminForgotPasswordRoute: typeof AdminForgotPasswordRoute
   AdminKitOrdersRoute: typeof AdminKitOrdersRoute
   AdminLoginRoute: typeof AdminLoginRoute
@@ -1879,6 +1979,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminBlogRoute: AdminBlogRouteWithChildren,
   AdminCampaignsRoute: AdminCampaignsRoute,
   AdminCentersRoute: AdminCentersRoute,
+  AdminEventsRoute: AdminEventsRoute,
   AdminForgotPasswordRoute: AdminForgotPasswordRoute,
   AdminKitOrdersRoute: AdminKitOrdersRoute,
   AdminLoginRoute: AdminLoginRoute,
@@ -1900,6 +2001,7 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
 interface CenterRouteRouteChildren {
   CenterAppointmentsRoute: typeof CenterAppointmentsRoute
   CenterEarningsRoute: typeof CenterEarningsRoute
+  CenterEventsRoute: typeof CenterEventsRoute
   CenterKitsRoute: typeof CenterKitsRoute
   CenterNotificationsRoute: typeof CenterNotificationsRoute
   CenterPatientsRoute: typeof CenterPatientsRoute
@@ -1920,6 +2022,7 @@ interface CenterRouteRouteChildren {
 const CenterRouteRouteChildren: CenterRouteRouteChildren = {
   CenterAppointmentsRoute: CenterAppointmentsRoute,
   CenterEarningsRoute: CenterEarningsRoute,
+  CenterEventsRoute: CenterEventsRoute,
   CenterKitsRoute: CenterKitsRoute,
   CenterNotificationsRoute: CenterNotificationsRoute,
   CenterPatientsRoute: CenterPatientsRoute,
@@ -1957,6 +2060,7 @@ const DonorCampaignsCampaignIdRouteWithChildren =
   )
 
 interface DonorRouteRouteChildren {
+  DonorEventsRoute: typeof DonorEventsRoute
   DonorFundRoute: typeof DonorFundRoute
   DonorIndexRoute: typeof DonorIndexRoute
   DonorCampaignsCampaignIdRoute: typeof DonorCampaignsCampaignIdRouteWithChildren
@@ -1966,6 +2070,7 @@ interface DonorRouteRouteChildren {
 }
 
 const DonorRouteRouteChildren: DonorRouteRouteChildren = {
+  DonorEventsRoute: DonorEventsRoute,
   DonorFundRoute: DonorFundRoute,
   DonorIndexRoute: DonorIndexRoute,
   DonorCampaignsCampaignIdRoute: DonorCampaignsCampaignIdRouteWithChildren,

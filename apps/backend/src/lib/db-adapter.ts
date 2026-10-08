@@ -346,25 +346,36 @@ export const getDB = (c: Context) => {
             lga: data.lga,
             phone: data.phone,
             whatsappNumber: data.whatsappNumber || data.phone,
+            bankAccount: data.bankAccount || "",
             status: 'PENDING',
           })
           .select()
           .single();
           
         if (error) throw error;
+
+        const connectedServices = Array.isArray(data.services?.connect)
+          ? data.services.connect
+          : [];
         
         // Link screening types if provided
-        if (data.services?.connect && Array.isArray(data.services.connect)) {
-          const serviceLinks = data.services.connect.map((s: any) => ({
+        if (connectedServices.length > 0) {
+          const serviceLinks = connectedServices.map((s: any) => ({
             centerId: center.id,
             screeningTypeId: s.id,
             amount: 10000.0,
           }));
           
-          await supabase.from('ServiceCenterScreeningType').insert(serviceLinks);
+          const { error: serviceLinkError } = await supabase
+            .from('ServiceCenterScreeningType')
+            .insert(serviceLinks);
+          if (serviceLinkError) throw serviceLinkError;
         }
-        
-        return center;
+
+        return {
+          ...center,
+          services: connectedServices.map((s: any) => ({ id: s.id })),
+        };
       },
 
       update: async ({ where, data }: any) => {

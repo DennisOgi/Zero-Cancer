@@ -2,12 +2,21 @@ import { Link, Outlet } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import calendar from '@/assets/images/calendar.png'
 import cross from '@/assets/images/cross.png'
+import eventsIcon from '@/assets/images/events.png'
 import health from '@/assets/images/health.png'
+import kitsIcon from '@/assets/images/kits.png'
 import whiteLogo from '@/assets/images/logo.svg'
 import logoutIcon from '@/assets/images/logout.png'
+import notificationIcon from '@/assets/images/notification.png'
+import nursesIcon from '@/assets/images/nurses.png'
+import payoutsIcon from '@/assets/images/payouts.png'
 import people from '@/assets/images/people.png'
+import profileIcon from '@/assets/images/profile.png'
+import reportsIcon from '@/assets/images/reports.png'
 import screening from '@/assets/images/screening.png'
 import treatment from '@/assets/images/treatment.png'
+import waitlistIcon from '@/assets/images/waitlist.png'
+import walletIcon from '@/assets/images/wallet.png'
 import { useAuthUser, useLogout } from '@/services/providers/auth.provider'
 import { useNotifications } from '@/services/providers/notification.provider'
 
@@ -33,30 +42,31 @@ export function CenterLayout() {
     { to: '/center', label: 'Dashboard', icon: cross },
     { to: '/center/services', label: 'Services', icon: health },
     { to: '/center/patients', label: 'Patients', icon: people },
-    { to: '/center/register-patient', label: 'Patient Waitlist', icon: people },
+    { to: '/center/register-patient', label: 'Patient Waitlist', icon: waitlistIcon },
     { to: '/center/appointments', label: 'Appointments', icon: calendar },
     { to: '/center/verify-code', label: 'Verify Code', icon: screening },
     { to: '/center/upload-results', label: 'Upload Results', icon: treatment },
-    { to: '/center/reports', label: 'Reports', icon: screening },
-    { to: '/center/kits', label: 'Kits', icon: treatment },
-    { to: '/center/notifications', label: 'Notifications', icon: health }, // v1.0 - Center notifications
+    { to: '/center/reports', label: 'Reports', icon: reportsIcon },
+    { to: '/center/kits', label: 'Kits', icon: kitsIcon },
+    { to: '/center/notifications', label: 'Notifications', icon: notificationIcon },
   ]
 
   const adminNavLinks = [
-    { to: '/center/profile', label: 'Profile', icon: people },
-    { to: '/center/receipt-history', label: 'Payouts', icon: health },
-    { to: '/center/wallet', label: 'Wallet', icon: health },
-    { to: '/center/staff', label: 'Nurses & staff', icon: people },
+    { to: '/center/profile', label: 'Profile', icon: profileIcon },
+    { to: '/center/receipt-history', label: 'Payouts', icon: payoutsIcon },
+    { to: '/center/wallet', label: 'Wallet', icon: walletIcon },
+    { to: '/center/staff', label: 'Nurses & staff', icon: nursesIcon },
+    { to: '/center/events', label: 'Events', icon: eventsIcon },
   ]
 
   const earningsNav = canSeePrivateEarnings
-    ? [{ to: '/center/earnings', label: 'Earnings', icon: health }]
+    ? [{ to: '/center/earnings', label: 'Earnings', icon: payoutsIcon }]
     : []
 
   // Staff can view profile (read-only WhatsApp); admins can edit
   const navLinks = isAdmin
     ? [...baseNavLinks, ...adminNavLinks, ...earningsNav]
-    : [...baseNavLinks, { to: '/center/profile', label: 'Profile', icon: people }, ...earningsNav]
+    : [...baseNavLinks, { to: '/center/profile', label: 'Profile', icon: profileIcon }, ...earningsNav]
 
   return (
     <div className="min-h-screen w-full">

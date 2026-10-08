@@ -115,16 +115,19 @@ export function setupAxiosInterceptors(queryClient: QueryClient) {
         return Promise.reject(error)
       }
 
-      if (originalRequest.url?.includes('/api/auth/2fa') === true) {
+      if (originalRequest.url?.includes('/auth/2fa') === true) {
         return Promise.reject(error)
       }
-      if (originalRequest.url?.includes('/api/auth/logout') === true) {
+      if (originalRequest.url?.includes('/auth/logout') === true) {
         return Promise.reject(error)
       }
       if (
-        originalRequest.url?.includes('/api/auth/me') === true &&
+        originalRequest.url?.includes('/auth/me') === true &&
         error.response.status === 401
       ) {
+        return Promise.reject(error)
+      }
+      if (originalRequest.url?.includes('/register/') === true) {
         return Promise.reject(error)
       }
 

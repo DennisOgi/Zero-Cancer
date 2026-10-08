@@ -1,7 +1,9 @@
 import { Link, Outlet } from '@tanstack/react-router'
 import whiteLogo from '@/assets/images/logo.svg'
 import cross from '@/assets/images/cross.png'
+import eventsIcon from '@/assets/images/events.png'
 import logoutIcon from '@/assets/images/logout.png'
+import megaphone from '@/assets/images/megaphone.png'
 import stethoscope from '@/assets/images/stethoscope.png'
 import { useLogout } from '@/services/providers/auth.provider'
 
@@ -11,7 +13,8 @@ export function DonorLayout() {
   const navLinks = [
     { to: '/donor', label: 'Dashboard', icon: cross },
     { to: '/donor/fund', label: 'Fund Patients', icon: stethoscope },
-    { to: '/donor/campaigns', label: 'My Campaigns', icon: stethoscope },
+    { to: '/donor/campaigns', label: 'My Campaigns', icon: megaphone },
+    { to: '/donor/events', label: 'Events', icon: eventsIcon },
   ]
 
   return (

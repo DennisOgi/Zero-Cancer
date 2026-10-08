@@ -50,6 +50,9 @@ export default function Footer() {
                 <Link to="/blog" className="block hover:text-primary">
                   Blog
                 </Link>
+                <Link to="/events" className="block hover:text-primary">
+                  Events
+                </Link>
               </div>
             </div>
           </div>

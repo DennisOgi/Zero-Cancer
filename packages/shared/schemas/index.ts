@@ -16,3 +16,4 @@ export * from "./community.schema";
 export * from "./kit.schema";
 export * from "./pricing.schema";
 export * from "./enrollment.schema";
+export * from "./event.schema";

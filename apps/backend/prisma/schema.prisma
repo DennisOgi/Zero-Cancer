@@ -1291,3 +1291,24 @@ model StaffReferral {
   @@index([staffId, status])
   @@index([referredUserId])
 }
+
+model CommunityEvent {
+  id              String   @id @default(uuid())
+  publisherType   String
+  publisherId     String
+  publisherName   String
+  title           String
+  body            String
+  coverImageUrl   String
+  imageUrls       String[] @default([])
+  status          String   @default("PENDING")
+  featured        Boolean  @default(false)
+  rejectionReason String?
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([publisherType, publisherId])
+}

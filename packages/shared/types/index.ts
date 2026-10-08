@@ -1115,3 +1115,26 @@ export type TValidateStaffInviteResponse = TDataResponse<{
   expiresAt: string | null;
   isExpired: boolean;
 }>;
+
+export type TCommunityEvent = {
+  id: string;
+  publisherType: "DONOR" | "CENTER";
+  publisherName: string;
+  title: string;
+  body: string;
+  coverImageUrl: string;
+  imageUrls: string[];
+  featured: boolean;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  createdAt: string;
+  rejectionReason?: string | null;
+  reviewedAt?: string | null;
+};
+
+export type TCommunityEventsListResponse = TDataResponse<{
+  events: TCommunityEvent[];
+  page?: number;
+  pageSize?: number;
+  total?: number;
+  totalPages?: number;
+}>;
