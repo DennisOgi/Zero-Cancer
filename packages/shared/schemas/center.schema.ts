@@ -29,6 +29,7 @@ export const getCentersQuerySchema = z.object({
   state: z.string().optional(),
   lga: z.string().optional(),
   serviceType: z.enum(["vaccination", "screening", "treatment"]).optional(),
+  sort: z.enum(["recent", "services"]).optional(),
 });
 
 export const getCenterByIdSchema = z.object({

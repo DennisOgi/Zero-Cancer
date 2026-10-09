@@ -28,6 +28,28 @@ export const patientSchema = z.object({
     .max(40)
     .optional()
     .transform((value) => (value ? value.toUpperCase() : value)),
+  listToken: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z
+      .string()
+      .trim()
+      .min(8)
+      .max(80)
+      .optional()
+      .transform((value) => (value ? value.toLowerCase() : value)),
+  ),
+  inviteToken: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z
+      .string()
+      .trim()
+      .min(8)
+      .max(80)
+      .optional()
+      .transform((value) => (value ? value.toLowerCase() : value)),
+  ),
 });
 
 export const donorSchema = z.object({
@@ -44,6 +66,17 @@ export const donorSchema = z.object({
   phone: z.string().min(7, { message: "Please enter a valid WhatsApp number." }),
   organization: z.string().optional(),
   country: z.string().optional(),
+  inviteToken: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z
+      .string()
+      .trim()
+      .min(8)
+      .max(80)
+      .optional()
+      .transform((value) => (value ? value.toLowerCase() : value)),
+  ),
 });
 
 export const centerSchema = z.object({

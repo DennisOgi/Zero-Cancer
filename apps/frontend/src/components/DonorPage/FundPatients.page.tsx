@@ -118,13 +118,11 @@ export function FundPatientsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-gray-600">
-              Choose an existing community group below, or target patients by
-              state, LGA, age, gender, or screening type.
+              Sponsor a church, fellowship, or community waiting list — everyone
+              on it, or a specific number of people.
             </p>
             <Button asChild variant="outline" className="w-full">
-              <Link to="/donor/campaigns/create">
-                Create custom group campaign
-              </Link>
+              <Link to="/donor/waiting-lists">Browse waiting lists</Link>
             </Button>
           </CardContent>
         </Card>
@@ -138,6 +136,9 @@ export function FundPatientsPage() {
               <Users className="h-5 w-5 text-blue-600" />
               Community groups
             </CardTitle>
+            <Button asChild variant="link" className="px-0">
+              <Link to="/donor/waiting-lists">Open waiting lists page</Link>
+            </Button>
             <div className="relative w-full sm:max-w-xs">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input

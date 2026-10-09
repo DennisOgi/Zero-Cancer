@@ -149,3 +149,60 @@ export function openWhatsAppShare(phone: string, message: string): boolean {
   }
   return true
 }
+
+export function buildBoardingInviteWhatsAppMessage(params: {
+  inviterName: string
+  type: 'SCREEN' | 'CELEBRANT'
+  joinUrl: string
+}) {
+  if (params.type === 'CELEBRANT') {
+    return [
+      `${params.inviterName} invited you to sponsor cancer screening on ZeroCancer.`,
+      '',
+      'You can fund women already waiting, or create a waiting list for your birthday, wedding, or church outreach.',
+      '',
+      params.joinUrl,
+      '',
+      '— ZeroCancer',
+    ].join('\n')
+  }
+  return [
+    `${params.inviterName} invited you to get screened on ZeroCancer.`,
+    '',
+    'Watch a short intro, create your account, and join a nearby health facility.',
+    '',
+    params.joinUrl,
+    '',
+    '— ZeroCancer',
+  ].join('\n')
+}
+
+export function buildWaitingListWhatsAppMessage(params: {
+  listName: string
+  joinUrl: string
+  visibility?: 'PUBLIC' | 'PRIVATE'
+}) {
+  const invite =
+    params.visibility === 'PRIVATE'
+      ? `You're invited to join my private ZeroCancer waiting list "${params.listName}".`
+      : `Join the "${params.listName}" waiting list on ZeroCancer to be sponsored for cancer screening.`
+
+  return [
+    invite,
+    '',
+    'Register here:',
+    params.joinUrl,
+    '',
+    '— ZeroCancer',
+  ].join('\n')
+}
+
+export function buildWhatsAppTextShareUrl(message: string) {
+  return `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`
+}
+
+export function openWhatsAppTextShare(message: string) {
+  const url = buildWhatsAppTextShareUrl(message)
+  const popup = window.open(url, '_blank', 'noopener,noreferrer')
+  if (!popup) window.location.href = url
+}

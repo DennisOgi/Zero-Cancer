@@ -32,6 +32,8 @@ import { walletApp } from "./api/wallets";
 import { staffEarningsApp } from "./api/staff-earnings";
 import { webhooksApp } from "./api/webhooks";
 import { eventsApp } from "./api/events";
+import { waitingListsApp } from "./api/waiting-lists";
+import { boardingApp } from "./api/boarding";
 import { TEnvs } from "./lib/types";
 
 // Create the main app (no basePath for root)
@@ -109,6 +111,8 @@ apiApp.route("/admin/agents", adminAgentsApp);
 apiApp.route("/wallets", walletApp);
 apiApp.route("/webhooks", webhooksApp);
 apiApp.route("/events", eventsApp);
+apiApp.route("/waiting-lists", waitingListsApp);
+apiApp.route("/boarding", boardingApp);
 
 // Mount API app BEFORE static file serving
 app.route("/api/v1", apiApp);

@@ -104,7 +104,7 @@ export default function Navbar() {
           <img src={logo} alt="ZeroCancer Logo" className="w-24 cursor-pointer hover:opacity-90 transition-opacity" />
         </Link>
         <div className="hidden md:flex items-center gap-8 text-white">
-          <a href="#" className="hover:text-secondary transition-colors">How it Works</a>
+          <Link to="/learn" className="hover:text-secondary transition-colors">How it Works</Link>
           <Link to="/blog" className="hover:text-secondary transition-colors">Blog</Link>
           <Link to="/events" className="hover:text-secondary transition-colors">Events</Link>
           <Link to="/about" className="hover:text-secondary transition-colors">About</Link>
@@ -239,9 +239,9 @@ export default function Navbar() {
             </svg>
           </button>
           <div className="flex flex-col items-center gap-6 text-white text-xl">
-            <a href="#" onClick={() => setIsOpen(false)}>
+            <Link to="/learn" onClick={() => setIsOpen(false)}>
               How it Works
-            </a>
+            </Link>
             <Link to="/blog" onClick={() => setIsOpen(false)}>
               Blog
             </Link>

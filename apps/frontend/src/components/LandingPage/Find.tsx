@@ -35,6 +35,7 @@ export default function Find() {
       page: 1,
       pageSize: 8,
       status: 'ACTIVE',
+      sort: 'recent',
     }),
   )
 

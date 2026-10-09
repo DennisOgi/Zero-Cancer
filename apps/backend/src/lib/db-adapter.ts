@@ -769,6 +769,9 @@ export const getDB = (c: Context) => {
       findMany: async ({ where, skip, take, orderBy }: any = {}) => {
         let query = supabase.from('Group').select('*');
 
+        if (where?.visibility) query = query.eq('visibility', where.visibility);
+        if (where?.ownerDonorId) query = query.eq('ownerDonorId', where.ownerDonorId);
+
         if (where?.OR && Array.isArray(where.OR)) {
           const filters = where.OR.map((clause: any) => {
             if (clause.name?.contains)
@@ -782,6 +785,7 @@ export const getDB = (c: Context) => {
 
         if (orderBy?.name === 'asc') query = query.order('name', { ascending: true });
         else if (orderBy?.name === 'desc') query = query.order('name', { ascending: false });
+        else if (orderBy?.createdAt === 'desc') query = query.order('createdAt', { ascending: false });
 
         if (skip) query = query.range(skip, skip + (take || 20) - 1);
         else if (take) query = query.limit(take);
@@ -791,12 +795,12 @@ export const getDB = (c: Context) => {
         return data || [];
       },
 
-      findUnique: async ({ where }: { where: { id?: string } }) => {
-        const { data, error } = await supabase
-          .from('Group')
-          .select('*')
-          .eq('id', where.id)
-          .single();
+      findUnique: async ({ where }: { where: { id?: string; shareToken?: string } }) => {
+        let query = supabase.from('Group').select('*');
+        if (where.shareToken) query = query.eq('shareToken', where.shareToken);
+        else query = query.eq('id', where.id);
+
+        const { data, error } = await query.maybeSingle();
 
         if (error && error.code !== 'PGRST116') throw error;
         return data;
@@ -804,6 +808,9 @@ export const getDB = (c: Context) => {
 
       count: async ({ where }: any = {}) => {
         let query = supabase.from('Group').select('*', { count: 'exact', head: true });
+
+        if (where?.visibility) query = query.eq('visibility', where.visibility);
+        if (where?.ownerDonorId) query = query.eq('ownerDonorId', where.ownerDonorId);
 
         if (where?.OR && Array.isArray(where.OR)) {
           const filters = where.OR.map((clause: any) => {
@@ -827,6 +834,11 @@ export const getDB = (c: Context) => {
           .insert({
             name: data.name,
             description: data.description || null,
+            visibility: data.visibility || 'PUBLIC',
+            ownerDonorId: data.ownerDonorId || null,
+            shareToken: data.shareToken || crypto.randomUUID().replace(/-/g, '').slice(0, 24),
+            targetGender: data.targetGender || null,
+            screeningTypeId: data.screeningTypeId || null,
           })
           .select()
           .single();

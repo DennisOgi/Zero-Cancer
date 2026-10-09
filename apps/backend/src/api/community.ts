@@ -78,7 +78,7 @@ communityApp.get(
     const db = getDB(c);
     const { page = 1, pageSize = 20, search } = c.req.valid("query");
 
-    const where: any = {};
+    const where: any = { visibility: "PUBLIC" };
     if (search) {
       where.OR = [
         { name: { contains: search } },

@@ -1,5 +1,6 @@
 // import selfSampleVideo from '@/assets/images/ZeroCancer_Video_ewxn02.webm'
 // import cervicalVideo from '@/assets/images/Zerocancer_video_rchsqf.webm'
+import { BoardingVideoLibrary } from '@/components/Boarding/BoardingVideos'
 import { PlayIcon } from 'lucide-react'
 import { useState } from 'react'
 
@@ -32,6 +33,7 @@ export default function Education() {
   ]
 
   return (
+    <div>
     <div className="wrapper py-20 flex flex-col lg:flex-row items-center gap-12">
       <div className="lg:w-1/2">
         <h2 className="text-5xl font-bold">Your Cancer Education Toolkit</h2>
@@ -81,6 +83,17 @@ export default function Education() {
           className="w-full h-full object-cover"
         />
       </div>
+    </div>
+    <div className="wrapper pb-20">
+      <h3 className="text-3xl font-bold">The boarding films</h3>
+      <p className="mt-2 max-w-2xl text-muted-foreground">
+        Anyone invited to ZeroCancer sees these five steps first. You can skip
+        them and watch later — here, or from your dashboard.
+      </p>
+      <div className="mt-8">
+        <BoardingVideoLibrary />
+      </div>
+    </div>
     </div>
   )
 }

@@ -5,14 +5,23 @@ import eventsIcon from '@/assets/images/events.png'
 import logoutIcon from '@/assets/images/logout.png'
 import megaphone from '@/assets/images/megaphone.png'
 import stethoscope from '@/assets/images/stethoscope.png'
+import waitlistIcon from '@/assets/images/waitlist.png'
 import { useLogout } from '@/services/providers/auth.provider'
+import { UserPlus } from 'lucide-react'
 
 export function DonorLayout() {
   const { mutate: logout } = useLogout()
 
-  const navLinks = [
+  const navLinks: Array<{
+    to: string
+    label: string
+    icon: string | typeof UserPlus
+    iconType?: 'image' | 'lucide'
+  }> = [
     { to: '/donor', label: 'Dashboard', icon: cross },
     { to: '/donor/fund', label: 'Fund Patients', icon: stethoscope },
+    { to: '/donor/waiting-lists', label: 'Waiting lists', icon: waitlistIcon },
+    { to: '/donor/invite', label: 'Invite', icon: UserPlus, iconType: 'lucide' },
     { to: '/donor/campaigns', label: 'My Campaigns', icon: megaphone },
     { to: '/donor/events', label: 'Events', icon: eventsIcon },
   ]
@@ -38,7 +47,11 @@ export function DonorLayout() {
                   activeOptions={link.to === '/donor' ? { exact: true } : { exact: false }}
                   activeProps={{ className: 'bg-white/30 font-semibold' }}
                 >
-                  <img src={link.icon} alt={link.label} className="h-6 w-6" />
+                  {link.iconType === 'lucide' && typeof link.icon !== 'string' ? (
+                    <link.icon className="h-5 w-5" strokeWidth={2} />
+                  ) : (
+                    <img src={String(link.icon)} alt={link.label} className="h-6 w-6" />
+                  )}
                   {link.label}
                 </Link>
               ))}
@@ -86,8 +99,12 @@ export function DonorLayout() {
           {navLinks.map((link) => (
             <Link key={link.to} to={link.to} className="flex-1" activeOptions={{ exact: link.to === '/donor' }} preload="render">
               <div className="flex h-16 w-full flex-col items-center justify-center rounded-lg p-1 transition-colors duration-200">
-                <img src={link.icon} alt={link.label} className="h-6 w-6" />
-                <span className={'mt-2 text-xs text-muted-foreground'}>{link.label.split(' ')[0]}</span>
+                {link.iconType === 'lucide' && typeof link.icon !== 'string' ? (
+                  <link.icon className="h-5 w-5 text-muted-foreground" strokeWidth={2} />
+                ) : (
+                  <img src={String(link.icon)} alt={link.label} className="h-6 w-6" />
+                )}
+                <span className={'mt-2 text-[10px] text-muted-foreground'}>{link.label.split(' ')[0]}</span>
               </div>
             </Link>
           ))}

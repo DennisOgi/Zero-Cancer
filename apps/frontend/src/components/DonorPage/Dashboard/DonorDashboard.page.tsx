@@ -109,6 +109,12 @@ export function DonorDashboardPage() {
             <Button asChild variant="outline">
               <Link to="/donor/campaigns/create">Fund by Group Targeting</Link>
             </Button>
+            <Button asChild variant="outline">
+              <Link to="/donor/waiting-lists">Sponsor a waiting list</Link>
+            </Button>
+            <Button asChild>
+              <Link to="/donor/invite">Invite a celebrant</Link>
+            </Button>
           </div>
 
           {/* Stat Cards */}

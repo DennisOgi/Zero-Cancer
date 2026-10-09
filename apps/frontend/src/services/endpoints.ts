@@ -173,6 +173,36 @@ export const getCommunityGroups = (params: {
     search: params.search || undefined,
   })}`
 
+export const getWaitingListPreview = (token: string) =>
+  `/api/waiting-lists/join/${encodeURIComponent(token)}`
+
+export const getPublicWaitingLists = (params: {
+  page?: number
+  pageSize?: number
+  search?: string
+}) =>
+  `/api/waiting-lists/public${buildQuery({
+    page: params.page ?? 1,
+    pageSize: params.pageSize ?? 20,
+    search: params.search || undefined,
+  })}`
+
+export const getMyWaitingLists = () => '/api/waiting-lists/mine'
+export const createWaitingList = () => '/api/waiting-lists'
+
+export const getBoardingPreview = (token: string) =>
+  `/api/boarding/join/${encodeURIComponent(token)}`
+export const getMyBoardingInvites = () => '/api/boarding/mine'
+export const createBoardingInvite = () => '/api/boarding/invites'
+export const getBoardingInvitees = () => '/api/boarding/invitees'
+export const getFacilityOptions = () => '/api/boarding/facility-options'
+export const submitFacilityChoice = () => '/api/boarding/facility-choice'
+export const completeBoardingVideos = () => '/api/boarding/videos'
+export const getAnniversaryContacts = () => '/api/boarding/anniversaries'
+export const createAnniversaryContact = () => '/api/boarding/anniversaries'
+export const deleteAnniversaryContact = (id: string) =>
+  `/api/boarding/anniversaries/${id}`
+
 // CENTER
 export const getCenters = (params: {
   page?: number
@@ -182,6 +212,7 @@ export const getCenters = (params: {
   state?: string
   lga?: string
   serviceType?: 'vaccination' | 'screening' | 'treatment'
+  sort?: 'recent' | 'services'
 }) => {
   const query = buildQuery({
     page: params.page,
@@ -191,6 +222,7 @@ export const getCenters = (params: {
     state: params.state,
     lga: params.lga,
     serviceType: params.serviceType,
+    sort: params.sort,
   })
   return `/api/center${query}`
 }

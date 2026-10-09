@@ -32,6 +32,11 @@ import {
 import { uploadRateLimit } from "../middleware/upload-rate-limit.middleware";
 import { TEnvs, THonoApp } from "../lib/types";
 import { getUserWithProfiles } from "../lib/utils";
+import { attachPatientToWaitingList } from "./waiting-lists";
+import {
+  attachBoardingInvite,
+  referralCodeForBoardingInvite,
+} from "./boarding";
 
 export const registerApp = new Hono<THonoApp>();
 
@@ -75,6 +80,34 @@ async function issuePatientAuthTokens(
   return token;
 }
 
+async function issueDonorAuthTokens(
+  c: any,
+  donor: { id: string; email: string }
+) {
+  const { JWT_TOKEN_SECRET } = env<TEnvs>(c);
+  const payload = {
+    id: donor.id,
+    email: donor.email,
+    profile: "DONOR" as const,
+  };
+  const token = await sign(
+    { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 5 },
+    JWT_TOKEN_SECRET
+  );
+  const refreshToken = await sign(
+    { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 },
+    JWT_TOKEN_SECRET
+  );
+  setCookie(c, "refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "None",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+  return token;
+}
+
 function formatPatientRegisterData(patient: any) {
   return {
     patientId: patient.id,
@@ -102,7 +135,8 @@ async function resolveCenterAssignment(
   state: string,
   localGovernment: string,
   centerId?: string,
-  referralBoundCenterId?: string
+  referralBoundCenterId?: string,
+  skipAutoAssign = false
 ) {
   const db = getDB(c);
   const recommendedCenters = await findRecommendedCenters(
@@ -145,6 +179,10 @@ async function resolveCenterAssignment(
     } else {
       assignedCenter = assignment.center;
     }
+    return { recommendedCenters, assignedCenter };
+  }
+
+  if (skipAutoAssign) {
     return { recommendedCenters, assignedCenter };
   }
 
@@ -210,6 +248,55 @@ async function peekReferralBoundCenterId(
   } catch {
     return null;
   }
+}
+
+async function finishPatientOnboarding(
+  c: any,
+  userId: string,
+  data: {
+    listToken?: string;
+    inviteToken?: string;
+    referralCode?: string;
+    centerId?: string;
+    state: string;
+    localGovernment: string;
+  }
+) {
+  await attachPatientToWaitingList(c, userId, data.listToken);
+  const boarding = await attachBoardingInvite(
+    c,
+    userId,
+    data.inviteToken,
+    "PATIENT"
+  );
+  const boardingReferral = await referralCodeForBoardingInvite(c, boarding);
+  const referralCode = data.referralCode || boardingReferral || undefined;
+  const skipAutoAssign = Boolean(
+    boarding?.type === "SCREEN" && !data.centerId
+  );
+  const boundCenterId = skipAutoAssign
+    ? null
+    : await peekReferralBoundCenterId(c, referralCode);
+  const { recommendedCenters, assignedCenter } = await resolveCenterAssignment(
+    c,
+    userId,
+    data.state,
+    data.localGovernment,
+    data.centerId,
+    boundCenterId || undefined,
+    skipAutoAssign
+  );
+  await applyReferralCode(
+    c,
+    userId,
+    referralCode,
+    assignedCenter?.id || boundCenterId
+  );
+  return {
+    recommendedCenters,
+    assignedCenter,
+    needsFacilityChoice: skipAutoAssign && !assignedCenter,
+  };
 }
 
 registerApp.post(
@@ -370,7 +457,7 @@ registerApp.post(
               city: data.localGovernment!,
               state: data.state!,
               associationId: data.associationId || null,
-              groupId: data.groupId || null,
+              groupId: null,
               photoUrl: data.photoUrl || null,
             },
           },
@@ -378,23 +465,15 @@ registerApp.post(
         include: { patientProfile: true },
       });
 
-      const boundCenterId = await peekReferralBoundCenterId(c, data.referralCode);
-      const { recommendedCenters, assignedCenter } =
-        await resolveCenterAssignment(
-          c,
-          updatedUser.id,
-          data.state!,
-          data.localGovernment!,
-          data.centerId,
-          boundCenterId
-        );
+      const onboarded = await finishPatientOnboarding(c, updatedUser.id, {
+        listToken: data.listToken,
+        inviteToken: data.inviteToken,
+        referralCode: data.referralCode,
+        centerId: data.centerId,
+        state: data.state!,
+        localGovernment: data.localGovernment!,
+      });
       const token = await issuePatientAuthTokens(c, updatedUser);
-      await applyReferralCode(
-        c,
-        updatedUser.id,
-        data.referralCode,
-        assignedCenter?.id || boundCenterId
-      );
 
       return c.json<TPatientRegisterResponse>(
         {
@@ -403,8 +482,9 @@ registerApp.post(
           data: {
             ...formatPatientRegisterData(updatedUser),
             token,
-            recommendedCenters,
-            assignedCenter,
+            recommendedCenters: onboarded.recommendedCenters,
+            assignedCenter: onboarded.assignedCenter,
+            needsFacilityChoice: onboarded.needsFacilityChoice,
           },
         },
         201
@@ -438,7 +518,7 @@ registerApp.post(
               city: data.localGovernment!,
               state: data.state!,
               associationId: data.associationId || null,
-              groupId: data.groupId || null,
+              groupId: null,
               photoUrl: data.photoUrl || null,
             },
           },
@@ -446,23 +526,15 @@ registerApp.post(
         include: { patientProfile: true },
       });
 
-      const boundCenterId = await peekReferralBoundCenterId(c, data.referralCode);
-      const { recommendedCenters, assignedCenter } =
-        await resolveCenterAssignment(
-          c,
-          patient.id,
-          data.state!,
-          data.localGovernment!,
-          data.centerId,
-          boundCenterId
-        );
+      const onboarded = await finishPatientOnboarding(c, patient.id, {
+        listToken: data.listToken,
+        inviteToken: data.inviteToken,
+        referralCode: data.referralCode,
+        centerId: data.centerId,
+        state: data.state!,
+        localGovernment: data.localGovernment!,
+      });
       const token = await issuePatientAuthTokens(c, patient);
-      await applyReferralCode(
-        c,
-        patient.id,
-        data.referralCode,
-        assignedCenter?.id || boundCenterId
-      );
 
       return c.json<TPatientRegisterResponse>(
         {
@@ -471,8 +543,9 @@ registerApp.post(
           data: {
             ...formatPatientRegisterData(patient),
             token,
-            recommendedCenters,
-            assignedCenter,
+            recommendedCenters: onboarded.recommendedCenters,
+            assignedCenter: onboarded.assignedCenter,
+            needsFacilityChoice: onboarded.needsFacilityChoice,
           },
         },
         201
@@ -524,16 +597,22 @@ registerApp.post(
         include: { donorProfile: true },
       });
 
+      await attachBoardingInvite(c, updatedUser.id, data.inviteToken, "DONOR");
+      const token = data.inviteToken
+        ? await issueDonorAuthTokens(c, updatedUser)
+        : undefined;
+
       return c.json<TDonorRegisterResponse>(
         {
           ok: true,
-          message: "Patient registered successfully",
+          message: "Donor registered successfully",
           data: {
             donorId: updatedUser.id,
             email: updatedUser.email,
             fullName: updatedUser.fullName,
             phone: updatedUser.phone ?? "",
             organization: updatedUser.donorProfile?.organizationName ?? "",
+            token,
           },
         },
         201
@@ -565,18 +644,10 @@ registerApp.post(
       include: { donorProfile: true },
     });
 
-    // Email verification disabled for now
-    // TODO: Re-enable when SMTP is properly configured
-    // const verifyToken = crypto.randomBytes(32).toString("hex");
-    // await db.emailVerificationToken.create({
-    //   data: {
-    //     userId: donor.id,
-    //     profileType: "DONOR",
-    //     token: verifyToken,
-    //     expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
-    //   },
-    // });
-    // await sendEmail(c, { ... });
+    await attachBoardingInvite(c, donor.id, data.inviteToken, "DONOR");
+    const token = data.inviteToken
+      ? await issueDonorAuthTokens(c, donor)
+      : undefined;
 
     return c.json<TDonorRegisterResponse>(
       {
@@ -588,6 +659,7 @@ registerApp.post(
           fullName: donor.fullName,
           phone: donor.phone ?? "",
           organization: donor.donorProfile?.organizationName ?? "",
+          token,
         },
       },
       201

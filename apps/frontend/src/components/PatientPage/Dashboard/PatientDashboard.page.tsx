@@ -120,11 +120,11 @@ export function PatientDashboardPage() {
               </div>
             </Link>
 
-            <Link to="/patient/agent" className="flex items-center justify-center">
+            <Link to="/patient/invite" className="flex items-center justify-center">
               <div className="w-full px-4 h-36 lg:h-28 bg-pink-50 border border-pink-100 rounded-lg flex items-center justify-center gap-2 flex-col">
                 <img src={people} alt="" className="w-8 h-8" />
                 <span className="text-base lg:text-lg font-medium text-neutral-800 text-center">
-                  Earn / Refer
+                  Invite someone
                 </span>
               </div>
             </Link>

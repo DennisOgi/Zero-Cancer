@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { useLogout } from '@/services/providers/auth.provider'
 import { useNotifications } from '@/services/providers/notification.provider'
 import { useQuery } from '@tanstack/react-query'
-import { PiggyBank, Share2, type LucideIcon } from 'lucide-react'
+import { PiggyBank, Share2, UserPlus, type LucideIcon } from 'lucide-react'
 
 type NavLink =
   | {
@@ -90,12 +90,20 @@ export function PatientLayout() {
       mobile: false,
     },
     {
+      to: '/patient/invite',
+      label: 'Invite',
+      shortLabel: 'Invite',
+      icon: UserPlus,
+      iconType: 'lucide',
+      mobile: true,
+    },
+    {
       to: '/patient/agent',
       label: 'Earn / Refer',
       shortLabel: 'Earn',
       icon: Share2,
       iconType: 'lucide',
-      mobile: true,
+      mobile: false,
     },
     {
       to: '/patient/notifications',

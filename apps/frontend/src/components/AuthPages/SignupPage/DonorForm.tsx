@@ -16,19 +16,22 @@ import PasswordInput from '@/components/shared/ui/password-input'
 import PhoneInputComponent from '@/components/shared/ui/phone-input'
 import { useDonorRegistration } from '@/services/providers/register.provider'
 import { donorSchema } from '@zerocancer/shared/schemas/register.schema'
+import type { TDonorRegisterResponse } from '@zerocancer/shared/types'
 import * as RPNInput from 'react-phone-number-input'
 import { toast } from 'sonner'
 
 type FormData = z.infer<typeof donorSchema>
 
 type DonorFormProps = {
-  onSubmitSuccess: (data: FormData) => void
+  onSubmitSuccess: (data: FormData, response: TDonorRegisterResponse) => void
   initialEmail?: string
+  inviteToken?: string
 }
 
 export default function DonorForm({
   onSubmitSuccess,
   initialEmail = '',
+  inviteToken,
 }: DonorFormProps) {
   const form = useForm<FormData>({
     resolver: zodResolver(donorSchema),
@@ -38,15 +41,18 @@ export default function DonorForm({
       password: '',
       phone: '',
       organization: '',
+      inviteToken: inviteToken || undefined,
     },
   })
 
   const mutation = useDonorRegistration()
 
   function onSubmit(values: FormData) {
-    mutation.mutate(values, {
+    mutation.mutate(
+      { ...values, inviteToken: inviteToken || values.inviteToken },
+      {
       onSuccess: (data) => {
-        onSubmitSuccess(values)
+        onSubmitSuccess(values, data)
       },
       onError: (error) => {
         toast.error(

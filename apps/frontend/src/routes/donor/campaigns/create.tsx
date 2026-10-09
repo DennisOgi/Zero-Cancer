@@ -8,6 +8,9 @@ const createCampaignSearchSchema = z.object({
   targetGroupId: z.string().optional(),
   groupName: z.string().optional(),
   screeningTypeId: z.string().optional(),
+  fundingAmount: z.coerce.number().optional(),
+  sponsorCount: z.coerce.number().optional(),
+  targetGender: z.enum(['MALE', 'FEMALE', 'ALL']).optional(),
 })
 
 export const Route = createFileRoute('/donor/campaigns/create')({

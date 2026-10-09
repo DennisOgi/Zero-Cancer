@@ -36,7 +36,8 @@ import {
 } from "../lib/paystack";
 import { getPaystackKeys } from "../lib/paystack-config";
 import { processSuccessfulPaystackCharge } from "../lib/paystack-payment";
-import { getAgentByCode } from "../lib/agent.service";
+import { getAgentByCode, getAgentByUserId } from "../lib/agent.service";
+import { getSupabaseClient } from "../lib/supabase";
 import { TEnvs, THonoApp } from "../lib/types";
 import {
   createNotificationForUsers,
@@ -309,6 +310,7 @@ donationApp.get(
 // POST /api/donor/campaigns - Create new campaign
 donationApp.post(
   "/campaigns",
+  authMiddleware(["donor"]),
   zValidator("json", createCampaignSchema, (result, c) => {
     if (!result.success)
       return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
@@ -367,11 +369,50 @@ donationApp.post(
         );
       }
 
+      if (campaignData.targetGroupId) {
+        const targetGroup = await db.group.findUnique({
+          where: { id: campaignData.targetGroupId },
+        });
+        if (!targetGroup) {
+          return c.json<TErrorResponse>(
+            { ok: false, error: "Waiting list not found" },
+            404
+          );
+        }
+        if (
+          targetGroup.visibility === "PRIVATE" &&
+          targetGroup.ownerDonorId !== donorId
+        ) {
+          return c.json<TErrorResponse>(
+            {
+              ok: false,
+              error: "Only the owner can sponsor a private waiting list",
+            },
+            403
+          );
+        }
+      }
+
       // Create pending campaign
       let invitedByAgentId: string | null = null;
       if (campaignData.agentInviteCode) {
         const agent = await getAgentByCode(c, campaignData.agentInviteCode);
         if (agent) invitedByAgentId = agent.id;
+      }
+      if (!invitedByAgentId) {
+        const supabase = getSupabaseClient(c);
+        const { data: donorProfile } = await supabase
+          .from("DonorProfile")
+          .select("invitedByUserId")
+          .eq("userId", donorId)
+          .maybeSingle();
+        if (donorProfile?.invitedByUserId) {
+          const inviterAgent = await getAgentByUserId(
+            c,
+            donorProfile.invitedByUserId
+          );
+          if (inviterAgent) invitedByAgentId = inviterAgent.id;
+        }
       }
 
       const campaign = await db.donationCampaign.create({

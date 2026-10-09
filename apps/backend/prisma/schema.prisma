@@ -47,6 +47,11 @@ model User {
   referralsAsReferred Referral[] @relation("ReferredUser")
   staffReferralsAsReferred StaffReferral[] @relation("StaffReferredUser")
   savingsPlans   SavingsPlan[] @relation("PatientSavingsPlans")
+  boardingInvitesCreated BoardingInvite[] @relation("BoardingInviter")
+  boardingJoins  BoardingInvitee[] @relation("BoardingJoinedUser")
+  anniversaryContacts AnniversaryContact[]
+  cityFacilityDemands CityFacilityDemand[]
+  donorsInvited  DonorProfile[] @relation("DonorInvitedBy")
 }
 
 model PatientProfile {
@@ -74,6 +79,12 @@ model PatientProfile {
   onboardedByCenterId String?
   onboardedByStaff CenterStaff? @relation("StaffOnboardedPatients", fields: [onboardedByStaffId], references: [id], onDelete: SetNull)
   onboardedByCenter ServiceCenter? @relation("CenterOnboardedPatients", fields: [onboardedByCenterId], references: [id], onDelete: SetNull)
+  boardingInviteId String?
+  boardingInvite BoardingInvite? @relation("PatientBoardingInvite", fields: [boardingInviteId], references: [id], onDelete: SetNull)
+  facilityChoice String?
+  wantsLocalFacilityNotify Boolean @default(false)
+  boardingVideosCompletedAt DateTime?
+  boardingVideosSkippedAt DateTime?
 
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -84,7 +95,12 @@ model DonorProfile {
   organizationName  String?
   country           String?
   emailVerified  DateTime?
-
+  invitedByUserId   String?
+  invitedByUser     User?    @relation("DonorInvitedBy", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+  boardingInviteId  String?
+  boardingInvite    BoardingInvite? @relation("DonorBoardingInvite", fields: [boardingInviteId], references: [id], onDelete: SetNull)
+  boardingVideosCompletedAt DateTime?
+  boardingVideosSkippedAt DateTime?
 
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -155,6 +171,8 @@ model ServiceCenter {
   restockRequests RestockRequest[] @relation("CenterRestockRequests")
   targets       CenterTarget[] @relation("CenterTargets")
   performanceSnapshots CenterPerformanceSnapshot[] @relation("CenterSnapshots")
+  boardingInvites BoardingInvite[] @relation("BoardingInviteCenter")
+  cityFacilityDemands CityFacilityDemand[] @relation("CityFacilityDemandCenter")
 }
 
 model ServiceCenterScreeningType {
@@ -737,12 +755,22 @@ model Association {
 }
 
 model Group {
-  id          String             @id @default(uuid())
-  name        String             @unique
-  description String?
-  createdAt   DateTime           @default(now())
-  campaigns   DonationCampaign[]
-  patients    PatientProfile[]   @relation("PatientGroup")
+  id               String             @id @default(uuid())
+  name             String
+  description      String?
+  createdAt        DateTime           @default(now())
+  /** PUBLIC lists can be sponsored by any donor. PRIVATE lists belong to one donor. */
+  visibility       String             @default("PUBLIC") // PUBLIC | PRIVATE
+  ownerDonorId     String?
+  shareToken       String?            @unique
+  targetGender     String?
+  screeningTypeId  String?
+  campaigns        DonationCampaign[]
+  patients         PatientProfile[]   @relation("PatientGroup")
+  boardingInvites  BoardingInvite[]
+
+  @@index([visibility])
+  @@index([ownerDonorId])
 }
 
 model Kit {
@@ -1290,6 +1318,73 @@ model StaffReferral {
 
   @@index([staffId, status])
   @@index([referredUserId])
+}
+
+model BoardingInvite {
+  id             String   @id @default(uuid())
+  token          String   @unique
+  type           String   // SCREEN | CELEBRANT
+  inviterUserId  String
+  boundCenterId  String?
+  waitingListId  String?
+  createdAt      DateTime @default(now())
+
+  inviter        User     @relation("BoardingInviter", fields: [inviterUserId], references: [id], onDelete: Cascade)
+  boundCenter    ServiceCenter? @relation("BoardingInviteCenter", fields: [boundCenterId], references: [id], onDelete: SetNull)
+  waitingList    Group?   @relation(fields: [waitingListId], references: [id], onDelete: SetNull)
+  invitees       BoardingInvitee[]
+  patientJoins   PatientProfile[] @relation("PatientBoardingInvite")
+  donorJoins     DonorProfile[] @relation("DonorBoardingInvite")
+
+  @@index([inviterUserId])
+  @@index([type])
+}
+
+model BoardingInvitee {
+  id        String   @id @default(uuid())
+  inviteId  String
+  userId    String
+  role      String   // PATIENT | DONOR
+  joinedAt  DateTime @default(now())
+
+  invite    BoardingInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  user      User     @relation("BoardingJoinedUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([inviteId, userId])
+  @@index([inviteId])
+  @@index([userId])
+}
+
+model CityFacilityDemand {
+  id               String   @id @default(uuid())
+  userId           String
+  state            String
+  lga              String
+  choice           String   // WAIT | OTHER_CITY_NOTIFY
+  assignedCenterId String?
+  createdAt        DateTime @default(now())
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedCenter   ServiceCenter? @relation("CityFacilityDemandCenter", fields: [assignedCenterId], references: [id], onDelete: SetNull)
+
+  @@index([state, lga])
+  @@index([userId])
+}
+
+model AnniversaryContact {
+  id             String   @id @default(uuid())
+  ownerUserId    String
+  name           String
+  phone          String
+  occasion       String   // BIRTHDAY | WEDDING
+  month          Int
+  day            Int
+  lastRemindedAt DateTime?
+  createdAt      DateTime @default(now())
+
+  owner          User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@index([ownerUserId])
 }
 
 model CommunityEvent {

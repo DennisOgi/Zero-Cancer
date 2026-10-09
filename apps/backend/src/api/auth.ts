@@ -378,6 +378,7 @@ authApp.get(
                 photoUrl: patientProfile?.photoUrl ?? null,
                 assignedCenterId: patientProfile?.assignedCenterId ?? null,
                 assignedCenter,
+                facilityChoice: patientProfile?.facilityChoice ?? null,
                 mustChangePassword: Boolean(patientProfile?.mustChangePassword),
               }
             : {}),

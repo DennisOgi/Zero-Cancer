@@ -17,3 +17,5 @@ export * from "./kit.schema";
 export * from "./pricing.schema";
 export * from "./enrollment.schema";
 export * from "./event.schema";
+export * from "./waiting-list.schema";
+export * from "./boarding.schema";

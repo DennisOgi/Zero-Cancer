@@ -47,12 +47,16 @@ type PatientFormProps = {
   ) => void
   referralCode?: string
   facilityCenterId?: string
+  listToken?: string
+  inviteToken?: string
 }
 
 export default function PatientForm({
   onSubmitSuccess,
   referralCode,
   facilityCenterId,
+  listToken,
+  inviteToken,
 }: PatientFormProps) {
   const [selectedState, setSelectedState] = useState<string>('')
   const [localGovernments, setLocalGovernments] = useState<
@@ -77,6 +81,8 @@ export default function PatientForm({
       photoUrl: '',
       referralCode: referralCode || '',
       centerId: facilityCenterId || undefined,
+      listToken: listToken || undefined,
+      inviteToken: inviteToken || undefined,
     },
   })
 
@@ -87,6 +93,14 @@ export default function PatientForm({
   useEffect(() => {
     form.setValue('centerId', facilityCenterId || undefined)
   }, [form, facilityCenterId])
+
+  useEffect(() => {
+    form.setValue('listToken', listToken || undefined)
+  }, [form, listToken])
+
+  useEffect(() => {
+    form.setValue('inviteToken', inviteToken || undefined)
+  }, [form, inviteToken])
 
   const handleStateChange = (stateName: string) => {
     setSelectedState(stateName)
@@ -114,6 +128,8 @@ export default function PatientForm({
       photoUrl: values.photoUrl || undefined,
       referralCode: values.referralCode || referralCode || undefined,
       centerId: facilityCenterId || undefined,
+      listToken: listToken || values.listToken || undefined,
+      inviteToken: inviteToken || values.inviteToken || undefined,
     }
 
     mutation.mutate(formattedValues, {

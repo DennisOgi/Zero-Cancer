@@ -205,6 +205,7 @@ centerApp.get("/", async (c) => {
       state,
       lga,
       serviceType,
+      sort,
     } = queryParse.data;
 
     try {
@@ -288,10 +289,13 @@ centerApp.get("/", async (c) => {
             staff: center.staff,
           };
         })
-        .sort((a, b) => b.services.length - a.services.length)
         .filter((center) =>
           serviceType ? center.services.length > 0 : true,
         );
+
+      if (sort !== "recent") {
+        formattedCenters.sort((a, b) => b.services.length - a.services.length);
+      }
 
       return c.json<TGetCentersResponse>({
         ok: true,

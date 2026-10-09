@@ -34,6 +34,7 @@ export const Route = createFileRoute('/patient')({
 
     const auth = await context.queryClient.ensureQueryData(useAuthUser())
     const assignedCenterId = auth?.data?.user?.assignedCenterId
+    const waitingForCity = auth?.data?.user?.facilityChoice === 'WAIT'
     const mustChangePassword = Boolean(auth?.data?.user?.mustChangePassword)
     const isCenterRoute =
       location.pathname === '/patient/select-center' ||
@@ -45,7 +46,7 @@ export const Route = createFileRoute('/patient')({
       throw redirect({ to: '/patient/change-password' })
     }
 
-    if (!assignedCenterId && !isCenterRoute && !isChangePasswordRoute) {
+    if (!assignedCenterId && !waitingForCity && !isCenterRoute && !isChangePasswordRoute) {
       try {
         const centersResponse = await context.queryClient.fetchQuery({
           queryKey: ['recommendedCenters', auth?.data?.user?.id],

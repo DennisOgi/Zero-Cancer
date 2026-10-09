@@ -2,6 +2,8 @@ import PatientForm from '@/components/AuthPages/SignupPage/PatientForm'
 import { ACCESS_TOKEN_KEY } from '@/services/keys'
 import { lookupReferral } from '@/services/agent-network.service'
 import { getCenterById } from '@/services/center.service'
+import { waitingListPreview } from '@/services/providers/waiting-list.provider'
+import { boardingPreview } from '@/services/providers/boarding.provider'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { TPatientRegisterResponse } from '@zerocancer/shared/types'
@@ -17,9 +19,13 @@ const FACILITY_CENTER_KEY = 'zerocancer_facility_center'
 export function PatientSignupPage({
   referralCode,
   facilityCenterId,
+  listToken,
+  inviteToken,
 }: {
   referralCode?: string
   facilityCenterId?: string
+  listToken?: string
+  inviteToken?: string
 }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -32,9 +38,14 @@ export function PatientSignupPage({
     typeof window !== 'undefined'
       ? sessionStorage.getItem(FACILITY_CENTER_KEY) || undefined
       : undefined
+  const storedInvite =
+    typeof window !== 'undefined'
+      ? sessionStorage.getItem('zerocancer_invite') || undefined
+      : undefined
 
   const code = (referralCode || storedRef || '').trim()
   const centerId = (facilityCenterId || storedFacility || '').trim()
+  const boardToken = (inviteToken || storedInvite || '').trim()
 
   useEffect(() => {
     if (referralCode) sessionStorage.setItem('zerocancer_ref', referralCode)
@@ -44,6 +55,10 @@ export function PatientSignupPage({
     if (facilityCenterId)
       sessionStorage.setItem(FACILITY_CENTER_KEY, facilityCenterId)
   }, [facilityCenterId])
+
+  useEffect(() => {
+    if (inviteToken) sessionStorage.setItem('zerocancer_invite', inviteToken)
+  }, [inviteToken])
 
   const { data: referralLookup } = useQuery({
     queryKey: ['referral-lookup', code],
@@ -58,6 +73,14 @@ export function PatientSignupPage({
     enabled: centerId.length > 10,
     retry: false,
   })
+
+  const listCode = (listToken || '').trim()
+  const { data: listPreview, isError: listPreviewError } = useQuery(
+    waitingListPreview(listCode || undefined),
+  )
+  const waitingList = listPreview?.data
+  const { data: boardPreview } = useQuery(boardingPreview(boardToken || undefined))
+  const boarding = boardPreview?.data
 
   const referrerLabel = useMemo(() => {
     const payload = (referralLookup as any)?.data
@@ -94,6 +117,7 @@ export function PatientSignupPage({
   ) => {
     sessionStorage.removeItem('zerocancer_ref')
     sessionStorage.removeItem(FACILITY_CENTER_KEY)
+    sessionStorage.removeItem('zerocancer_invite')
     const token = response.data?.token
     if (token) {
       queryClient.setQueryData([ACCESS_TOKEN_KEY], token)
@@ -102,6 +126,12 @@ export function PatientSignupPage({
 
     const recommendedCenters = response.data?.recommendedCenters || []
     const assignedCenter = response.data?.assignedCenter || null
+
+    if (response.data?.needsFacilityChoice) {
+      toast.success('Account created. Choose a health facility next.')
+      navigate({ to: '/patient/select-center', replace: true })
+      return
+    }
 
     if (assignedCenter) {
       toast.success(
@@ -182,6 +212,39 @@ export function PatientSignupPage({
             We&apos;ll match you with a health facility near you instead.
           </div>
         ) : null}
+        {boarding?.type === 'SCREEN' ? (
+          <div className="rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm text-pink-900">
+            <p className="font-medium">{boarding.inviterName} invited you to get screened</p>
+            <p className="mt-0.5 text-pink-800/80">
+              After you register we will ask you to join their hospital if you
+              live in the same city, or pick the nearest facility.
+            </p>
+          </div>
+        ) : null}
+        {waitingList ? (
+          <div className="rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm text-pink-900">
+            <p className="font-medium">Joining {waitingList.name}</p>
+            <p className="mt-0.5 text-pink-800/80">
+              {waitingList.description ||
+                `After you register, you will be added to this waiting list${
+                  waitingList.screeningTypeName
+                    ? ` for ${waitingList.screeningTypeName}`
+                    : ''
+                } so a donor can sponsor you.`}
+              {waitingList.targetGender === 'FEMALE'
+                ? ' This list is for women.'
+                : waitingList.targetGender === 'MALE'
+                  ? ' This list is for men.'
+                  : ''}
+            </p>
+          </div>
+        ) : null}
+        {listCode && listPreviewError ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            This waiting-list invite is not valid. You can still create an
+            account and join the public waitlist.
+          </div>
+        ) : null}
         {code ? (
           <div className="rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm text-pink-900">
             <p className="font-medium">Referred by {referrerLabel}</p>
@@ -199,6 +262,8 @@ export function PatientSignupPage({
         onSubmitSuccess={handleFormSubmit}
         referralCode={code || undefined}
         facilityCenterId={activeFacilityId}
+        listToken={waitingList ? listCode : undefined}
+        inviteToken={boardToken || undefined}
       />
     </div>
   )

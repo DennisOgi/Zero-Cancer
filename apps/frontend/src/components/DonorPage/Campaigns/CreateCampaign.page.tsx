@@ -111,10 +111,17 @@ export function CreateCampaignPage() {
   const form = useForm<CreateCampaignForm>({
     resolver: zodResolver(createCampaignSchema) as any,
     defaultValues: {
-      title: '',
-      description: '',
-      fundingAmount: 10000,
-      targetGender: 'ALL',
+      title: search.groupName ? `Sponsor ${search.groupName}` : '',
+      description: search.groupName
+        ? `Funding ${search.sponsorCount || ''} screening${
+            (search.sponsorCount || 0) === 1 ? '' : 's'
+          } for people on the ${search.groupName} waiting list.`.replace(
+            '  ',
+            ' ',
+          )
+        : '',
+      fundingAmount: search.fundingAmount || 10000,
+      targetGender: search.targetGender || 'ALL',
       targetStates: [],
       targetLgas: [],
       targetAgeMin: undefined,
@@ -136,11 +143,23 @@ export function CreateCampaignPage() {
     if (search.screeningTypeId) {
       form.setValue('screeningTypeIds', [search.screeningTypeId])
     }
+    if (search.fundingAmount) {
+      form.setValue('fundingAmount', search.fundingAmount)
+    }
+    if (search.targetGender) {
+      form.setValue('targetGender', search.targetGender)
+    }
+    if (search.groupName && !form.getValues('title')) {
+      form.setValue('title', `Sponsor ${search.groupName}`)
+    }
   }, [
     form,
     search.screeningTypeId,
     search.targetIndividualId,
     search.targetGroupId,
+    search.fundingAmount,
+    search.targetGender,
+    search.groupName,
   ])
 
   const onSubmit = async (data: CreateCampaignForm) => {
@@ -239,13 +258,25 @@ export function CreateCampaignPage() {
         )}
         {search.targetGroupId && (
           <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-            You are funding the group
-            {search.groupName ? (
-              <span className="font-semibold"> {search.groupName}</span>
+            You are sponsoring
+            {search.sponsorCount ? (
+              <span className="font-semibold">
+                {' '}
+                {search.sponsorCount}{' '}
+                {search.sponsorCount === 1 ? 'person' : 'people'}
+              </span>
             ) : (
-              ' you selected'
+              ' people'
             )}
-            . Patients in this group will be matched to your campaign.
+            {search.groupName ? (
+              <>
+                {' '}
+                on <span className="font-semibold">{search.groupName}</span>
+              </>
+            ) : (
+              ' on this waiting list'
+            )}
+            . Matching will only go to people who joined that list.
           </div>
         )}
       </div>

@@ -49,6 +49,7 @@ export type TPatientRegisterResponse = TDataResponse<{
   token?: string;
   recommendedCenters?: TRecommendedCenter[];
   assignedCenter?: TRecommendedCenter | null;
+  needsFacilityChoice?: boolean;
 }>;
 
 export type TRecommendedCenter = {
@@ -81,6 +82,7 @@ export type TDonorRegisterResponse = TDataResponse<{
   fullName: string;
   phone: string;
   organization?: string;
+  token?: string;
 }>;
 
 export type TLoginResponse = TDataResponse<{
@@ -115,6 +117,7 @@ export type TAuthMeResponse = TDataResponse<{
       state: string;
       lga: string;
     } | null;
+    facilityChoice?: string | null;
     mustChangePassword?: boolean;
     staffId?: string;
     staffRole?: "ADMIN" | "NURSE" | "STAFF";
@@ -596,6 +599,123 @@ export type TGroup = {
   description: string | null;
   createdAt: string;
 };
+
+export type TWaitingList = {
+  id: string;
+  name: string;
+  description: string | null;
+  visibility: "PUBLIC" | "PRIVATE";
+  targetGender: "MALE" | "FEMALE" | null;
+  screeningTypeId: string | null;
+  screeningTypeName: string | null;
+  screeningPrice: number;
+  memberCount: number;
+  pendingCount: number;
+  createdAt: string;
+  isOwner?: boolean;
+  joinUrl?: string;
+  ownerLabel?: string | null;
+};
+
+export type TWaitingListPreview = {
+  name: string;
+  description: string | null;
+  targetGender: "MALE" | "FEMALE" | null;
+  screeningTypeName: string | null;
+};
+
+export type TGetWaitingListsResponse = TDataResponse<{
+  lists: TWaitingList[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}>;
+
+export type TGetWaitingListPreviewResponse = TDataResponse<TWaitingListPreview>;
+export type TCreateWaitingListResponse = TDataResponse<TWaitingList>;
+
+export type TBoardingInviteType = "SCREEN" | "CELEBRANT";
+
+export type TBoardingInvite = {
+  id: string;
+  token: string;
+  type: TBoardingInviteType;
+  joinUrl: string;
+  waitingListId?: string | null;
+  waitingListName?: string | null;
+  boundCenter?: {
+    id: string;
+    centerName: string;
+    state: string;
+    lga: string;
+  } | null;
+  createdAt: string;
+};
+
+export type TBoardingJoinPreview = {
+  token: string;
+  type: TBoardingInviteType;
+  inviterName: string;
+  inviterHospital?: string | null;
+  waitingListName?: string | null;
+  nextPath: string;
+};
+
+export type TBoardingInvitee = {
+  id: string;
+  fullName: string;
+  role: "PATIENT" | "DONOR";
+  joinedAt: string;
+  inviteType: TBoardingInviteType;
+};
+
+export type TAnniversaryContact = {
+  id: string;
+  name: string;
+  phone: string;
+  occasion: "BIRTHDAY" | "WEDDING";
+  month: number;
+  day: number;
+  daysUntil: number;
+  dueSoon: boolean;
+  inviteUrl: string;
+  whatsappMessage: string;
+};
+
+export type TFacilityOptionCenter = TRecommendedCenter & {
+  isInviterHospital?: boolean;
+};
+
+export type TFacilityOptions = {
+  patientState: string;
+  patientLga: string;
+  inviterName: string | null;
+  inviterCenter: TFacilityOptionCenter | null;
+  hasLocalFacility: boolean;
+  localCenters: TFacilityOptionCenter[];
+  nearestCenters: TFacilityOptionCenter[];
+  facilityChoice: string | null;
+};
+
+export type TGetBoardingJoinPreviewResponse = TDataResponse<TBoardingJoinPreview>;
+export type TGetBoardingInvitesResponse = TDataResponse<{
+  invites: TBoardingInvite[];
+}>;
+export type TCreateBoardingInviteResponse = TDataResponse<TBoardingInvite>;
+export type TGetBoardingInviteesResponse = TDataResponse<{
+  invitees: TBoardingInvitee[];
+}>;
+export type TGetAnniversaryContactsResponse = TDataResponse<{
+  contacts: TAnniversaryContact[];
+}>;
+export type TCreateAnniversaryContactResponse = TDataResponse<TAnniversaryContact>;
+export type TGetFacilityOptionsResponse = TDataResponse<TFacilityOptions>;
+export type TFacilityChoiceResponse = TDataResponse<{
+  assignedCenter: TRecommendedCenter | null;
+  waitingForCity: boolean;
+  message: string;
+}>;
 
 export type TGetGroupsResponse = TDataResponse<{
   groups: TGroup[];

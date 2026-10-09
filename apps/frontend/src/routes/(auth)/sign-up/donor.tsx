@@ -12,6 +12,8 @@ const donorSignupSearchSchema = z.object({
     .preprocess((value) => (value == null ? undefined : String(value)), z.string().optional()),
   choose: z
     .preprocess((value) => (value == null ? undefined : String(value)), z.string().optional()),
+  invite: z
+    .preprocess((value) => (value == null ? undefined : String(value)), z.string().optional()),
 })
 
 export const Route = createFileRoute('/(auth)/sign-up/donor')({
