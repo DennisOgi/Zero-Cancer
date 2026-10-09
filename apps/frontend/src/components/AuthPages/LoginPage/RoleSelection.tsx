@@ -28,12 +28,12 @@ export default function RoleSelection({
     {
       value: 'center',
       label: 'Health Facility',
-      description: 'Manage dashboard, staff, and results.',
+      description: 'Owners, doctors, nurses, and staff.',
     },
     {
       value: 'center-staff',
       label: 'Health Facility Staff',
-      description: 'Manage dashboard, staff, and results.',
+      description: 'Doctors, nurses, and other facility staff.',
     },
   ]
 

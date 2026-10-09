@@ -79,6 +79,11 @@ export default function LoginForm() {
               return
             }
 
+            if (userProfile === 'center' || userProfile === 'center_staff') {
+              navigate({ to: '/center' })
+              return
+            }
+
             navigate({ to: `/${userProfile}` })
           })
         },
@@ -125,7 +130,8 @@ export default function LoginForm() {
       <div className="space-y-2">
         <h2 className="text-3xl font-bold">Login</h2>
         <p className="text-muted-foreground">
-          Select your role to access your account.
+          Select your role to access your account. Doctors, nurses, and other
+          facility staff should choose Health Facility.
         </p>
       </div>
       <div className="mb-4">

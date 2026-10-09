@@ -414,10 +414,11 @@ export const getDB = (c: Context) => {
         // Build select query based on includes
         let selectQuery = '*';
         if (include?.patientProfile || include?.donorProfile) {
+          // Pin FKs: DonorProfile also references User via invitedByUserId.
           selectQuery = `
             *,
-            patientProfile:PatientProfile(*),
-            donorProfile:DonorProfile(*)
+            patientProfile:PatientProfile!PatientProfile_userId_fkey(*),
+            donorProfile:DonorProfile!DonorProfile_userId_fkey(*)
           `;
         }
         
@@ -854,6 +855,12 @@ export const getDB = (c: Context) => {
         let query = supabase.from("CenterStaff").select("*");
         if (where?.centerId) query = query.eq("centerId", where.centerId);
         if (where?.status) query = query.eq("status", where.status);
+        if (where?.email) {
+          query = query.ilike(
+            "email",
+            String(where.email).trim().replace(/[\\%_]/g, "\\$&"),
+          );
+        }
         const { data, error } = await query;
         if (error) throw error;
         return data || [];

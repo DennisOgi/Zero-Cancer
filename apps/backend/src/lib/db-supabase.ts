@@ -104,8 +104,8 @@ export const findUserByEmail = async (c: Context, email: string) => {
     .from('User')
     .select(`
       *,
-      patientProfile:PatientProfile(*),
-      donorProfile:DonorProfile(*)
+      patientProfile:PatientProfile!PatientProfile_userId_fkey(*),
+      donorProfile:DonorProfile!DonorProfile_userId_fkey(*)
     `)
     .eq('email', email)
     .single();

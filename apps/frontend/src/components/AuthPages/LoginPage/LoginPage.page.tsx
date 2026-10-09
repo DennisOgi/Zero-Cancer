@@ -14,12 +14,12 @@ export default function LoginPage() {
 
       <div className="text-center text-sm text-muted-foreground">
         <p>
-          For Center staff:{' '}
+          Work at more than one facility?{' '}
           <Link
             to="/staff/login"
             className="text-primary font-semibold hover:underline"
           >
-            Use Staff Login
+            Choose your health facility
           </Link>
         </p>
       </div>

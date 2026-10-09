@@ -31,7 +31,7 @@ import { sendEmail } from "../lib/email";
 import { normalizeEmail } from "../lib/email-normalize";
 import { assignPatientToCenter, findRecommendedCenters } from "../lib/patient-center-utils";
 import { isAllowedPatientPhotoUrl } from "../lib/cloudinary-signed-upload";
-import { normalizeStaffRole } from "../lib/center-context";
+import { normalizeStaffRole, staffJwtProfile } from "../lib/center-context";
 import { TEnvs, THonoApp } from "../lib/types";
 import { getUserWithProfiles } from "../lib/utils";
 import { z } from "zod";
@@ -77,12 +77,74 @@ authApp.post(
       let passwordHash = "";
       let id = "";
 
+      let staffId: string | undefined;
+      let staffRole: "ADMIN" | "NURSE" | "STAFF" | undefined;
+      let authProfile:
+        | "PATIENT"
+        | "DONOR"
+        | "CENTER"
+        | "CENTER_STAFF"
+        | undefined;
+
       if (actor === "center") {
         user = await db.serviceCenter.findUnique({
           where: { email: normalizedEmail },
         });
-        passwordHash = user?.passwordHash!;
-        id = user?.id!;
+        if (user) {
+          passwordHash = user.passwordHash!;
+          id = user.id!;
+          authProfile = "CENTER";
+        } else {
+          const staffMembers = await db.centerStaff.findMany({
+            where: { email: normalizedEmail },
+          });
+          const candidates = (staffMembers || []).filter((member: any) => {
+            const status = String(member.status || "ACTIVE").toUpperCase();
+            return status === "ACTIVE" && Boolean(member.passwordHash);
+          });
+
+          let matchedStaff: any = null;
+          for (const member of candidates) {
+            if (await bcrypt.compare(password!, member.passwordHash)) {
+              matchedStaff = member;
+              break;
+            }
+          }
+
+          if (!matchedStaff) {
+            return c.json<TErrorResponse>(
+              {
+                ok: false,
+                err_code: "invalid_credentials",
+                error: "Invalid health facility email or password.",
+              },
+              400
+            );
+          }
+
+          const staffStatus = String(matchedStaff.status || "ACTIVE").toUpperCase();
+          if (staffStatus !== "ACTIVE") {
+            return c.json<TErrorResponse>(
+              {
+                ok: false,
+                error:
+                  "Your account has been suspended by your health facility. Contact your facility admin.",
+              },
+              403
+            );
+          }
+
+          user = {
+            email: matchedStaff.email,
+            fullName: matchedStaff.fullName,
+            centerName: "",
+          };
+          passwordHash = matchedStaff.passwordHash;
+          id = matchedStaff.centerId;
+          staffId = matchedStaff.id;
+          staffRole = normalizeStaffRole(matchedStaff.role);
+          authProfile = staffJwtProfile(matchedStaff.role);
+        }
       } else {
         let { user: justUser, profiles: userProfiles } =
           await getUserWithProfiles(c, {
@@ -118,7 +180,17 @@ authApp.post(
       }
 
       // If user not found or password doesn't match
-      if (!user || !(await bcrypt.compare(password!, passwordHash!))) {
+      if (!user || !passwordHash) {
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            err_code: "invalid_credentials",
+            error: `Invalid ${actor} email or password.`,
+          },
+          400
+        );
+      }
+      if (!(await bcrypt.compare(password!, passwordHash))) {
         return c.json<TErrorResponse>(
           {
             ok: false,
@@ -129,16 +201,13 @@ authApp.post(
         );
       }
 
-      const authProfile =
-        actor === "center"
-          ? "CENTER"
-          : user.profiles.includes(actor.toUpperCase())
+      if (!authProfile) {
+        authProfile = user.profiles.includes(actor.toUpperCase())
           ? actor.toUpperCase()
-          : user.profiles[0]; // Use first profile for non-center actors
+          : user.profiles[0];
+      }
 
-      let staffId: string | undefined;
-      let staffRole: "ADMIN" | "NURSE" | "STAFF" | undefined;
-      if (actor === "center" && id) {
+      if (actor === "center" && id && !staffId) {
         const ownerStaff = await db.centerStaff.findFirst({
           where: { centerId: id, email: normalizedEmail },
         });
@@ -188,11 +257,17 @@ authApp.post(
       });
     } catch (error) {
       console.error("Login error:", error);
+      const message =
+        error instanceof Error ? error.message : "Login failed. Please try again later.";
+      const looksLikeDb =
+        /PGRST|supabase|fetch failed|network|connection/i.test(message);
       return c.json<TErrorResponse>(
         {
           ok: false,
           err_code: "internal_error",
-          error: "Database connection failed. Please try again later.",
+          error: looksLikeDb
+            ? "Database connection failed. Please try again later."
+            : "Login failed. Please try again later.",
         },
         500
       );
