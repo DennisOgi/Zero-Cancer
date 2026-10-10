@@ -1,5 +1,6 @@
 import PatientForm from '@/components/AuthPages/SignupPage/PatientForm'
 import { ACCESS_TOKEN_KEY } from '@/services/keys'
+import { useAuthUser } from '@/services/providers/auth.provider'
 import { lookupReferral } from '@/services/agent-network.service'
 import { getCenterById } from '@/services/center.service'
 import { waitingListPreview } from '@/services/providers/waiting-list.provider'
@@ -111,7 +112,7 @@ export function PatientSignupPage({
       sessionStorage.removeItem(FACILITY_CENTER_KEY)
   }, [facilityUnavailable, facilityDismissed])
 
-  const handleFormSubmit = (
+  const handleFormSubmit = async (
     _values: FormData,
     response: TPatientRegisterResponse,
   ) => {
@@ -121,7 +122,7 @@ export function PatientSignupPage({
     const token = response.data?.token
     if (token) {
       queryClient.setQueryData([ACCESS_TOKEN_KEY], token)
-      queryClient.invalidateQueries({ queryKey: ['authUser'] })
+      await queryClient.fetchQuery(useAuthUser()).catch(() => null)
     }
 
     const recommendedCenters = response.data?.recommendedCenters || []
@@ -133,9 +134,11 @@ export function PatientSignupPage({
       return
     }
 
-    if (assignedCenter) {
+    if (assignedCenter || centerId) {
       toast.success(
-        `Account created! You've been registered at ${assignedCenter.centerName} in ${assignedCenter.lga}, ${assignedCenter.state}.`,
+        assignedCenter
+          ? `Account created! You've been registered at ${assignedCenter.centerName} in ${assignedCenter.lga}, ${assignedCenter.state}.`
+          : 'Account created. Opening your patient dashboard.',
       )
       navigate({ to: '/patient', replace: true })
       return

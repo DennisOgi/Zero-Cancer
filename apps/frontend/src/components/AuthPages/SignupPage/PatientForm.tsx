@@ -44,7 +44,7 @@ type PatientFormProps = {
   onSubmitSuccess: (
     data: FormData,
     response: TPatientRegisterResponse,
-  ) => void
+  ) => void | Promise<void>
   referralCode?: string
   facilityCenterId?: string
   listToken?: string
@@ -134,7 +134,7 @@ export default function PatientForm({
 
     mutation.mutate(formattedValues, {
       onSuccess: (response) => {
-        onSubmitSuccess(formattedValues, response)
+        void onSubmitSuccess(formattedValues, response)
       },
       onError: (error) => {
         toast.error(
