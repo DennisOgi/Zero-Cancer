@@ -9,11 +9,8 @@ import {
   resolveCenterStaff,
 } from "../lib/center-context";
 import { getDB } from "../lib/db";
-import {
-  initiateFlutterwaveTransfer,
-  isFlutterwaveConfigured,
-  resolveFlutterwaveAccount,
-} from "../lib/flutterwave";
+import { getPaystackKeys } from "../lib/paystack-config";
+import { PaystackService } from "../lib/paystack.service";
 import {
   createStaffReferralInvite,
   ensureStaffReferralCode,
@@ -164,7 +161,7 @@ staffEarningsApp.get("/me", async (c) => {
           screenCommissionFlat: config.screenCommissionFlat,
           homeScreenCommissionFlat: config.homeScreenCommissionFlat,
           nurseReferralCommissionFlat: config.nurseReferralCommissionFlat,
-          payoutProvider: "FLUTTERWAVE",
+          payoutProvider: "PAYSTACK",
         },
       },
     });
@@ -226,32 +223,22 @@ staffEarningsApp.patch(
       const { error, resolved } = await requireNurseEarnings(c);
       if (error || !resolved?.staffId) return error!;
 
-      if (!isFlutterwaveConfigured(c)) {
-        return c.json<TErrorResponse>(
-          {
-            ok: false,
-            error:
-              "Flutterwave is not configured. Set FLUTTERWAVE_SECRET_KEY to enable payouts.",
-          },
-          503
-        );
-      }
-
+      const { secretKey } = getPaystackKeys(c);
+      const paystack = new PaystackService(secretKey);
       const supabase = getSupabaseClient(c);
       const body = c.req.valid("json");
-      const resolvedAccount = await resolveFlutterwaveAccount(c, {
-        accountNumber: body.accountNumber,
-        bankCode: body.bankCode,
-      });
+      const resolvedAccount = await paystack.verifyAccountNumber(
+        body.accountNumber,
+        body.bankCode
+      );
 
       const { data, error: updateError } = await supabase
         .from("CenterStaff")
         .update({
           bankName: body.bankName,
           bankCode: body.bankCode,
-          accountNumber: resolvedAccount.accountNumber || body.accountNumber,
-          accountName: resolvedAccount.accountName || body.accountName,
-          flutterwaveRecipientId: `fw:${body.bankCode}:${body.accountNumber}`,
+          accountNumber: resolvedAccount.account_number || body.accountNumber,
+          accountName: resolvedAccount.account_name || body.accountName,
         })
         .eq("id", resolved.staffId)
         .select(
@@ -282,17 +269,8 @@ staffEarningsApp.post(
       const { error, resolved } = await requireNurseEarnings(c);
       if (error || !resolved?.staffId || !resolved.staff) return error!;
 
-      if (!isFlutterwaveConfigured(c)) {
-        return c.json<TErrorResponse>(
-          {
-            ok: false,
-            error:
-              "Flutterwave is not configured. Set FLUTTERWAVE_SECRET_KEY to enable payouts.",
-          },
-          503
-        );
-      }
-
+      const { secretKey } = getPaystackKeys(c);
+      const paystack = new PaystackService(secretKey);
       const supabase = getSupabaseClient(c);
       const staff = resolved.staff;
       if (staff.status && staff.status !== "ACTIVE") {
@@ -323,14 +301,14 @@ staffEarningsApp.post(
         { description: "Referral cashout request" }
       );
 
-      const reference = `stf_fw_${resolved.staffId.slice(0, 8)}_${Date.now()}`;
+      const reference = `stf_ps_${resolved.staffId.slice(0, 8)}_${Date.now()}`;
       const cashout = {
         id: crypto.randomUUID(),
         walletId: wallet.id,
         staffId: resolved.staffId,
         amount,
         status: "PROCESSING",
-        payoutProvider: "FLUTTERWAVE",
+        payoutProvider: "PAYSTACK",
         flutterwaveReference: reference,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -339,18 +317,25 @@ staffEarningsApp.post(
       await supabase.from("StaffCashout").insert(cashout);
 
       try {
-        const transfer = await initiateFlutterwaveTransfer(c, {
-          accountNumber: staff.accountNumber,
-          bankCode: staff.bankCode,
-          amountNgn: amount,
+        const recipient = await paystack.createRecipient({
+          type: "nuban",
+          name: staff.accountName || staff.fullName || "ZeroCancer staff",
+          account_number: staff.accountNumber,
+          bank_code: staff.bankCode,
+          currency: "NGN",
+        });
+        const transfer = await paystack.initiateTransfer({
+          source: "balance",
+          amount: Math.round(amount * 100),
+          recipient: recipient.recipient_code,
+          reason: "ZeroCancer nurse referral payout",
           reference,
-          narration: "ZeroCancer nurse referral payout",
         });
 
         await supabase
           .from("StaffCashout")
           .update({
-            flutterwaveTransferId: transfer.transferId,
+            flutterwaveTransferId: String(transfer.id || ""),
             flutterwaveReference: transfer.reference || reference,
             updatedAt: new Date().toISOString(),
           })
@@ -363,7 +348,7 @@ staffEarningsApp.post(
             balanceAfter,
           },
           message:
-            "Cashout submitted. Flutterwave will send the funds to your bank.",
+            "Cashout submitted. Funds will arrive after Paystack confirms the transfer.",
         });
       } catch (error: any) {
         await supabase

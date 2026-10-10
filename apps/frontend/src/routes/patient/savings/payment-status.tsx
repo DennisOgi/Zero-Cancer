@@ -1,3 +1,4 @@
+import { paymentRefFromSearch } from '@/lib/payment-ref'
 import { Button } from '@/components/shared/ui/button'
 import {
   Card,
@@ -88,7 +89,7 @@ function SavingsPaymentStatusPage() {
 
 export const Route = createFileRoute('/patient/savings/payment-status')({
   validateSearch: (search: Record<string, unknown>) => ({
-    ref: typeof search.ref === 'string' ? search.ref : undefined,
+    ref: paymentRefFromSearch(search) || undefined,
   }),
   component: SavingsPaymentStatusPage,
 })

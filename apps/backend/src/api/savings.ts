@@ -11,8 +11,7 @@ import { getAgentNetworkConfig } from "../lib/agent-network-config";
 import { getSupabaseClient } from "../lib/supabase";
 import { THonoApp } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
-import { getPaystackKeys } from "../lib/paystack-config";
-import { CryptoUtils } from "../lib/crypto.utils";
+import { verifyPaystackPayment } from "../lib/paystack";
 
 export const savingsApp = new Hono<THonoApp>();
 
@@ -103,16 +102,8 @@ savingsApp.get(
   async (c) => {
     try {
       const reference = c.req.param("reference");
-      const { secretKey } = getPaystackKeys(c);
-
-      const verifyRes = await fetch(
-        `https://api.paystack.co/transaction/verify/${reference}`,
-        {
-          headers: { Authorization: `Bearer ${secretKey}` },
-        }
-      );
-      const verifyBody = await verifyRes.json();
-      if (!verifyRes.ok || verifyBody?.data?.status !== "success") {
+      const payment = await verifyPaystackPayment(c, reference);
+      if (payment.status !== "success") {
         return c.json<TErrorResponse>(
           { ok: false, error: "Payment not successful yet" },
           400
@@ -122,7 +113,7 @@ savingsApp.get(
       const completed = await completeSavingsDepositByReference(
         c,
         reference,
-        verifyBody?.data?.channel
+        payment.channel
       );
 
       return c.json({ ok: true, data: completed });
@@ -135,36 +126,11 @@ savingsApp.get(
   }
 );
 
-// POST /api/v1/savings/webhook — optional dedicated path; also handled via donor webhook bridge
+// POST /api/v1/savings/webhook — charge events also hit /donor/paystack-webhook
 savingsApp.post("/webhook", async (c) => {
-  try {
-    const signature = c.req.header("x-paystack-signature");
-    const rawBody = await c.req.text();
-    if (!signature) {
-      return c.json({ ok: false, error: "Missing Paystack signature" }, 401);
-    }
-    const { secretKey } = getPaystackKeys(c);
-    if (!CryptoUtils.verifyWebhookSignature(rawBody, signature, secretKey)) {
-      return c.json({ ok: false, error: "Invalid signature" }, 401);
-    }
-
-    const payload = JSON.parse(rawBody);
-    if (payload.event !== "charge.success") {
-      return c.json({ ok: true, ignored: true });
-    }
-    const reference = payload?.data?.reference as string | undefined;
-    const metaType = payload?.data?.metadata?.payment_type;
-    if (!reference || metaType !== "savings_deposit") {
-      return c.json({ ok: true, ignored: true });
-    }
-    const completed = await completeSavingsDepositByReference(
-      c,
-      reference,
-      payload?.data?.channel
-    );
-    return c.json({ ok: true, data: completed });
-  } catch (error) {
-    console.error("Savings webhook error:", error);
-    return c.json({ ok: false }, 500);
-  }
+  return c.json({
+    ok: true,
+    ignored: true,
+    message: "Use /api/v1/donor/paystack-webhook for Paystack charge events",
+  });
 });

@@ -4,6 +4,7 @@ import { addToGeneralDonorPool } from "./paystack";
 import { generateHexId, triggerWaitlistMatching } from "./utils";
 import { creditCommissionForSponsoredCampaign } from "./commission.service";
 import { completeSavingsDepositByReference } from "./savings.service";
+import { connectPatientAfterBooking } from "./confirm-booking";
 
 type PaystackChargeMetadata = {
   payment_type?: string;
@@ -15,7 +16,7 @@ type PaystackChargeMetadata = {
 
 export type ProcessChargeSuccessInput = {
   reference: string;
-  amountKobo: number;
+  amountNaira: number;
   metadata?: PaystackChargeMetadata;
 };
 
@@ -24,14 +25,29 @@ export type ProcessChargeSuccessResult = {
   paymentType?: string;
 };
 
+/** @deprecated Prefer processSuccessfulCharge. Kept for in-flight Paystack webhooks. */
 export async function processSuccessfulPaystackCharge(
+  c: Context,
+  input: { reference: string; amountKobo: number; metadata?: PaystackChargeMetadata }
+): Promise<ProcessChargeSuccessResult> {
+  return processSuccessfulCharge(c, {
+    reference: input.reference,
+    amountNaira: input.amountKobo / 100,
+    metadata: input.metadata,
+  });
+}
+
+export async function processSuccessfulCharge(
   c: Context,
   input: ProcessChargeSuccessInput
 ): Promise<ProcessChargeSuccessResult> {
   const db = getDB(c);
-  const { reference, amountKobo, metadata = {} } = input;
-  const paymentType = metadata.payment_type;
-  const amountNaira = amountKobo / 100;
+  const { reference, amountNaira, metadata = {} } = input;
+  const paymentType = String(
+    metadata.payment_type || metadata.paymentType || ""
+  ) || undefined;
+  const campaignId = metadata.campaign_id || metadata.campaignId;
+  const appointmentId = metadata.appointmentId || metadata.appointment_id;
 
   // Savings deposits are tracked on SavingsDeposit, not Transaction
   if (paymentType === "savings_deposit") {
@@ -63,17 +79,17 @@ export async function processSuccessfulPaystackCharge(
       await triggerWaitlistMatching(c);
     } catch (error) {
       console.error(
-        "[PAYSTACK] Waitlist matching failed after anonymous donation:",
+        "[PAYMENT] Waitlist matching failed after anonymous donation:",
         error
       );
     }
   } else if (
     (paymentType === "campaign_creation" || paymentType === "campaign_funding") &&
-    metadata.campaign_id
+    campaignId
   ) {
-    const campaignId = String(metadata.campaign_id);
+    const fundedCampaignId = String(campaignId);
     await db.donationCampaign.update({
-      where: { id: campaignId },
+      where: { id: fundedCampaignId },
       data: {
         totalAmount: { increment: amountNaira },
         availableAmount: { increment: amountNaira },
@@ -82,22 +98,22 @@ export async function processSuccessfulPaystackCharge(
     });
 
     try {
-      await creditCommissionForSponsoredCampaign(c, campaignId, amountNaira);
+      await creditCommissionForSponsoredCampaign(c, fundedCampaignId, amountNaira);
     } catch (error) {
-      console.error("[PAYSTACK] Sponsor commission failed:", error);
+      console.error("[PAYMENT] Sponsor commission failed:", error);
     }
 
     try {
       await triggerWaitlistMatching(c);
     } catch (error) {
       console.error(
-        "[PAYSTACK] Waitlist matching failed after campaign payment:",
+        "[PAYMENT] Waitlist matching failed after campaign payment:",
         error
       );
     }
-  } else if (paymentType === "appointment_booking" && metadata.appointmentId) {
+  } else if (paymentType === "appointment_booking" && appointmentId) {
     await db.appointment.update({
-      where: { id: String(metadata.appointmentId) },
+      where: { id: String(appointmentId) },
       data: {
         status: "SCHEDULED",
         checkInCode: generateHexId(6).toUpperCase(),
@@ -106,6 +122,17 @@ export async function processSuccessfulPaystackCharge(
         ),
       },
     });
+    const appointment = await db.appointment.findUnique({
+      where: { id: String(appointmentId) },
+    });
+    if (appointment?.patientId && appointment.centerId) {
+      await connectPatientAfterBooking(c, {
+        patientId: appointment.patientId,
+        centerId: appointment.centerId,
+        appointmentId: appointment.id!,
+        appointmentDateTime: appointment.appointmentDateTime,
+      });
+    }
   }
 
   return { alreadyProcessed: false, paymentType };

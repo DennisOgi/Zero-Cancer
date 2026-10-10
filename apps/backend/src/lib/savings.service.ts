@@ -1,8 +1,7 @@
 import { getAgentNetworkConfig } from "./agent-network-config";
-import { getPaystackKeys } from "./paystack-config";
+import { nairaToKobo } from "./payment-validation";
+import { initializePaystackPayment } from "./paystack";
 import { getSupabaseClient } from "./supabase";
-import { env } from "hono/adapter";
-import type { TEnvs } from "./types";
 
 export async function createSavingsPlan(
   c: any,
@@ -64,8 +63,6 @@ export async function initializeSavingsDeposit(
 ) {
   const supabase = getSupabaseClient(c);
   const config = getAgentNetworkConfig(c.env || {});
-  const { FRONTEND_URL } = env<TEnvs>(c);
-  const { secretKey } = getPaystackKeys(c);
 
   if (amount < config.savingsMinDeposit) {
     throw new Error(
@@ -104,44 +101,35 @@ export async function initializeSavingsDeposit(
   const { error: dErr } = await supabase.from("SavingsDeposit").insert(deposit);
   if (dErr) throw dErr;
 
-  const response = await fetch(
-    "https://api.paystack.co/transaction/initialize",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${secretKey}`,
-        "Content-Type": "application/json",
+  try {
+    const checkout = await initializePaystackPayment(c, {
+      email: user?.email || "",
+      amount: nairaToKobo(amount),
+      reference,
+      paymentType: "savings_deposit",
+      metadata: {
+        payment_type: "savings_deposit",
+        plan_id: planId,
+        patient_id: patientId,
+        deposit_id: deposit.id,
       },
-      body: JSON.stringify({
-        email: user?.email,
-        amount: Math.round(amount * 100),
-        reference,
-        callback_url: `${FRONTEND_URL}/patient/savings/payment-status?ref=${reference}`,
-        metadata: {
-          payment_type: "savings_deposit",
-          plan_id: planId,
-          patient_id: patientId,
-          deposit_id: deposit.id,
-        },
-      }),
-    }
-  );
+    });
 
-  const body = await response.json();
-  if (!response.ok) {
+    return {
+      deposit,
+      authorizationUrl: checkout.authorization_url,
+      accessCode: checkout.access_code,
+      reference,
+    };
+  } catch (error) {
     await supabase
       .from("SavingsDeposit")
       .update({ status: "FAILED", updatedAt: new Date().toISOString() })
       .eq("id", deposit.id);
-    throw new Error(body?.message || "Failed to initialize savings payment");
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to initialize savings payment");
   }
-
-  return {
-    deposit,
-    authorizationUrl: body.data.authorization_url,
-    accessCode: body.data.access_code,
-    reference,
-  };
 }
 
 export async function completeSavingsDepositByReference(

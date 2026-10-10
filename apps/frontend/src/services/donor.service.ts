@@ -109,7 +109,7 @@ export const deleteCampaign = async (
  *
  * 1. PAYMENT INITIATION:
  *    - User clicks donate/fund button → Frontend calls donateAnonymous(), createCampaign(), or fundCampaign()
- *    - Backend returns Paystack authorization URL → Frontend redirects user to this URL
+ *    - Backend returns Paystack checkout URL → Frontend redirects user to this URL
  *    - User completes payment on Paystack's secure checkout page
  *
  * 2. RETURN TO APP (Context-Aware Redirects):

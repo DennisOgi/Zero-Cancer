@@ -103,6 +103,29 @@ export async function debitStaffWallet(
   return { wallet, balanceAfter };
 }
 
+export async function settleStaffCashoutFromPaystack(
+  c: any,
+  payload: { event?: string; data?: { reference?: string; id?: string | number } }
+) {
+  const supabase = getSupabaseClient(c);
+  const reference = payload?.data?.reference;
+  const event = payload?.event || "";
+  if (!reference || !event.startsWith("transfer.")) {
+    return { handled: false };
+  }
+
+  return settleStaffCashoutFromFlutterwave(supabase, {
+    reference,
+    status:
+      event === "transfer.success"
+        ? "SUCCESS"
+        : event === "transfer.failed" || event === "transfer.reversed"
+          ? "FAILED"
+          : event,
+    id: payload.data?.id,
+  });
+}
+
 export async function settleStaffCashoutFromFlutterwave(
   supabase: any,
   payload: { reference?: string; status?: string; id?: string | number }

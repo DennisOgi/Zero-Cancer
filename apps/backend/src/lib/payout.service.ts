@@ -37,7 +37,7 @@ export interface MonthlyPayoutResult {
 export class PayoutService {
   constructor(
     private prisma: PrismaClient,
-    private paystackService: PaystackService
+    private paystackService?: PaystackService
   ) {}
 
   /**
@@ -143,6 +143,10 @@ export class PayoutService {
    * Create or get Paystack recipient for center
    */
   async ensurePaystackRecipient(centerId: string): Promise<string> {
+    if (!this.paystackService) {
+      throw new Error("Paystack is not configured for payouts");
+    }
+
     let recipient = await this.prisma.paystackRecipient.findUnique({
       where: { centerId },
     });
@@ -303,22 +307,20 @@ export class PayoutService {
     }
 
     try {
-      // Ensure Paystack recipient exists
+      if (!this.paystackService) {
+        throw new Error("Paystack is not configured for payouts");
+      }
+
       const recipientCode = await this.ensurePaystackRecipient(payout.centerId);
-
-      // Generate unique transfer reference
       const transferReference = CryptoUtils.generateTransferReference();
-
-      // Initiate transfer
       const transferResult = await this.paystackService.initiateTransfer({
         source: "balance",
-        amount: Math.round(Number(payout.amount) * 100), // Convert to kobo
+        amount: Math.round(Number(payout.amount) * 100),
         recipient: recipientCode,
         reason: payout.reason,
         reference: transferReference,
       });
 
-      // Update payout with transfer details
       const updatedPayout = await this.prisma.payout.update({
         where: { id: payoutId },
         data: {

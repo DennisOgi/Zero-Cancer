@@ -1,4 +1,5 @@
 import { PatientPaymentStatusPage } from '@/components/PatientPage/Book/PatientPaymentStatus.page'
+import { paymentRefFromSearch } from '@/lib/payment-ref'
 import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/patient/book/payment-status')({
@@ -8,8 +9,7 @@ export const Route = createFileRoute('/patient/book/payment-status')({
   },
   validateSearch: (search: Record<string, unknown>) => {
     return {
-      ref: (search.ref as string) || '',
-      // type: (search.type as string) || 'appointment_booking',
+      ref: paymentRefFromSearch(search),
     }
   },
 })

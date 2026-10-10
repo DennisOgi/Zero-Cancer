@@ -43,7 +43,10 @@ import { THonoApp } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
 // import { centerAppointmentApp } from "./center.appointment";
 // import { patientAppointmentApp } from "./patient.appointment";
+import { nairaToKobo } from "../lib/payment-validation";
 import { initializePaystackPayment } from "../lib/paystack";
+import { assertSlotAvailable } from "../lib/center-availability";
+import { connectPatientAfterBooking } from "../lib/confirm-booking";
 import { createNotificationForUsers, generateHexId } from "../lib/utils";
 // import { createNotificationForUsers } from "../lib/waitlistMatchingAlg";
 
@@ -342,6 +345,15 @@ appointmentApp.post(
         { ok: false, error: "Cannot reschedule a cancelled appointment." },
         400
       );
+    }
+    const slot = await assertSlotAvailable(
+      c,
+      appointment.centerId!,
+      new Date(newDateTime!),
+      appointment.id!
+    );
+    if (!slot.ok) {
+      return c.json<TErrorResponse>({ ok: false, error: slot.error }, 400);
     }
     const updated = await db.appointment.update({
       where: { id },
@@ -1145,6 +1157,15 @@ appointmentApp.post(
       );
     }
 
+    const slot = await assertSlotAvailable(
+      c,
+      centerId!,
+      new Date(appointmentDateTime!)
+    );
+    if (!slot.ok) {
+      return c.json<TErrorResponse>({ ok: false, error: slot.error }, 400);
+    }
+
     // Get base price and retail price for price snapshots
     const basePrice =
       result.screeningType.agreedPrice ?? result.screeningType.basePrice ?? 0;
@@ -1170,7 +1191,6 @@ appointmentApp.post(
       }
     }
 
-    // TODO: Validate input, authenticate user, verify payment with Paystack
     const paymentReference = `book-appointment-${
       payload.id
     }-${Date.now()}-${generateHexId(6)}`;
@@ -1229,6 +1249,15 @@ appointmentApp.post(
         })
         .eq("id", savingsPlanId);
 
+      await connectPatientAfterBooking(c, {
+        patientId: userId,
+        centerId: centerId!,
+        appointmentId: appointment.id!,
+        patientName: payload.email,
+        screeningName: appointment.screeningType?.name,
+        appointmentDateTime: appointment.appointmentDateTime,
+      });
+
       return c.json({
         ok: true,
         data: {
@@ -1240,15 +1269,15 @@ appointmentApp.post(
       });
     }
 
-    let paystackResponse: {
+    let checkout: {
       authorization_url?: string;
       access_code?: string;
     } | null = null;
 
     try {
-      paystackResponse = await initializePaystackPayment(c, {
+      checkout = await initializePaystackPayment(c, {
         email: payload.email!,
-        amount: retailPrice * 100,
+        amount: nairaToKobo(retailPrice),
         reference: paymentReference,
         paymentType: "appointment_booking",
         patientId: userId,
@@ -1256,21 +1285,21 @@ appointmentApp.post(
           appointmentId: appointment.id,
         },
       });
-    } catch (paystackError) {
-      console.error("Paystack initialization failed for booking:", paystackError);
+    } catch (checkoutError) {
+      console.error("Paystack initialization failed for booking:", checkoutError);
       return c.json<TErrorResponse>(
         {
           ok: false,
           error:
-            paystackError instanceof Error
-              ? paystackError.message
+            checkoutError instanceof Error
+              ? checkoutError.message
               : "Failed to initialize payment",
         },
         502
       );
     }
 
-    if (!paystackResponse?.authorization_url) {
+    if (!checkout?.authorization_url) {
       return c.json<TErrorResponse>(
         { ok: false, error: "Payment provider did not return a checkout URL" },
         502
@@ -1334,8 +1363,8 @@ appointmentApp.post(
         payment: {
               transactionId: paymentReference,
               reference: paymentReference,
-              authorizationUrl: paystackResponse.authorization_url,
-              accessCode: paystackResponse.access_code,
+              authorizationUrl: checkout.authorization_url,
+              accessCode: checkout.access_code,
             },
       },
     });

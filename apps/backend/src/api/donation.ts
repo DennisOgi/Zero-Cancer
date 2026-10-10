@@ -33,9 +33,14 @@ import {
 import {
   addToGeneralDonorPool,
   initializePaystackPayment,
+  verifyPaystackPayment,
 } from "../lib/paystack";
 import { getPaystackKeys } from "../lib/paystack-config";
-import { processSuccessfulPaystackCharge } from "../lib/paystack-payment";
+import { nairaToKobo } from "../lib/payment-validation";
+import {
+  processSuccessfulCharge,
+  processSuccessfulPaystackCharge,
+} from "../lib/paystack-payment";
 import { getAgentByCode, getAgentByUserId } from "../lib/agent.service";
 import { getSupabaseClient } from "../lib/supabase";
 import { TEnvs, THonoApp } from "../lib/types";
@@ -82,7 +87,6 @@ donationApp.post(
       );
     }
 
-    // Determine email for Paystack
     const email = donationData.wantsReceipt
       ? donationData.email!
       : env<{ ANONYMOUS_DONOR_EMAIL: string }>(c).ANONYMOUS_DONOR_EMAIL ||
@@ -109,10 +113,9 @@ donationApp.post(
     }
 
     try {
-      // Initialize Paystack payment
-      const paystackResponse = await initializePaystackPayment(c, {
+      const checkout = await initializePaystackPayment(c, {
         email,
-        amount: donationData.amount * 100, // Convert to kobo
+        amount: nairaToKobo(donationData.amount),
         reference,
         paymentType: "anonymous_donation",
         metadata: {
@@ -139,8 +142,8 @@ donationApp.post(
         data: {
           transactionId: reference,
           reference: reference,
-          authorizationUrl: paystackResponse.authorization_url,
-          accessCode: paystackResponse.access_code,
+          authorizationUrl: checkout.authorization_url,
+          accessCode: checkout.access_code,
         },
       });
     } catch (error) {
@@ -187,10 +190,21 @@ donationApp.post("/paystack-webhook", async (c) => {
 
     if (payload.event?.startsWith("transfer.")) {
       const { settleAgentCashoutFromTransfer } = await import("../lib/agent.service");
-      const result = await settleAgentCashoutFromTransfer(c, payload);
+      const { settleStaffCashoutFromPaystack } = await import(
+        "../lib/staff-wallet.service"
+      );
+      const { settleCenterCashoutFromPaystack } = await import(
+        "../lib/wallet.service"
+      );
+      const [agent, staff, center] = await Promise.all([
+        settleAgentCashoutFromTransfer(c, payload),
+        settleStaffCashoutFromPaystack(c, payload),
+        settleCenterCashoutFromPaystack(c, payload),
+      ]);
+      const handled = agent.handled || staff.handled || center.handled;
       return c.json({
         ok: true,
-        message: result.handled ? "Transfer event processed" : "Transfer event ignored",
+        message: handled ? "Transfer event processed" : "Transfer event ignored",
         event: payload.event,
       });
     }
@@ -478,10 +492,9 @@ donationApp.post(
         },
       });
 
-      // Initialize Paystack payment for initial funding
-      const paystackResponse = await initializePaystackPayment(c, {
+      const checkout = await initializePaystackPayment(c, {
         email: donor.email,
-        amount: campaignData.fundingAmount * 100, // Convert to kobo
+        amount: nairaToKobo(campaignData.fundingAmount),
         reference,
         paymentType: "campaign_creation",
         campaignId: campaign.id,
@@ -514,8 +527,8 @@ donationApp.post(
           payment: {
             transactionId: reference,
             reference: reference,
-            authorizationUrl: paystackResponse.authorization_url,
-            accessCode: paystackResponse.access_code,
+            authorizationUrl: checkout.authorization_url,
+            accessCode: checkout.access_code,
           },
         },
       });
@@ -757,10 +770,9 @@ donationApp.post(
         .randomBytes(6)
         .toString("hex")}`;
 
-      // Initialize Paystack payment for campaign funding
-      const paystackResponse = await initializePaystackPayment(c, {
+      const checkout = await initializePaystackPayment(c, {
         email: donor.email,
-        amount: fundData.amount * 100, // Convert to kobo
+        amount: nairaToKobo(fundData.amount),
         reference,
         paymentType: "campaign_funding",
         campaignId: campaignId,
@@ -789,8 +801,8 @@ donationApp.post(
           campaignId: campaignId,
           transactionId: reference,
           reference: reference,
-          authorizationUrl: paystackResponse.authorization_url,
-          accessCode: paystackResponse.access_code,
+          authorizationUrl: checkout.authorization_url,
+          accessCode: checkout.access_code,
         },
       });
     } catch (error) {
@@ -1176,8 +1188,9 @@ donationApp.get("/payment-config", async (c) => {
     return c.json({
       ok: true,
       data: {
+        provider: "PAYSTACK",
         configured: true,
-        mode: publicKey.startsWith("pk_live_") ? "live" : "test",
+        mode: publicKey.startsWith("pk_test_") ? "test" : "live",
         envMode,
         webhookUrl: `${requestUrl.origin}/api/v1/donor/paystack-webhook`,
         callbackBaseUrl: FRONTEND_URL,
@@ -1207,47 +1220,13 @@ donationApp.get("/verify-payment/:reference", async (c) => {
   const reference = c.req.param("reference");
 
   try {
-    const { secretKey } = getPaystackKeys(c);
-
-    const response = await fetch(
-      `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${secretKey}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      return c.json<TErrorResponse>(
-        {
-          ok: false,
-          error: "Failed to verify payment with Paystack",
-        },
-        500
-      );
-    }
-
-    const paystackData = await response.json();
-    const { data: paymentData } = paystackData;
-
-    if (!paymentData) {
-      return c.json<TErrorResponse>(
-        {
-          ok: false,
-          error: "Payment not found",
-        },
-        404
-      );
-    }
+    const paymentData = await verifyPaystackPayment(c, reference);
 
     if (paymentData.status === "success") {
-      await processSuccessfulPaystackCharge(c, {
+      await processSuccessfulCharge(c, {
         reference: paymentData.reference,
-        amountKobo: paymentData.amount,
-        metadata: (paymentData.metadata || {}) as Record<string, unknown>,
+        amountNaira: paymentData.amountNaira,
+        metadata: paymentData.metadata,
       });
     }
 
@@ -1283,13 +1262,13 @@ donationApp.get("/verify-payment/:reference", async (c) => {
     // Prepare response data based on payment type and status
     const responseData: any = {
       reference: paymentData.reference,
-      amount: paymentData.amount / 100, // Convert from kobo
-      status: paymentData.status, // success, failed, abandoned
+      amount: paymentData.amountNaira,
+      status: paymentData.status,
       paymentType,
-      paidAt: paymentData.paid_at,
+      paidAt: paymentData.paidAt,
       channel: paymentData.channel,
       currency: paymentData.currency,
-      transactionDate: paymentData.transaction_date,
+      transactionDate: paymentData.transactionDate,
     };
 
     // Add context-specific data

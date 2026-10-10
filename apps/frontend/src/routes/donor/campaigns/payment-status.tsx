@@ -1,4 +1,5 @@
 import { PaymentStatusPage } from '@/components/DonorPage/PaymentStatus/PaymentStatus.page'
+import { paymentRefFromSearch } from '@/lib/payment-ref'
 import { createFileRoute } from '@tanstack/react-router'
 
 function DonorPaymentStatusPage() {
@@ -10,7 +11,7 @@ export const Route = createFileRoute('/donor/campaigns/payment-status')({
   component: DonorPaymentStatusPage,
   validateSearch: (search: Record<string, unknown>) => {
     return {
-      ref: (search.ref as string) || '',
+      ref: paymentRefFromSearch(search),
       type: (search.type as string) || '',
       campaignId: (search.campaignId as string) || '',
     }

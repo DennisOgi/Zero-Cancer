@@ -13,7 +13,8 @@ export async function initializePaystackPayment(
       | "anonymous_donation"
       | "campaign_creation"
       | "campaign_funding"
-      | "appointment_booking";
+      | "appointment_booking"
+      | "savings_deposit";
     campaignId?: string; // Required for campaign-related payments
     patientId?: string; // Optional for appointment payments
     metadata?: any;
@@ -43,6 +44,9 @@ export async function initializePaystackPayment(
       if (!data.patientId)
         throw new Error("Patient ID required for appointment payment");
       callbackUrl = `${FRONTEND_URL}/patient/book/payment-status?ref=${data.reference}&type=book&patientId=${data.patientId}`;
+      break;
+    case "savings_deposit":
+      callbackUrl = `${FRONTEND_URL}/patient/savings/payment-status?ref=${data.reference}`;
       break;
     default:
       throw new Error(`Unknown payment type: ${data.paymentType}`);
@@ -93,6 +97,57 @@ export async function initializePaystackPayment(
   }
 
   return result.data;
+}
+
+export type PaystackCheckoutStatus =
+  | "success"
+  | "failed"
+  | "abandoned"
+  | "pending";
+
+export function mapPaystackCheckoutStatus(
+  status?: string | null
+): PaystackCheckoutStatus {
+  const value = String(status || "").toLowerCase();
+  if (value === "success") return "success";
+  if (value === "failed" || value === "reversed") return "failed";
+  if (value === "abandoned") return "abandoned";
+  return "pending";
+}
+
+export async function verifyPaystackPayment(c: any, reference: string) {
+  const { secretKey } = getPaystackKeys(c);
+  const response = await fetch(
+    `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+      },
+    }
+  );
+  const body = (await response.json().catch(() => ({}))) as {
+    status?: boolean;
+    message?: string;
+    data?: Record<string, any>;
+  };
+  if (!response.ok || !body?.status || !body?.data) {
+    throw new Error(body?.message || "Failed to verify payment with Paystack");
+  }
+  const payment = body.data;
+  return {
+    reference: String(payment.reference || reference),
+    amountNaira: Number(payment.amount || 0) / 100,
+    amountKobo: Number(payment.amount || 0),
+    status: mapPaystackCheckoutStatus(payment.status),
+    rawStatus: String(payment.status || ""),
+    paidAt: payment.paid_at || payment.paidAt || null,
+    channel: String(payment.channel || "paystack"),
+    currency: String(payment.currency || "NGN"),
+    transactionDate: String(
+      payment.transaction_date || payment.paid_at || new Date().toISOString()
+    ),
+    metadata: (payment.metadata || {}) as Record<string, any>,
+  };
 }
 
 // Helper function to add funds to general donor pool

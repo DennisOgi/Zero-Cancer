@@ -16,14 +16,12 @@ import { authorizeCronRequest } from "../lib/cron-auth";
 
 const payoutsApp = new Hono<THonoApp>();
 
-// Initialize services
 const getPayoutService = (c: any) => {
   const { PAYSTACK_SECRET_KEY } = env<{ PAYSTACK_SECRET_KEY: string }>(
     c,
     "node"
   );
-  const paystackService = new PaystackService(PAYSTACK_SECRET_KEY);
-  return new PayoutService(getDB(c), paystackService);
+  return new PayoutService(getDB(c), new PaystackService(PAYSTACK_SECRET_KEY));
 };
 
 function canAccessCenterPayouts(payload: any, centerId: string) {
@@ -449,7 +447,6 @@ payoutsApp.get(
         "node"
       );
       const paystackService = new PaystackService(PAYSTACK_SECRET_KEY);
-
       const banks = await paystackService.getBanks();
       return c.json({
         ok: true,
@@ -486,7 +483,6 @@ payoutsApp.post(
         "node"
       );
       const paystackService = new PaystackService(PAYSTACK_SECRET_KEY);
-
       const verification = await paystackService.verifyAccountNumber(
         accountNumber,
         bankCode

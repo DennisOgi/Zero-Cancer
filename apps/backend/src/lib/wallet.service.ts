@@ -11,8 +11,9 @@
  */
 
 import { getDB } from './db';
-import { PaystackService } from './paystack.service';
 import type { Context } from 'hono';
+import { getPaystackKeys } from './paystack-config';
+import { PaystackService } from './paystack.service';
 import { getSupabaseClient } from './supabase';
 
 // ============================================
@@ -466,8 +467,7 @@ export async function requestCashout(
  */
 export async function processCashout(
   c: Context,
-  cashoutId: string,
-  paystackSecretKey?: string
+  cashoutId: string
 ): Promise<void> {
   const cashout = await db(c).centerCashout.findUnique({
     where: { id: cashoutId },
@@ -479,6 +479,8 @@ export async function processCashout(
               id: true,
               centerName: true,
               bankName: true,
+              bankCode: true,
+              bankAccount: true,
               accountNumber: true,
               accountName: true,
             },
@@ -528,87 +530,153 @@ export async function processCashout(
     },
   });
 
-  // Initiate Paystack transfer if secret key is provided
-  if (paystackSecretKey) {
-    try {
-      const paystack = new PaystackService(paystackSecretKey);
+  let paystackSecretKey = '';
+  try {
+    paystackSecretKey = getPaystackKeys(c).secretKey;
+  } catch {
+    console.warn('Paystack is not configured. Transfer not initiated.');
+    return;
+  }
 
-      // Get bank code from bank name (you may need to maintain a mapping)
-      // For now, we'll assume the bank code is stored or needs to be resolved
+  try {
+    const paystack = new PaystackService(paystackSecretKey);
+    const accountNumber =
+      cashout.wallet.center.accountNumber ||
+      cashout.wallet.center.bankAccount;
+    const bankCode = cashout.wallet.center.bankCode;
+
+    if (!accountNumber) {
+      throw new Error(
+        'Facility bank details are incomplete. Add an account number first.'
+      );
+    }
+
+    let resolvedBankCode = bankCode || '';
+    if (!resolvedBankCode) {
       const banks = await paystack.getBanks();
       const bank = banks.find(
-        (b) => b.name.toLowerCase() === cashout.wallet.center.bankName?.toLowerCase()
+        (item) =>
+          item.name.toLowerCase() ===
+          cashout.wallet.center.bankName?.toLowerCase()
       );
-
-      if (!bank) {
-        throw new Error(`Bank not found: ${cashout.wallet.center.bankName}`);
-      }
-
-      // Verify account number
-      const accountVerification = await paystack.verifyAccountNumber(
-        cashout.wallet.center.accountNumber!,
-        bank.code
-      );
-
-      // Create transfer recipient
-      const recipient = await paystack.createRecipient({
-        type: 'nuban',
-        name: accountVerification.account_name,
-        account_number: cashout.wallet.center.accountNumber!,
-        bank_code: bank.code,
-        currency: 'NGN',
-      });
-
-      // Initiate transfer (convert to kobo)
-      const transfer = await paystack.initiateTransfer({
-        source: 'balance',
-        amount: cashout.netAmount * 100, // Convert to kobo
-        recipient: recipient.recipient_code,
-        reason: `Cashout for ${cashout.wallet.center.centerName}`,
-        reference: `cashout_${cashoutId}`,
-      });
-
-      // Update cashout with Paystack reference
-      await db(c).centerCashout.update({
-        where: { id: cashoutId },
-        data: {
-          paystackReference: transfer.reference,
-        },
-      });
-
-      console.log(`Paystack transfer initiated: ${transfer.reference}`);
-    } catch (error) {
-      console.error('Paystack transfer error:', error);
-      
-      // Update cashout status to FAILED
-      await db(c).centerCashout.update({
-        where: { id: cashoutId },
-        data: {
-          status: 'FAILED',
-          failureReason: error instanceof Error ? error.message : 'Unknown error',
-          completedAt: new Date(),
-        },
-      });
-
-      // Credit back the wallet (reverse the debit) using RPC
-      const { error: refundError } = await supabase.rpc('credit_center_wallet', {
-        p_center_id: cashout.wallet.centerId,
-        p_amount: totalAmount,
-        p_description: 'Cashout failed - refund',
-        p_cashout_id: cashoutId,
-      });
-
-      if (refundError) {
-        console.error('CRITICAL: Failed to refund wallet after cashout failure:', refundError);
-        // This is critical - wallet was debited but refund failed
-        // Manual intervention required
-      }
-
-      throw error;
+      resolvedBankCode = bank?.code || '';
     }
-  } else {
-    console.warn('Paystack secret key not provided. Transfer not initiated.');
+
+    if (!resolvedBankCode) {
+      throw new Error(
+        'Could not resolve a Paystack bank code for this facility.'
+      );
+    }
+
+    const accountVerification = await paystack.verifyAccountNumber(
+      accountNumber,
+      resolvedBankCode
+    );
+    const recipient = await paystack.createRecipient({
+      type: 'nuban',
+      name: accountVerification.account_name,
+      account_number: accountNumber,
+      bank_code: resolvedBankCode,
+      currency: 'NGN',
+    });
+    const transfer = await paystack.initiateTransfer({
+      source: 'balance',
+      amount: Math.round(cashout.netAmount * 100),
+      recipient: recipient.recipient_code,
+      reason: `Cashout for ${cashout.wallet.center.centerName}`,
+      reference: `cashout_${cashoutId}`,
+    });
+
+    await db(c).centerCashout.update({
+      where: { id: cashoutId },
+      data: {
+        paystackReference: transfer.reference,
+      },
+    });
+  } catch (error) {
+    console.error('Paystack cashout transfer error:', error);
+
+    await db(c).centerCashout.update({
+      where: { id: cashoutId },
+      data: {
+        status: 'FAILED',
+        failureReason: error instanceof Error ? error.message : 'Unknown error',
+        completedAt: new Date(),
+      },
+    });
+
+    const { error: refundError } = await supabase.rpc('credit_center_wallet', {
+      p_center_id: cashout.wallet.centerId,
+      p_amount: totalAmount,
+      p_description: 'Cashout failed - refund',
+      p_cashout_id: cashoutId,
+    });
+
+    if (refundError) {
+      console.error('CRITICAL: Failed to refund wallet after cashout failure:', refundError);
+    }
+
+    throw error;
   }
+}
+
+export async function settleCenterCashoutFromPaystack(
+  c: Context,
+  payload: { event?: string; data?: { reference?: string } }
+) {
+  const reference = payload?.data?.reference;
+  const event = payload?.event || '';
+  if (!reference || !event.startsWith('transfer.')) {
+    return { handled: false };
+  }
+
+  return settleCenterCashoutFromFlutterwave(c, {
+    reference,
+    status:
+      event === 'transfer.success'
+        ? 'SUCCESS'
+        : event === 'transfer.failed' || event === 'transfer.reversed'
+          ? 'FAILED'
+          : event,
+  });
+}
+
+export async function settleCenterCashoutFromFlutterwave(
+  c: Context,
+  payload: { reference?: string; status?: string; id?: string | number }
+) {
+  const reference = payload?.reference;
+  if (!reference) return { handled: false };
+
+  const cashout = await db(c).centerCashout.findFirst({
+    where: {
+      OR: [
+        { paystackReference: reference },
+        { id: reference.replace(/^cashout_/, '') },
+      ],
+    },
+  });
+  if (!cashout) return { handled: false };
+  if (cashout.status === 'SUCCESS' || cashout.status === 'FAILED') {
+    return { handled: true, alreadySettled: true };
+  }
+
+  const status = String(payload.status || '').toUpperCase();
+  if (status === 'SUCCESSFUL' || status === 'SUCCESS') {
+    await updateCashoutStatus(c, cashout.id, 'SUCCESS', reference);
+    return { handled: true, status: 'SUCCESS' };
+  }
+  if (status === 'FAILED' || status === 'FAILURE') {
+    await updateCashoutStatus(
+      c,
+      cashout.id,
+      'FAILED',
+      reference,
+      'Bank transfer failed'
+    );
+    return { handled: true, status: 'FAILED' };
+  }
+  return { handled: true, status: cashout.status };
 }
 
 /**

@@ -12,7 +12,6 @@
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { getDB } from '../lib/db'
 import { THonoApp } from '../lib/types'
 import { authMiddleware } from '../middleware/auth.middleware'
 import * as walletService from '../lib/wallet.service'
@@ -348,12 +347,7 @@ walletApp.post(
         initiatedBy: payload.id!,
       })
 
-      // Get Paystack secret key from environment
-      const db = getDB(c)
-      const paystackSecretKey = c.env?.PAYSTACK_SECRET_KEY
-
-      // Process cashout (debit wallet and initiate transfer)
-      await walletService.processCashout(c, cashout.id, paystackSecretKey)
+      await walletService.processCashout(c, cashout.id)
 
       return c.json<TDataResponse<typeof cashout>>({
         ok: true,

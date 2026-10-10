@@ -95,7 +95,6 @@ export function PatientAgentPage() {
   const config = payload?.config
   const eligible = payload?.eligible !== false
   const boundCenter = payload?.boundCenter
-  const payoutProvider = config?.payoutProvider || 'FLUTTERWAVE'
 
   useEffect(() => {
     if (!agent) return
@@ -530,9 +529,8 @@ export function PatientAgentPage() {
           <CardHeader>
             <CardTitle>Bank details & cashout</CardTitle>
             <CardDescription>
-              {payoutProvider === 'FLUTTERWAVE'
-                ? 'Flutterwave verifies your Nigerian bank account and pays commissions into it.'
-                : 'Save a Nigerian bank account, then withdraw your commissions.'}
+              Paystack verifies your Nigerian bank account, then pays
+              commissions into it.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
