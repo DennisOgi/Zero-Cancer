@@ -26,6 +26,7 @@ import { Hono } from "hono";
 import { env } from "hono/adapter";
 import { getCookie, setCookie } from "hono/cookie";
 import { jwt, sign, verify } from "hono/jwt";
+import { ACCESS_TOKEN_TTL_SEC, REFRESH_TOKEN_TTL_SEC } from "../lib/auth-ttl";
 import { getDB } from "../lib/db";
 import { sendEmail } from "../lib/email";
 import { normalizeEmail } from "../lib/email-normalize";
@@ -225,13 +226,13 @@ authApp.post(
       };
 
       const token = await sign(
-        { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 5 },
+        { ...payload, exp: Math.floor(Date.now() / 1000) + ACCESS_TOKEN_TTL_SEC },
         JWT_TOKEN_SECRET
       );
       const refreshToken = await sign(
-        { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 },
+        { ...payload, exp: Math.floor(Date.now() / 1000) + REFRESH_TOKEN_TTL_SEC },
         JWT_TOKEN_SECRET
-      ); // 7 days
+      );
 
       // Set refresh token as httpOnly, secure cookie using Hono's setCookie
       setCookie(c, "refreshToken", refreshToken, {
@@ -239,7 +240,7 @@ authApp.post(
         secure: true,
         sameSite: "None",
         path: "/",
-        maxAge: 60 * 60 * 24 * 7, // 7 days in seconds
+        maxAge: REFRESH_TOKEN_TTL_SEC,
       });
 
       return c.json<TLoginResponse>({
@@ -748,7 +749,7 @@ authApp.post("/refresh", async (c) => {
     const newAccessToken = await sign(
       {
         ...tokenBody,
-        exp: Math.floor(Date.now() / 1000) + 60 * 5,
+        exp: Math.floor(Date.now() / 1000) + ACCESS_TOKEN_TTL_SEC,
       },
       JWT_TOKEN_SECRET
     );
@@ -756,7 +757,7 @@ authApp.post("/refresh", async (c) => {
     const newRefreshToken = await sign(
       {
         ...tokenBody,
-        exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 7 days
+        exp: Math.floor(Date.now() / 1000) + REFRESH_TOKEN_TTL_SEC,
       },
       JWT_TOKEN_SECRET
     );
@@ -767,7 +768,7 @@ authApp.post("/refresh", async (c) => {
       secure: true,
       sameSite: "None",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days in seconds
+      maxAge: REFRESH_TOKEN_TTL_SEC,
     });
 
     return c.json<TRefreshTokenResponse>({

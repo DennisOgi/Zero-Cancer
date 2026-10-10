@@ -1,10 +1,11 @@
+import { hydrateAccessToken } from '@/lib/access-token'
 import { setupAxiosInterceptors } from '@/lib/request'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 
 const queryClient = new QueryClient()
 
-// Setup axios interceptors with the correct QueryClient
+hydrateAccessToken(queryClient)
 setupAxiosInterceptors(queryClient)
 
 export function getContext() {

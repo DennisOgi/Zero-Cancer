@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as endpoints from '@/services/endpoints'
-import { ACCESS_TOKEN_KEY } from '@/services/keys'
+import { persistAccessToken, readAccessToken } from '@/lib/access-token'
 import type { QueryClient } from '@tanstack/react-query'
 import type * as t from '@zerocancer/shared/types'
 import type { AxiosError, AxiosRequestConfig } from 'axios'
@@ -121,12 +121,6 @@ export function setupAxiosInterceptors(queryClient: QueryClient) {
       if (originalRequest.url?.includes('/auth/logout') === true) {
         return Promise.reject(error)
       }
-      if (
-        originalRequest.url?.includes('/auth/me') === true &&
-        error.response.status === 401
-      ) {
-        return Promise.reject(error)
-      }
       if (originalRequest.url?.includes('/register/') === true) {
         return Promise.reject(error)
       }
@@ -163,14 +157,12 @@ export function setupAxiosInterceptors(queryClient: QueryClient) {
           const token = response?.data?.token ?? ''
 
           if (!!token) {
-            // Update React Query cache with new access token
-            queryClient.setQueryData([ACCESS_TOKEN_KEY], token)
+            persistAccessToken(queryClient, token)
             originalRequest.headers['Authorization'] = 'Bearer ' + token
             processQueue(null, token)
             return await axios(originalRequest)
-          } else {
-            window.location.href = '/login'
           }
+          processQueue(error, null)
         } catch (err) {
           processQueue(err as AxiosError, null)
           return Promise.reject(err)
@@ -204,8 +196,7 @@ export function setupAxiosInterceptors(queryClient: QueryClient) {
         }
       }
 
-      // Get access token from React Query cache
-      const token = queryClient.getQueryData<string>([ACCESS_TOKEN_KEY])
+      const token = readAccessToken(queryClient)
       if (token) {
         config.headers = config.headers || {}
         config.headers['Authorization'] = `Bearer ${token}`

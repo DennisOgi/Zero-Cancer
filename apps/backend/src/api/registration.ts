@@ -21,6 +21,7 @@ import { env } from "hono/adapter";
 import { setCookie } from "hono/cookie";
 import { HTTPException } from "hono/http-exception";
 import { sign } from "hono/jwt";
+import { ACCESS_TOKEN_TTL_SEC, REFRESH_TOKEN_TTL_SEC } from "../lib/auth-ttl";
 import { getDB } from "../lib/db";
 import { uploadBase64ImageToCloudinary, isAllowedPatientPhotoUrl } from "../lib/cloudinary-signed-upload";
 import {
@@ -61,11 +62,11 @@ async function issuePatientAuthTokens(
   };
 
   const token = await sign(
-    { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 5 },
+    { ...payload, exp: Math.floor(Date.now() / 1000) + ACCESS_TOKEN_TTL_SEC },
     JWT_TOKEN_SECRET
   );
   const refreshToken = await sign(
-    { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 },
+    { ...payload, exp: Math.floor(Date.now() / 1000) + REFRESH_TOKEN_TTL_SEC },
     JWT_TOKEN_SECRET
   );
 
@@ -74,7 +75,7 @@ async function issuePatientAuthTokens(
     secure: true,
     sameSite: "None",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: REFRESH_TOKEN_TTL_SEC,
   });
 
   return token;
@@ -91,11 +92,11 @@ async function issueDonorAuthTokens(
     profile: "DONOR" as const,
   };
   const token = await sign(
-    { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 5 },
+    { ...payload, exp: Math.floor(Date.now() / 1000) + ACCESS_TOKEN_TTL_SEC },
     JWT_TOKEN_SECRET
   );
   const refreshToken = await sign(
-    { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 },
+    { ...payload, exp: Math.floor(Date.now() / 1000) + REFRESH_TOKEN_TTL_SEC },
     JWT_TOKEN_SECRET
   );
   setCookie(c, "refreshToken", refreshToken, {
@@ -103,7 +104,7 @@ async function issueDonorAuthTokens(
     secure: true,
     sameSite: "None",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: REFRESH_TOKEN_TTL_SEC,
   });
   return token;
 }

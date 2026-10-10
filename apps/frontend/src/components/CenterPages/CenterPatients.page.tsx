@@ -45,8 +45,8 @@ export function CenterPatientsPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Patients</h1>
           <p className="mt-1 text-muted-foreground">
-            All patients assigned to your center after registration, enrollment
-            approval, or location matching.
+            Patients who registered through your facility link, were enrolled
+            on-site, or were assigned after they chose this hospital.
           </p>
         </div>
         <Button asChild>

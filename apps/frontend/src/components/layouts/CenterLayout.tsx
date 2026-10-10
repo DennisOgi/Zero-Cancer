@@ -85,7 +85,7 @@ export function CenterLayout() {
                 <Link
                   key={link.to}
                   to={link.to}
-                  preload="render"
+                  preload="intent"
                   className="flex items-center gap-4 rounded-lg px-3 py-3 text-white transition-all hover:bg-white/20 relative"
                   activeOptions={{ exact: true }}
                   activeProps={{ className: 'bg-white/30 font-semibold' }}
@@ -139,7 +139,7 @@ export function CenterLayout() {
       <div className="fixed bottom-2 inset-x-2 md:hidden bg-white z-50 shadow-lg rounded-xl">
         <nav className="flex justify-around items-center h-16 px-1">
           {navLinks.map((link) => (
-            <Link key={link.to} to={link.to} className="flex-1 relative" activeOptions={{ exact: link.to === '/center' }} preload="render">
+            <Link key={link.to} to={link.to} className="flex-1 relative" activeOptions={{ exact: link.to === '/center' }} preload="intent">
               <div className="flex h-16 w-full flex-col items-center justify-center rounded-lg p-1 transition-colors duration-200">
                 <img src={link.icon} alt={link.label} className="h-6 w-6" />
                 <span className={'mt-2 text-xs text-muted-foreground'}>{link.label.split(' ')[0]}</span>

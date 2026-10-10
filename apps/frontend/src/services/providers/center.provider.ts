@@ -1,4 +1,5 @@
-import { MutationKeys, QueryKeys, ACCESS_TOKEN_KEY } from '@/services/keys'
+import { persistAccessToken } from '@/lib/access-token'
+import { MutationKeys, QueryKeys } from '@/services/keys'
 import {
   infiniteQueryOptions,
   queryOptions,
@@ -115,7 +116,7 @@ export const useCenterStaffLogin = () => {
     mutationFn: centerService.centerStaffLogin,
     onSettled: (data) => {
       if (data?.data?.token) {
-        queryClient.setQueryData([ACCESS_TOKEN_KEY], data.data.token)
+        persistAccessToken(queryClient, data.data.token)
         queryClient.invalidateQueries({ queryKey: ['authUser'] })
       }
     },

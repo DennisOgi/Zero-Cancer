@@ -1,5 +1,5 @@
 import PatientForm from '@/components/AuthPages/SignupPage/PatientForm'
-import { ACCESS_TOKEN_KEY } from '@/services/keys'
+import { persistAccessToken } from '@/lib/access-token'
 import { useAuthUser } from '@/services/providers/auth.provider'
 import { lookupReferral } from '@/services/agent-network.service'
 import { getCenterById } from '@/services/center.service'
@@ -121,7 +121,7 @@ export function PatientSignupPage({
     sessionStorage.removeItem('zerocancer_invite')
     const token = response.data?.token
     if (token) {
-      queryClient.setQueryData([ACCESS_TOKEN_KEY], token)
+      persistAccessToken(queryClient, token)
       await queryClient.fetchQuery(useAuthUser()).catch(() => null)
     }
 

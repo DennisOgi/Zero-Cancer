@@ -1,7 +1,7 @@
 import { EmailVerificationPage } from '@/components/AuthPages/EmailVerificationPage'
 import DonorForm from '@/components/AuthPages/SignupPage/DonorForm'
 import { boardingPreview } from '@/services/providers/boarding.provider'
-import { ACCESS_TOKEN_KEY } from '@/services/keys'
+import { persistAccessToken } from '@/lib/access-token'
 import type { TDonorRegisterResponse } from '@zerocancer/shared/types'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -41,7 +41,7 @@ export function DonorSignupPage() {
     const token = response.data?.token
     if (token) {
       sessionStorage.removeItem('zerocancer_invite')
-      queryClient.setQueryData([ACCESS_TOKEN_KEY], token)
+      persistAccessToken(queryClient, token)
       queryClient.invalidateQueries({ queryKey: ['authUser'] })
       toast.success('Welcome. You can fund a waiting list or create one for your event.')
       navigate({ to: '/donor/waiting-lists', replace: true })

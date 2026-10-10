@@ -4,8 +4,9 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
+import { persistAccessToken } from '@/lib/access-token'
 import * as adminService from '../admin.service'
-import { ACCESS_TOKEN_KEY, MutationKeys, QueryKeys } from '../keys'
+import { MutationKeys, QueryKeys } from '../keys'
 
 // --- Admin Auth Mutations ---
 
@@ -17,7 +18,7 @@ export const useAdminLogin = () => {
     mutationFn: adminService.loginAdmin,
     onSettled: (data) => {
       if (data?.data?.token) {
-        queryClient.setQueryData([ACCESS_TOKEN_KEY], data.data.token)
+        persistAccessToken(queryClient, data.data.token)
         queryClient.invalidateQueries({ queryKey: ['authUser'] })
       }
     },

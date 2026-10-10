@@ -1,5 +1,6 @@
+import { persistAccessToken } from '@/lib/access-token'
 import * as authService from '@/services/auth.service'
-import { ACCESS_TOKEN_KEY, MutationKeys } from '@/services/keys'
+import { MutationKeys } from '@/services/keys'
 // import * as registerService from '@/services/register.service'
 import {
   QueryClient,
@@ -25,8 +26,7 @@ export const useLogin = () => {
     }) => authService.loginUser(params, actor),
     onSettled: (data) => {
       if (data?.data?.token) {
-        // Store access token in React Query cache
-        queryClient.setQueryData([ACCESS_TOKEN_KEY], data.data.token)
+        persistAccessToken(queryClient, data.data.token)
         queryClient.invalidateQueries({
           queryKey: ['authUser'],
         })
@@ -44,10 +44,9 @@ export const useAuthUser = () =>
   queryOptions({
     queryKey: ['authUser'],
     queryFn: authService.authUser,
-    // throwOnError
     throwOnError: false,
     retry: false,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 60 * 60 * 1000,
   })
 
 export const useUpdatePatientProfile = () => {
@@ -65,7 +64,12 @@ export const isAuthMiddleware = async (
   queryClient: QueryClient,
   actor?: TActors,
 ) => {
-  const auth = await queryClient.ensureQueryData(useAuthUser())
+  let auth: Awaited<ReturnType<typeof authService.authUser>> | undefined
+  try {
+    auth = await queryClient.ensureQueryData(useAuthUser())
+  } catch {
+    auth = queryClient.getQueryData(useAuthUser().queryKey)
+  }
 
   const isAuthenticated = !!auth && !!auth.data
   const profile = auth?.data?.user?.profile
@@ -91,7 +95,7 @@ export const useLogout = () => {
     mutationKey: [MutationKeys.logoutUser],
     mutationFn: authService.logout,
     onSuccess: () => {
-      // Remove access token and user data from React Query cache
+      persistAccessToken(queryClient, null)
       queryClient.clear()
       navigate({ to: '/', reloadDocument: true })
     },

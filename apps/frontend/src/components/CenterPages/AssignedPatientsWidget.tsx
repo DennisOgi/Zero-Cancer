@@ -48,8 +48,8 @@ export function AssignedPatientsWidget() {
       <CardContent>
         {patients.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">
-            No patients assigned to your center yet. New signups in your area are
-            matched automatically.
+            No patients assigned yet. People who register through your facility
+            link, walk-in enrollments, and approved requests show up here.
           </p>
         ) : (
           <div className="space-y-3">

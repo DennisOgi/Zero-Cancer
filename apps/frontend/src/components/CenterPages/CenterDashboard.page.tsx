@@ -111,7 +111,7 @@ export function CenterDashboard() {
     {
       title: 'Assigned Patients',
       value: assignedPatientCount,
-      description: 'Auto-matched to center',
+      description: 'Invite, walk-in, and assigned',
       icon: peopleIcon,
       color: 'bg-blue-100',
     },
