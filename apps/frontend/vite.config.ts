@@ -23,6 +23,10 @@ export default defineConfig({
     },
   },
   build: {
+    commonjsOptions: {
+      include: [/node_modules/, /packages[\\/]shared/],
+      transformMixedEsModules: true,
+    },
     // Optimize for memory usage
     chunkSizeWarningLimit: 1000,
     rollupOptions: {

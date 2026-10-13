@@ -36,7 +36,8 @@ export const addKitsSchema = z.object({
 
 /** Facility request to purchase / restock kits (fulfillment & pricing come later). */
 export const orderKitsSchema = z.object({
-  screeningTypeId: z.string().uuid("Select a kit / screening type"),
+  screeningTypeId: z.string().uuid("Select a screening type"),
+  kitProduct: z.string().min(1, "Select a kit product").optional(),
   quantity: z.coerce.number().int().min(1).max(500),
   urgency: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
   notes: z.string().max(500).optional(),

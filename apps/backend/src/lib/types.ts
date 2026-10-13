@@ -24,11 +24,11 @@ export type TEnvs = {
   SMTP_PASS: string;
   FRONTEND_URL: string;
   ENV_MODE: "production" | "development" | "test";
-  PAYSTACK_SECRET_KEY: string;
-  PAYSTACK_PUBLIC_KEY: string;
   FLUTTERWAVE_SECRET_KEY?: string;
   FLUTTERWAVE_PUBLIC_KEY?: string;
   FLUTTERWAVE_WEBHOOK_HASH?: string;
+  PAYSTACK_SECRET_KEY?: string;
+  PAYSTACK_PUBLIC_KEY?: string;
   CRON_API_KEY: string;
   CLOUDINARY_CLOUD_NAME: string;
   CLOUDINARY_API_KEY: string;

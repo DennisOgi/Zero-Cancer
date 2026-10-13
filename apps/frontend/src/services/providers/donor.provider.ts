@@ -175,7 +175,7 @@ export const useDonorCampaign = (campaignId: string) =>
  * PAYMENT VERIFICATION PROVIDER USAGE:
  *
  * This provider is specifically designed for payment status pages.
- * Use it when users return from Paystack payment to verify their payment status.
+ * Use it when users return from Flutterwave payment to verify their payment status.
  *
  * Example usage in a payment status page component:
  *

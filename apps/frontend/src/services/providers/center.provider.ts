@@ -53,6 +53,35 @@ export const centerById = (id: string) =>
     enabled: !!id,
   })
 
+export const publicCenterAvailability = (
+  id: string,
+  params?: { from?: string; to?: string },
+) =>
+  queryOptions({
+    queryKey: [QueryKeys.centerAvailability, id, params],
+    queryFn: () => centerService.getPublicCenterAvailability(id, params),
+    enabled: !!id,
+  })
+
+export const ownCenterAvailability = (params?: { from?: string; to?: string }) =>
+  queryOptions({
+    queryKey: [QueryKeys.centerAvailability, 'own', params],
+    queryFn: () => centerService.getCenterAvailability(params),
+  })
+
+export const useUpdateCenterAvailability = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: [MutationKeys.updateCenterAvailability],
+    mutationFn: centerService.updateCenterAvailability,
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QueryKeys.centerAvailability],
+      })
+    },
+  })
+}
+
 // --- Staff Management Queries ---
 
 export const staffInvites = () =>

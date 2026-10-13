@@ -11,7 +11,7 @@ import { getAgentNetworkConfig } from "../lib/agent-network-config";
 import { getSupabaseClient } from "../lib/supabase";
 import { THonoApp } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
-import { verifyPaystackPayment } from "../lib/paystack";
+import { verifyFlutterwavePayment } from "../lib/flutterwave";
 
 export const savingsApp = new Hono<THonoApp>();
 
@@ -102,7 +102,7 @@ savingsApp.get(
   async (c) => {
     try {
       const reference = c.req.param("reference");
-      const payment = await verifyPaystackPayment(c, reference);
+      const payment = await verifyFlutterwavePayment(c, reference);
       if (payment.status !== "success") {
         return c.json<TErrorResponse>(
           { ok: false, error: "Payment not successful yet" },
@@ -126,11 +126,11 @@ savingsApp.get(
   }
 );
 
-// POST /api/v1/savings/webhook — charge events also hit /donor/paystack-webhook
+// POST /api/v1/savings/webhook — charge events also hit /webhooks/flutterwave
 savingsApp.post("/webhook", async (c) => {
   return c.json({
     ok: true,
     ignored: true,
-    message: "Use /api/v1/donor/paystack-webhook for Paystack charge events",
+    message: "Use /api/v1/webhooks/flutterwave for Flutterwave charge events",
   });
 });

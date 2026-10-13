@@ -9,6 +9,7 @@ import type {
   TGetBoardingInviteesResponse,
   TGetBoardingInvitesResponse,
   TGetBoardingJoinPreviewResponse,
+  TGetCityFacilityDemandResponse,
   TGetFacilityOptionsResponse,
 } from '@zerocancer/shared/types'
 
@@ -41,3 +42,6 @@ export const createAnniversaryContact = (data: TCreateAnniversaryContact) =>
 
 export const deleteAnniversaryContact = (id: string) =>
   request.delete(endpoints.deleteAnniversaryContact(id))
+
+export const getCityFacilityDemand = () =>
+  request.get(endpoints.getCityFacilityDemand()) as Promise<TGetCityFacilityDemandResponse>

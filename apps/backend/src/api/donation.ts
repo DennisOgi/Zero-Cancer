@@ -31,12 +31,12 @@ import {
   toDonorWaitlistPatients,
 } from "../lib/waitlist-query";
 import {
-  addToGeneralDonorPool,
-  initializePaystackPayment,
-  verifyPaystackPayment,
-} from "../lib/paystack";
+  getFlutterwaveKeys,
+  initializeFlutterwavePayment,
+  verifyFlutterwavePayment,
+} from "../lib/flutterwave";
+import { addToGeneralDonorPool } from "../lib/paystack";
 import { getPaystackKeys } from "../lib/paystack-config";
-import { nairaToKobo } from "../lib/payment-validation";
 import {
   processSuccessfulCharge,
   processSuccessfulPaystackCharge,
@@ -98,7 +98,7 @@ donationApp.post(
       .toString("hex")}`;
 
     try {
-      getPaystackKeys(c);
+      getFlutterwaveKeys(c);
     } catch (configError) {
       return c.json<TErrorResponse>(
         {
@@ -113,9 +113,9 @@ donationApp.post(
     }
 
     try {
-      const checkout = await initializePaystackPayment(c, {
+      const checkout = await initializeFlutterwavePayment(c, {
         email,
-        amount: nairaToKobo(donationData.amount),
+        amount: donationData.amount,
         reference,
         paymentType: "anonymous_donation",
         metadata: {
@@ -132,7 +132,7 @@ donationApp.post(
           status: "PENDING",
           amount: donationData.amount,
           paymentReference: reference,
-          paymentChannel: "PAYSTACK",
+          paymentChannel: "FLUTTERWAVE",
           relatedDonationId: "general-donor-pool", // Anonymous donations go to general pool
         },
       });
@@ -492,9 +492,9 @@ donationApp.post(
         },
       });
 
-      const checkout = await initializePaystackPayment(c, {
+      const checkout = await initializeFlutterwavePayment(c, {
         email: donor.email,
-        amount: nairaToKobo(campaignData.fundingAmount),
+        amount: campaignData.fundingAmount,
         reference,
         paymentType: "campaign_creation",
         campaignId: campaign.id,
@@ -512,7 +512,7 @@ donationApp.post(
           status: "PENDING",
           amount: campaignData.fundingAmount,
           paymentReference: reference,
-          paymentChannel: "PAYSTACK",
+          paymentChannel: "FLUTTERWAVE",
           relatedDonationId: campaign.id,
         },
       });
@@ -770,9 +770,9 @@ donationApp.post(
         .randomBytes(6)
         .toString("hex")}`;
 
-      const checkout = await initializePaystackPayment(c, {
+      const checkout = await initializeFlutterwavePayment(c, {
         email: donor.email,
-        amount: nairaToKobo(fundData.amount),
+        amount: fundData.amount,
         reference,
         paymentType: "campaign_funding",
         campaignId: campaignId,
@@ -790,7 +790,7 @@ donationApp.post(
           status: "PENDING",
           amount: fundData.amount,
           paymentReference: reference,
-          paymentChannel: "PAYSTACK",
+          paymentChannel: "FLUTTERWAVE",
           relatedDonationId: campaignId,
         },
       });
@@ -1176,24 +1176,26 @@ donationApp.delete(
 );
 
 // ========================================
-// PAYMENT CONFIG (for Paystack dashboard setup)
+// PAYMENT CONFIG (for Flutterwave dashboard setup)
 // ========================================
 
 donationApp.get("/payment-config", async (c) => {
   try {
-    const { publicKey, envMode } = getPaystackKeys(c);
+    const { publicKey, envMode, mode } = getFlutterwaveKeys(c);
     const { FRONTEND_URL } = env<TEnvs>(c);
     const requestUrl = new URL(c.req.url);
 
     return c.json({
       ok: true,
       data: {
-        provider: "PAYSTACK",
+        provider: "FLUTTERWAVE",
         configured: true,
-        mode: publicKey.startsWith("pk_test_") ? "test" : "live",
+        mode,
         envMode,
-        webhookUrl: `${requestUrl.origin}/api/v1/donor/paystack-webhook`,
+        publicKey,
+        webhookUrl: `${requestUrl.origin}/api/v1/webhooks/flutterwave`,
         callbackBaseUrl: FRONTEND_URL,
+        source: "flutterwave-checkout",
       },
     });
   } catch (error) {
@@ -1203,7 +1205,7 @@ donationApp.get("/payment-config", async (c) => {
         error:
           error instanceof Error
             ? error.message
-            : "Paystack is not configured",
+            : "Flutterwave is not configured on this worker",
       },
       503
     );
@@ -1214,13 +1216,13 @@ donationApp.get("/payment-config", async (c) => {
 // PAYMENT VERIFICATION ENDPOINT
 // ========================================
 
-// GET /api/donor/verify-payment/:reference - Verify payment status with Paystack
+// GET /api/donor/verify-payment/:reference - Verify payment status with Flutterwave
 donationApp.get("/verify-payment/:reference", async (c) => {
   const db = getDB(c);
   const reference = c.req.param("reference");
 
   try {
-    const paymentData = await verifyPaystackPayment(c, reference);
+    const paymentData = await verifyFlutterwavePayment(c, reference);
 
     if (paymentData.status === "success") {
       await processSuccessfulCharge(c, {

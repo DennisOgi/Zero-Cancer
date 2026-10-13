@@ -9,6 +9,7 @@ import {
   Images,
   LineChart,
   LogOut,
+  MapPin,
   Package,
   Stethoscope,
   Store as StoreIcon,
@@ -83,6 +84,14 @@ export function AdminLayout() {
               >
                 <Clock className="h-4 w-4" />
                 Waitlist
+              </Link>
+              <Link
+                to="/admin/facility-demand"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+                activeProps={{ className: 'bg-muted text-primary' }}
+              >
+                <MapPin className="h-4 w-4" />
+                City demand
               </Link>
               <Link
                 to="/admin/agents"

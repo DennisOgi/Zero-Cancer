@@ -22,6 +22,7 @@ export enum QueryKeys {
   boardingPreview = 'boardingPreview',
   facilityOptions = 'facilityOptions',
   anniversaryContacts = 'anniversaryContacts',
+  cityFacilityDemand = 'cityFacilityDemand',
   verifyPayment = 'verifyPayment',
 
   centerAppointments = 'centerAppointments',
@@ -32,6 +33,7 @@ export enum QueryKeys {
   centerReceipts = 'centerReceipts',
   centers = 'centers',
   centerById = 'centerById',
+  centerAvailability = 'centerAvailability',
 
   adminUsers = 'adminUsers',
   adminCenters = 'adminCenters',
@@ -127,6 +129,7 @@ export enum MutationKeys {
   resendReceipt = 'resendReceipt',
   donateAnonymous = 'donateAnonymous',
   inviteStaff = 'inviteStaff',
+  updateCenterAvailability = 'updateCenterAvailability',
   createCenterStaffPassword = 'createCenterStaffPassword',
   resendVerification = 'resendVerification',
   selectCenter = 'selectCenter',

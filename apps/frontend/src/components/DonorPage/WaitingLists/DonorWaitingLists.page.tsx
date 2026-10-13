@@ -25,6 +25,7 @@ import {
   buildWaitingListWhatsAppMessage,
   openWhatsAppTextShare,
 } from '@/lib/whatsapp-link'
+import { useCreateBoardingInvite } from '@/services/providers/boarding.provider'
 import {
   myWaitingLists,
   publicWaitingLists,
@@ -53,10 +54,12 @@ function ListCard({
   list,
   showShare,
   onSponsor,
+  onInviteCelebrant,
 }: {
   list: TWaitingList
   showShare?: boolean
   onSponsor: (list: TWaitingList, count: number) => void
+  onInviteCelebrant?: (list: TWaitingList) => void
 }) {
   const [count, setCount] = useState(
     Math.max(1, list.pendingCount || list.memberCount || 1),
@@ -136,7 +139,13 @@ function ListCard({
       </div>
 
       {showShare && list.joinUrl ? (
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex flex-col gap-2">
+          {onInviteCelebrant ? (
+            <Button variant="outline" onClick={() => onInviteCelebrant(list)}>
+              Invite a celebrant to this list
+            </Button>
+          ) : null}
+          <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={copyLink}>
             <Copy className="mr-2 h-4 w-4" />
             Copy link
@@ -157,6 +166,7 @@ function ListCard({
             <MessageCircle className="mr-2 h-4 w-4" />
             WhatsApp
           </Button>
+          </div>
         </div>
       ) : null}
     </div>
@@ -188,6 +198,7 @@ export function DonorWaitingListsPage() {
     }),
   )
   const { data: mineData, isLoading: mineLoading } = useQuery(myWaitingLists())
+  const createCelebrantInvite = useCreateBoardingInvite()
   const { data: screeningTypesData } = useQuery(
     useScreeningTypes({ page: 1, pageSize: 50 }),
   )
@@ -209,6 +220,21 @@ export function DonorWaitingListsPage() {
 
   const publicLists = publicData?.data?.lists || []
   const myLists = mineData?.data?.lists || []
+
+  const handleInviteCelebrant = async (list: TWaitingList) => {
+    try {
+      const res = await createCelebrantInvite.mutateAsync({
+        type: 'CELEBRANT',
+        waitingListId: list.id,
+      })
+      await navigator.clipboard.writeText(res.data.joinUrl)
+      toast.success(`Celebrant invite for “${list.name}” copied`)
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.error || 'Could not create that celebrant invite',
+      )
+    }
+  }
 
   const handleSponsor = (list: TWaitingList, count: number) => {
     const amount = Math.max(1000, count * (list.screeningPrice || 10000))
@@ -426,6 +452,7 @@ export function DonorWaitingListsPage() {
                   list={list}
                   showShare
                   onSponsor={handleSponsor}
+                  onInviteCelebrant={handleInviteCelebrant}
                 />
               ))}
             </div>

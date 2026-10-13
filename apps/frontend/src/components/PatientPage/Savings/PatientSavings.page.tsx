@@ -22,7 +22,7 @@ import * as screeningTypeService from '@/services/screeningType.service'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowRight, Loader2, PiggyBank } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 function naira(amount: number) {
@@ -43,7 +43,15 @@ function planBadgeClass(status?: string) {
   }
 }
 
-export function PatientSavingsPage() {
+export function PatientSavingsPage({
+  initialScreeningTypeId,
+  initialCenterId,
+  initialTargetAmount,
+}: {
+  initialScreeningTypeId?: string
+  initialCenterId?: string
+  initialTargetAmount?: number
+} = {}) {
   const navigate = useNavigate()
   const { data, isLoading, refetch, isError } = useQuery({
     queryKey: ['savings-plans'],
@@ -55,12 +63,18 @@ export function PatientSavingsPage() {
       screeningTypeService.fetchScreeningTypes({ page: 1, pageSize: 50 }),
   })
 
-  const [screeningTypeId, setScreeningTypeId] = useState('')
+  const [screeningTypeId, setScreeningTypeId] = useState(
+    initialScreeningTypeId || '',
+  )
   const [depositAmounts, setDepositAmounts] = useState<Record<string, string>>(
     {},
   )
   const [creating, setCreating] = useState(false)
   const [depositingId, setDepositingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (initialScreeningTypeId) setScreeningTypeId(initialScreeningTypeId)
+  }, [initialScreeningTypeId])
 
   const plans = data?.data?.plans || []
   const minDeposit = data?.data?.minDeposit || 500
@@ -82,7 +96,11 @@ export function PatientSavingsPage() {
     }
     setCreating(true)
     try {
-      await agentApi.createSavingsPlan({ screeningTypeId })
+      await agentApi.createSavingsPlan({
+        screeningTypeId,
+        preferredCenterId: initialCenterId || null,
+        targetAmount: initialTargetAmount || undefined,
+      })
       toast.success('Savings plan created')
       setScreeningTypeId('')
       refetch()

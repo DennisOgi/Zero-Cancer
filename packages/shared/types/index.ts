@@ -658,6 +658,7 @@ export type TBoardingJoinPreview = {
   type: TBoardingInviteType;
   inviterName: string;
   inviterHospital?: string | null;
+  waitingListId?: string | null;
   waitingListName?: string | null;
   nextPath: string;
 };
@@ -711,6 +712,23 @@ export type TGetAnniversaryContactsResponse = TDataResponse<{
 }>;
 export type TCreateAnniversaryContactResponse = TDataResponse<TAnniversaryContact>;
 export type TGetFacilityOptionsResponse = TDataResponse<TFacilityOptions>;
+export type TCityFacilityDemandRow = {
+  id: string;
+  userId: string;
+  fullName: string | null;
+  email: string | null;
+  phone: string | null;
+  state: string;
+  lga: string;
+  choice: string;
+  assignedCenterName: string | null;
+  createdAt: string;
+};
+
+export type TGetCityFacilityDemandResponse = TDataResponse<{
+  demands: TCityFacilityDemandRow[];
+}>;
+
 export type TFacilityChoiceResponse = TDataResponse<{
   assignedCenter: TRecommendedCenter | null;
   waitingForCity: boolean;
@@ -1258,3 +1276,47 @@ export type TCommunityEventsListResponse = TDataResponse<{
   total?: number;
   totalPages?: number;
 }>;
+
+export type TAvailabilityRule = {
+  weekday: number;
+  isOpen: boolean;
+  startTime: string;
+  endTime: string;
+  slotMinutes: number;
+  maxBookingsPerSlot: number;
+};
+
+export type TAvailabilityException = {
+  date: string;
+  type: "CLOSED" | "OPEN";
+  startTime?: string | null;
+  endTime?: string | null;
+  slotMinutes?: number | null;
+  maxBookingsPerSlot?: number | null;
+  reason?: string | null;
+};
+
+export type TAvailabilitySlot = {
+  time: string;
+  remaining: number;
+  capacity: number;
+};
+
+export type TAvailabilityDay = {
+  date: string;
+  isOpen: boolean;
+  slots: TAvailabilitySlot[];
+};
+
+export type TCenterAvailability = {
+  centerId: string;
+  hasCustomHours: boolean;
+  weekly: TAvailabilityRule[];
+  exceptions: TAvailabilityException[];
+  days: TAvailabilityDay[];
+};
+
+export type TGetCenterAvailabilityResponse = TDataResponse<TCenterAvailability>;
+export type TUpdateCenterAvailabilityResponse =
+  TDataResponse<TCenterAvailability>;
+

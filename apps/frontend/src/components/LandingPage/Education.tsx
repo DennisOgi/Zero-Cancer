@@ -87,8 +87,9 @@ export default function Education() {
     <div className="wrapper pb-20">
       <h3 className="text-3xl font-bold">The boarding films</h3>
       <p className="mt-2 max-w-2xl text-muted-foreground">
-        Anyone invited to ZeroCancer sees these five steps first. You can skip
-        them and watch later — here, or from your dashboard.
+        Anyone invited to ZeroCancer sees these five steps first. Two are films;
+        three are reading cards until the remaining boarding films are ready.
+        You can skip them and watch later — here, or from your dashboard.
       </p>
       <div className="mt-8">
         <BoardingVideoLibrary />

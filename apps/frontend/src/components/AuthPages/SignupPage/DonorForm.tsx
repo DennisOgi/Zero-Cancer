@@ -52,7 +52,7 @@ export default function DonorForm({
       { ...values, inviteToken: inviteToken || values.inviteToken },
       {
       onSuccess: (data) => {
-        onSubmitSuccess(values, data)
+        void onSubmitSuccess(values, data)
       },
       onError: (error) => {
         toast.error(

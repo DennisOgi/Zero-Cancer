@@ -20,7 +20,7 @@ export const BOARDING_VIDEOS: BoardingVideoStep[] = [
   },
   {
     id: 'cost-manage',
-    kicker: 'Step 2',
+    kicker: 'Reading 2',
     title: 'The cost of managing cervical cancer',
     summary:
       'Treatment after cancer has taken hold is long, expensive, and often too late for families who could have screened.',
@@ -37,7 +37,7 @@ export const BOARDING_VIDEOS: BoardingVideoStep[] = [
   },
   {
     id: 'cost-prevent',
-    kicker: 'Step 3',
+    kicker: 'Reading 3',
     title: 'The cost of not preventing it',
     summary:
       'Cervical cancer is one of the cancers we can stop. Waiting is the expensive choice.',
@@ -62,7 +62,7 @@ export const BOARDING_VIDEOS: BoardingVideoStep[] = [
   },
   {
     id: 'if-positive',
-    kicker: 'Step 5',
+    kicker: 'Reading 5',
     title: 'If the test is positive',
     summary:
       'A positive screen is not the end of the story. You are not left to figure out the next step alone.',

@@ -654,7 +654,7 @@ export function CreateCampaignPage() {
               <HowItWorksStep
                 icon={<ShieldCheck />}
                 title="Create & Fund"
-                description="Create your campaign and make the initial payment via Paystack."
+                description="Create your campaign and make the initial payment via Flutterwave."
               />
               <HowItWorksStep
                 icon={<Users />}

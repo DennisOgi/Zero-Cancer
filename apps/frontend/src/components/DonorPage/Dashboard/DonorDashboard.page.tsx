@@ -13,6 +13,7 @@ import { Plus } from 'lucide-react'
 
 import center from '@/assets/images/center.png'
 import impact from '@/assets/images/impact.png'
+import { AnniversaryReminderBanner } from '@/components/Boarding/AnniversaryReminderBanner'
 import DonorStatsGrid from './DonorStatsGrid'
 import RecentCampaignsTable from './RecentCampaignsTable'
 
@@ -56,6 +57,9 @@ export function DonorDashboardPage() {
         <p className="text-gray-500 mt-1">
           Here's a summary of your giving impact.
         </p>
+        <div className="mt-4">
+          <AnniversaryReminderBanner invitePath="/donor/invite" />
+        </div>
       </div>
 
       <div className="">

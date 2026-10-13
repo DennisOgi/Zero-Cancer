@@ -324,7 +324,7 @@ waitlistApp.post(
     try {
       const payload = c.get("jwtPayload");
       const userId = payload?.id;
-      const { screeningTypeId } = c.req.valid("json");
+      const { screeningTypeId, centerId } = c.req.valid("json");
       const db = getDB(c);
 
       // Check if screening type exists
@@ -337,6 +337,20 @@ waitlistApp.post(
           { ok: false, error: "Screening type not found" },
           404
         );
+      }
+
+      let enrolledByCenterId: string | null = null;
+      if (centerId) {
+        const center = await db.serviceCenter.findUnique({
+          where: { id: centerId },
+        });
+        if (!center) {
+          return c.json<TErrorResponse>(
+            { ok: false, error: "Health facility not found" },
+            404
+          );
+        }
+        enrolledByCenterId = centerId;
       }
 
       // Check if already in waitlist for this screening type
@@ -366,6 +380,7 @@ waitlistApp.post(
           patientId: userId!,
           screeningTypeId: screeningTypeId!,
           status: "PENDING",
+          ...(enrolledByCenterId ? { enrolledByCenterId } : {}),
         },
         include: {
           screening: {

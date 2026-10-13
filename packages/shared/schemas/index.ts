@@ -19,3 +19,4 @@ export * from "./enrollment.schema";
 export * from "./event.schema";
 export * from "./waiting-list.schema";
 export * from "./boarding.schema";
+export * from "./availability.schema";

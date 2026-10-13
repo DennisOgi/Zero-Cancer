@@ -51,6 +51,7 @@ import { Route as CenterNotificationsRouteImport } from './routes/center/notific
 import { Route as CenterKitsRouteImport } from './routes/center/kits'
 import { Route as CenterEventsRouteImport } from './routes/center/events'
 import { Route as CenterEarningsRouteImport } from './routes/center/earnings'
+import { Route as CenterAvailabilityRouteImport } from './routes/center/availability'
 import { Route as CenterAppointmentsRouteImport } from './routes/center/appointments'
 import { Route as AdminWaitlistRouteImport } from './routes/admin/waitlist'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
@@ -63,6 +64,7 @@ import { Route as AdminNotificationsRouteImport } from './routes/admin/notificat
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminKitOrdersRouteImport } from './routes/admin/kit-orders'
 import { Route as AdminForgotPasswordRouteImport } from './routes/admin/forgot-password'
+import { Route as AdminFacilityDemandRouteImport } from './routes/admin/facility-demand'
 import { Route as AdminEventsRouteImport } from './routes/admin/events'
 import { Route as AdminCentersRouteImport } from './routes/admin/centers'
 import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
@@ -319,6 +321,11 @@ const CenterEarningsRoute = CenterEarningsRouteImport.update({
   path: '/earnings',
   getParentRoute: () => CenterRouteRoute,
 } as any)
+const CenterAvailabilityRoute = CenterAvailabilityRouteImport.update({
+  id: '/availability',
+  path: '/availability',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
 const CenterAppointmentsRoute = CenterAppointmentsRouteImport.update({
   id: '/appointments',
   path: '/appointments',
@@ -377,6 +384,11 @@ const AdminKitOrdersRoute = AdminKitOrdersRouteImport.update({
 const AdminForgotPasswordRoute = AdminForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminFacilityDemandRoute = AdminFacilityDemandRouteImport.update({
+  id: '/facility-demand',
+  path: '/facility-demand',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminEventsRoute = AdminEventsRouteImport.update({
@@ -646,6 +658,7 @@ export interface FileRoutesByFullPath {
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/centers': typeof AdminCentersRoute
   '/admin/events': typeof AdminEventsRoute
+  '/admin/facility-demand': typeof AdminFacilityDemandRoute
   '/admin/forgot-password': typeof AdminForgotPasswordRoute
   '/admin/kit-orders': typeof AdminKitOrdersRoute
   '/admin/login': typeof AdminLoginRoute
@@ -658,6 +671,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/center/appointments': typeof CenterAppointmentsRoute
+  '/center/availability': typeof CenterAvailabilityRoute
   '/center/earnings': typeof CenterEarningsRoute
   '/center/events': typeof CenterEventsRoute
   '/center/kits': typeof CenterKitsRoute
@@ -743,6 +757,7 @@ export interface FileRoutesByTo {
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/centers': typeof AdminCentersRoute
   '/admin/events': typeof AdminEventsRoute
+  '/admin/facility-demand': typeof AdminFacilityDemandRoute
   '/admin/forgot-password': typeof AdminForgotPasswordRoute
   '/admin/kit-orders': typeof AdminKitOrdersRoute
   '/admin/login': typeof AdminLoginRoute
@@ -755,6 +770,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/center/appointments': typeof CenterAppointmentsRoute
+  '/center/availability': typeof CenterAvailabilityRoute
   '/center/earnings': typeof CenterEarningsRoute
   '/center/events': typeof CenterEventsRoute
   '/center/kits': typeof CenterKitsRoute
@@ -847,6 +863,7 @@ export interface FileRoutesById {
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/centers': typeof AdminCentersRoute
   '/admin/events': typeof AdminEventsRoute
+  '/admin/facility-demand': typeof AdminFacilityDemandRoute
   '/admin/forgot-password': typeof AdminForgotPasswordRoute
   '/admin/kit-orders': typeof AdminKitOrdersRoute
   '/admin/login': typeof AdminLoginRoute
@@ -859,6 +876,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/center/appointments': typeof CenterAppointmentsRoute
+  '/center/availability': typeof CenterAvailabilityRoute
   '/center/earnings': typeof CenterEarningsRoute
   '/center/events': typeof CenterEventsRoute
   '/center/kits': typeof CenterKitsRoute
@@ -950,6 +968,7 @@ export interface FileRouteTypes {
     | '/admin/campaigns'
     | '/admin/centers'
     | '/admin/events'
+    | '/admin/facility-demand'
     | '/admin/forgot-password'
     | '/admin/kit-orders'
     | '/admin/login'
@@ -962,6 +981,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/waitlist'
     | '/center/appointments'
+    | '/center/availability'
     | '/center/earnings'
     | '/center/events'
     | '/center/kits'
@@ -1047,6 +1067,7 @@ export interface FileRouteTypes {
     | '/admin/campaigns'
     | '/admin/centers'
     | '/admin/events'
+    | '/admin/facility-demand'
     | '/admin/forgot-password'
     | '/admin/kit-orders'
     | '/admin/login'
@@ -1059,6 +1080,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/waitlist'
     | '/center/appointments'
+    | '/center/availability'
     | '/center/earnings'
     | '/center/events'
     | '/center/kits'
@@ -1150,6 +1172,7 @@ export interface FileRouteTypes {
     | '/admin/campaigns'
     | '/admin/centers'
     | '/admin/events'
+    | '/admin/facility-demand'
     | '/admin/forgot-password'
     | '/admin/kit-orders'
     | '/admin/login'
@@ -1162,6 +1185,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/waitlist'
     | '/center/appointments'
+    | '/center/availability'
     | '/center/earnings'
     | '/center/events'
     | '/center/kits'
@@ -1539,6 +1563,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CenterEarningsRouteImport
       parentRoute: typeof CenterRouteRoute
     }
+    '/center/availability': {
+      id: '/center/availability'
+      path: '/availability'
+      fullPath: '/center/availability'
+      preLoaderRoute: typeof CenterAvailabilityRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
     '/center/appointments': {
       id: '/center/appointments'
       path: '/appointments'
@@ -1621,6 +1652,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/admin/forgot-password'
       preLoaderRoute: typeof AdminForgotPasswordRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/facility-demand': {
+      id: '/admin/facility-demand'
+      path: '/facility-demand'
+      fullPath: '/admin/facility-demand'
+      preLoaderRoute: typeof AdminFacilityDemandRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/events': {
@@ -2056,6 +2094,7 @@ interface AdminRouteRouteChildren {
   AdminCampaignsRoute: typeof AdminCampaignsRoute
   AdminCentersRoute: typeof AdminCentersRoute
   AdminEventsRoute: typeof AdminEventsRoute
+  AdminFacilityDemandRoute: typeof AdminFacilityDemandRoute
   AdminForgotPasswordRoute: typeof AdminForgotPasswordRoute
   AdminKitOrdersRoute: typeof AdminKitOrdersRoute
   AdminLoginRoute: typeof AdminLoginRoute
@@ -2078,6 +2117,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminCampaignsRoute: AdminCampaignsRoute,
   AdminCentersRoute: AdminCentersRoute,
   AdminEventsRoute: AdminEventsRoute,
+  AdminFacilityDemandRoute: AdminFacilityDemandRoute,
   AdminForgotPasswordRoute: AdminForgotPasswordRoute,
   AdminKitOrdersRoute: AdminKitOrdersRoute,
   AdminLoginRoute: AdminLoginRoute,
@@ -2098,6 +2138,7 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
 
 interface CenterRouteRouteChildren {
   CenterAppointmentsRoute: typeof CenterAppointmentsRoute
+  CenterAvailabilityRoute: typeof CenterAvailabilityRoute
   CenterEarningsRoute: typeof CenterEarningsRoute
   CenterEventsRoute: typeof CenterEventsRoute
   CenterKitsRoute: typeof CenterKitsRoute
@@ -2119,6 +2160,7 @@ interface CenterRouteRouteChildren {
 
 const CenterRouteRouteChildren: CenterRouteRouteChildren = {
   CenterAppointmentsRoute: CenterAppointmentsRoute,
+  CenterAvailabilityRoute: CenterAvailabilityRoute,
   CenterEarningsRoute: CenterEarningsRoute,
   CenterEventsRoute: CenterEventsRoute,
   CenterKitsRoute: CenterKitsRoute,

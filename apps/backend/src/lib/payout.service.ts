@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+import type { Context } from "hono";
 import { CryptoUtils } from "./crypto.utils";
+import { initiateFlutterwaveTransfer } from "./flutterwave";
 import { PaystackService } from "./paystack.service";
 
 export interface CenterBalance {
@@ -260,7 +262,7 @@ export class PayoutService {
         payoutNumber: CryptoUtils.generatePayoutNumber(),
         centerId,
         amount: totalAmount,
-        netAmount: totalAmount - 10, // Subtract Paystack fee
+        netAmount: totalAmount - 10, // Subtract transfer fee
         status: "PENDING",
         type: "MANUAL",
         initiatedBy,
@@ -294,9 +296,9 @@ export class PayoutService {
   }
 
   /**
-   * Process payout (initiate Paystack transfer)
+   * Process payout (initiate Flutterwave transfer)
    */
-  async processPayout(payoutId: string) {
+  async processPayout(payoutId: string, c: Context) {
     const payout = await this.prisma.payout.findUnique({
       where: { id: payoutId },
       include: { center: true },
@@ -307,34 +309,38 @@ export class PayoutService {
     }
 
     try {
-      if (!this.paystackService) {
-        throw new Error("Paystack is not configured for payouts");
+      const accountNumber = payout.center.bankAccount;
+      const bankCode = payout.center.bankCode;
+      if (!accountNumber || !bankCode) {
+        throw new Error(
+          "Facility bank details are incomplete. Add an account number and bank first."
+        );
       }
 
-      const recipientCode = await this.ensurePaystackRecipient(payout.centerId);
       const transferReference = CryptoUtils.generateTransferReference();
-      const transferResult = await this.paystackService.initiateTransfer({
-        source: "balance",
-        amount: Math.round(Number(payout.amount) * 100),
-        recipient: recipientCode,
-        reason: payout.reason,
+      const transferResult = await initiateFlutterwaveTransfer(c, {
+        accountNumber,
+        bankCode,
+        amountNgn: Number(payout.netAmount ?? payout.amount),
         reference: transferReference,
+        narration:
+          payout.reason || `Payout for ${payout.center.centerName}`,
       });
 
       const updatedPayout = await this.prisma.payout.update({
         where: { id: payoutId },
         data: {
           status:
-            transferResult.status === "success" ? "SUCCESS" : "PROCESSING",
-          transferReference,
-          paystackTransferId: transferResult.id.toString(),
+            transferResult.status?.toLowerCase() === "success"
+              ? "SUCCESS"
+              : "PROCESSING",
+          transferReference: transferResult.reference || transferReference,
+          paystackTransferId: transferResult.transferId,
           processedAt: new Date(),
-          completedAt: transferResult.status === "success" ? new Date() : null,
-          recipientId: (
-            await this.prisma.paystackRecipient.findUnique({
-              where: { centerId: payout.centerId },
-            })
-          )?.id,
+          completedAt:
+            transferResult.status?.toLowerCase() === "success"
+              ? new Date()
+              : null,
         },
         include: {
           center: { select: { centerName: true } },
@@ -365,7 +371,7 @@ export class PayoutService {
   /**
    * AUTOMATED MONTHLY PAYOUTS - For cron job
    */
-  async processMonthlyPayouts(): Promise<MonthlyPayoutResult> {
+  async processMonthlyPayouts(c: Context): Promise<MonthlyPayoutResult> {
     const results: MonthlyPayoutResult = {
       processed: 0,
       failed: 0,
@@ -436,7 +442,7 @@ export class PayoutService {
         });
 
         // Process the payout
-        await this.processPayout(payout.id);
+        await this.processPayout(payout.id, c);
 
         results.processed++;
         results.totalAmount += balance.eligibleAmount;
@@ -583,7 +589,7 @@ export class PayoutService {
   /**
    * Retry failed payout
    */
-  async retryPayout(payoutId: string) {
+  async retryPayout(payoutId: string, c: Context) {
     const payout = await this.prisma.payout.findUnique({
       where: { id: payoutId },
     });
@@ -606,7 +612,7 @@ export class PayoutService {
       },
     });
 
-    return this.processPayout(payoutId);
+    return this.processPayout(payoutId, c);
   }
 
   /**

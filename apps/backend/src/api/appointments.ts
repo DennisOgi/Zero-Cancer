@@ -43,8 +43,7 @@ import { THonoApp } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
 // import { centerAppointmentApp } from "./center.appointment";
 // import { patientAppointmentApp } from "./patient.appointment";
-import { nairaToKobo } from "../lib/payment-validation";
-import { initializePaystackPayment } from "../lib/paystack";
+import { initializeFlutterwavePayment } from "../lib/flutterwave";
 import { assertSlotAvailable } from "../lib/center-availability";
 import { connectPatientAfterBooking } from "../lib/confirm-booking";
 import { createNotificationForUsers, generateHexId } from "../lib/utils";
@@ -1201,8 +1200,8 @@ appointmentApp.post(
         type: "APPOINTMENT",
         status: coveredBySavings ? "COMPLETED" : "PENDING",
         amount: retailPrice,
-        paymentReference, // store actual paystack payment reference
-        paymentChannel: coveredBySavings ? "SAVINGS" : "PAYSTACK",
+        paymentReference,
+        paymentChannel: coveredBySavings ? "SAVINGS" : "FLUTTERWAVE",
       },
     });
 
@@ -1275,9 +1274,9 @@ appointmentApp.post(
     } | null = null;
 
     try {
-      checkout = await initializePaystackPayment(c, {
+      checkout = await initializeFlutterwavePayment(c, {
         email: payload.email!,
-        amount: nairaToKobo(retailPrice),
+        amount: retailPrice,
         reference: paymentReference,
         paymentType: "appointment_booking",
         patientId: userId,
@@ -1286,7 +1285,7 @@ appointmentApp.post(
         },
       });
     } catch (checkoutError) {
-      console.error("Paystack initialization failed for booking:", checkoutError);
+      console.error("Flutterwave initialization failed for booking:", checkoutError);
       return c.json<TErrorResponse>(
         {
           ok: false,

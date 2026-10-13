@@ -202,6 +202,7 @@ export const getAnniversaryContacts = () => '/api/boarding/anniversaries'
 export const createAnniversaryContact = () => '/api/boarding/anniversaries'
 export const deleteAnniversaryContact = (id: string) =>
   `/api/boarding/anniversaries/${id}`
+export const getCityFacilityDemand = () => '/api/boarding/admin/demand'
 
 // CENTER
 export const getCenters = (params: {
@@ -228,10 +229,19 @@ export const getCenters = (params: {
 }
 
 export const getCenterById = (id: string) => `/api/center/${id}`
+export const getPublicCenterAvailability = (
+  id: string,
+  params?: { from?: string; to?: string },
+) => `/api/center/${id}/availability${buildQuery(params || {})}`
+export const getCenterAvailability = (params?: { from?: string; to?: string }) =>
+  `/api/center/availability${buildQuery(params || {})}`
+export const updateCenterAvailability = () => '/api/center/availability'
 export const getCenterProfile = () => '/api/center/profile'
 export const updateCenterProfile = () => '/api/center/profile'
 export const getCenterMyServices = () => '/api/center/my-services'
 export const addCenterMyServices = () => '/api/center/my-services'
+export const updateCenterMyServicePrice = (screeningTypeId: string) =>
+  `/api/center/my-services/${screeningTypeId}`
 export const removeCenterMyService = (screeningTypeId: string) =>
   `/api/center/my-services/${screeningTypeId}`
 
@@ -590,6 +600,18 @@ export const createAgentInvite = () => '/api/agents/invites'
 export const agentCashout = () => '/api/agents/cashout'
 export const lookupReferral = (code: string) =>
   `/api/referrals/lookup/${encodeURIComponent(code)}`
+export const referralOffer = (params: {
+  code: string
+  state?: string
+  lga?: string
+  centerId?: string
+}) =>
+  `/api/referrals/offer${buildQuery({
+    code: params.code,
+    state: params.state,
+    lga: params.lga,
+    centerId: params.centerId,
+  })}`
 export const acceptReferral = () => '/api/referrals/accept'
 export const updateReferralConsent = () => '/api/referrals/consent'
 export const getMyReferral = () => '/api/referrals/mine'

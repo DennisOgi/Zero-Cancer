@@ -11,6 +11,7 @@ import { usePatientEligibleScreeningTypes } from '@/services/providers/patient-s
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import type { TScreeningType } from '@zerocancer/shared/types'
+import { AnniversaryReminderBanner } from '@/components/Boarding/AnniversaryReminderBanner'
 import NotificationsPanel from './NotificationsPanel'
 import UpcomingAppointmentsPanel from './UpcomingAppointmentsPanel'
 import { PatientEnrollmentRequests } from './PatientEnrollmentRequests'
@@ -74,6 +75,9 @@ export function PatientDashboardPage() {
         <p className="text-muted-foreground mt-1 text-sm">
           Here's a summary of your health journey.
         </p>
+        <div className="mt-4">
+          <AnniversaryReminderBanner invitePath="/patient/invite" />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 py-4 lg:py-6">

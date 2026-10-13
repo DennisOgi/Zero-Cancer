@@ -1,6 +1,5 @@
 import { getAgentNetworkConfig } from "./agent-network-config";
-import { nairaToKobo } from "./payment-validation";
-import { initializePaystackPayment } from "./paystack";
+import { initializeFlutterwavePayment } from "./flutterwave";
 import { getSupabaseClient } from "./supabase";
 
 export async function createSavingsPlan(
@@ -102,9 +101,9 @@ export async function initializeSavingsDeposit(
   if (dErr) throw dErr;
 
   try {
-    const checkout = await initializePaystackPayment(c, {
+    const checkout = await initializeFlutterwavePayment(c, {
       email: user?.email || "",
-      amount: nairaToKobo(amount),
+      amount,
       reference,
       paymentType: "savings_deposit",
       metadata: {

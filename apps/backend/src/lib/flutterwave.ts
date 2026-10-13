@@ -107,15 +107,13 @@ export function verifyFlutterwaveWebhook(c: Context, signature: string | undefin
 export function getFlutterwaveKeys(c: Context) {
   const secretKey = getFlutterwaveSecret(c);
   const { FLUTTERWAVE_PUBLIC_KEY, ENV_MODE } = env<TEnvs>(c);
-  if (ENV_MODE === "production" && /_TEST/i.test(secretKey)) {
-    throw new Error(
-      "Test Flutterwave secret key cannot be used when ENV_MODE is production."
-    );
-  }
+  const publicKey = FLUTTERWAVE_PUBLIC_KEY?.trim() || "";
+  const isTest = /_TEST/i.test(secretKey) || /_TEST/i.test(publicKey);
   return {
     secretKey,
-    publicKey: FLUTTERWAVE_PUBLIC_KEY?.trim() || "",
+    publicKey,
     envMode: ENV_MODE,
+    mode: isTest ? "test" : "live",
   };
 }
 

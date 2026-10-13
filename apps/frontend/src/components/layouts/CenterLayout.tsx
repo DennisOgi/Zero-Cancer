@@ -44,6 +44,7 @@ export function CenterLayout() {
     { to: '/center/patients', label: 'Patients', icon: people },
     { to: '/center/register-patient', label: 'Patient Waitlist', icon: waitlistIcon },
     { to: '/center/appointments', label: 'Appointments', icon: calendar },
+    { to: '/center/availability', label: 'Availability', icon: calendar },
     { to: '/center/verify-code', label: 'Verify Code', icon: screening },
     { to: '/center/upload-results', label: 'Upload Results', icon: treatment },
     { to: '/center/reports', label: 'Reports', icon: reportsIcon },

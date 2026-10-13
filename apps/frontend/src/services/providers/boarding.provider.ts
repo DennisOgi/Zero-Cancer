@@ -39,6 +39,13 @@ export const anniversaryContacts = () =>
     staleTime: 15 * 1000,
   })
 
+export const cityFacilityDemand = () =>
+  queryOptions({
+    queryKey: [QueryKeys.cityFacilityDemand],
+    queryFn: boardingService.getCityFacilityDemand,
+    staleTime: 15 * 1000,
+  })
+
 export const useCreateBoardingInvite = () => {
   const queryClient = useQueryClient()
   return useMutation({

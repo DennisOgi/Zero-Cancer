@@ -220,6 +220,7 @@ export function PatientCenterSelectionPage({
 
           {form.watch('centerId') && (
             <SchedulePicker
+              centerId={form.watch('centerId')}
               date={form.watch('appointmentDate')}
               onDateChange={(v) =>
                 form.setValue('appointmentDate', v, { shouldValidate: true })

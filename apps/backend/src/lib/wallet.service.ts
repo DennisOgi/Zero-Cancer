@@ -12,8 +12,11 @@
 
 import { getDB } from './db';
 import type { Context } from 'hono';
-import { getPaystackKeys } from './paystack-config';
-import { PaystackService } from './paystack.service';
+import {
+  initiateFlutterwaveTransfer,
+  isFlutterwaveConfigured,
+  resolveFlutterwaveBankCode,
+} from './flutterwave';
 import { getSupabaseClient } from './supabase';
 
 // ============================================
@@ -481,7 +484,6 @@ export async function processCashout(
               bankName: true,
               bankCode: true,
               bankAccount: true,
-              accountNumber: true,
               accountName: true,
             },
           },
@@ -530,61 +532,30 @@ export async function processCashout(
     },
   });
 
-  let paystackSecretKey = '';
-  try {
-    paystackSecretKey = getPaystackKeys(c).secretKey;
-  } catch {
-    console.warn('Paystack is not configured. Transfer not initiated.');
-    return;
+  if (!isFlutterwaveConfigured(c)) {
+    throw new Error(
+      'Flutterwave is not configured. Set FLUTTERWAVE_SECRET_KEY to enable payouts.'
+    );
   }
 
   try {
-    const paystack = new PaystackService(paystackSecretKey);
-    const accountNumber =
-      cashout.wallet.center.accountNumber ||
-      cashout.wallet.center.bankAccount;
-    const bankCode = cashout.wallet.center.bankCode;
+    const accountNumber = cashout.wallet.center.bankAccount;
+    const bankCode =
+      cashout.wallet.center.bankCode ||
+      (await resolveFlutterwaveBankCode(c, cashout.wallet.center.bankName));
 
-    if (!accountNumber) {
+    if (!accountNumber || !bankCode) {
       throw new Error(
-        'Facility bank details are incomplete. Add an account number first.'
+        'Facility bank details are incomplete. Add an account number and bank first.'
       );
     }
 
-    let resolvedBankCode = bankCode || '';
-    if (!resolvedBankCode) {
-      const banks = await paystack.getBanks();
-      const bank = banks.find(
-        (item) =>
-          item.name.toLowerCase() ===
-          cashout.wallet.center.bankName?.toLowerCase()
-      );
-      resolvedBankCode = bank?.code || '';
-    }
-
-    if (!resolvedBankCode) {
-      throw new Error(
-        'Could not resolve a Paystack bank code for this facility.'
-      );
-    }
-
-    const accountVerification = await paystack.verifyAccountNumber(
+    const transfer = await initiateFlutterwaveTransfer(c, {
       accountNumber,
-      resolvedBankCode
-    );
-    const recipient = await paystack.createRecipient({
-      type: 'nuban',
-      name: accountVerification.account_name,
-      account_number: accountNumber,
-      bank_code: resolvedBankCode,
-      currency: 'NGN',
-    });
-    const transfer = await paystack.initiateTransfer({
-      source: 'balance',
-      amount: Math.round(cashout.netAmount * 100),
-      recipient: recipient.recipient_code,
-      reason: `Cashout for ${cashout.wallet.center.centerName}`,
+      bankCode,
+      amountNgn: Number(cashout.netAmount),
       reference: `cashout_${cashoutId}`,
+      narration: `Cashout for ${cashout.wallet.center.centerName}`,
     });
 
     await db(c).centerCashout.update({
@@ -594,7 +565,7 @@ export async function processCashout(
       },
     });
   } catch (error) {
-    console.error('Paystack cashout transfer error:', error);
+    console.error('Flutterwave cashout transfer error:', error);
 
     await db(c).centerCashout.update({
       where: { id: cashoutId },
@@ -710,7 +681,7 @@ export async function getCenterCashouts(
 }
 
 /**
- * Update cashout status (called by Paystack webhook)
+ * Update cashout status (called by Flutterwave webhook)
  */
 export async function updateCashoutStatus(
   c: Context,

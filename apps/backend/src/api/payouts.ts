@@ -17,11 +17,7 @@ import { authorizeCronRequest } from "../lib/cron-auth";
 const payoutsApp = new Hono<THonoApp>();
 
 const getPayoutService = (c: any) => {
-  const { PAYSTACK_SECRET_KEY } = env<{ PAYSTACK_SECRET_KEY: string }>(
-    c,
-    "node"
-  );
-  return new PayoutService(getDB(c), new PaystackService(PAYSTACK_SECRET_KEY));
+  return new PayoutService(getDB(c));
 };
 
 function canAccessCenterPayouts(payload: any, centerId: string) {
@@ -150,7 +146,7 @@ payoutsApp.post("/:payoutId/process", authMiddleware(["admin"]), async (c) => {
     }
 
     const payoutService = getPayoutService(c);
-    const result = await payoutService.processPayout(payoutId);
+    const result = await payoutService.processPayout(payoutId, c);
 
     return c.json({
       ok: true,
@@ -179,7 +175,7 @@ payoutsApp.post("/:payoutId/retry", authMiddleware(["admin"]), async (c) => {
     }
 
     const payoutService = getPayoutService(c);
-    const result = await payoutService.retryPayout(payoutId);
+    const result = await payoutService.retryPayout(payoutId, c);
 
     return c.json({
       ok: true,
@@ -340,7 +336,7 @@ payoutsApp.post("/monthly-batch", async (c) => {
 
     const payoutService = getPayoutService(c);
 
-    const results = await payoutService.processMonthlyPayouts();
+    const results = await payoutService.processMonthlyPayouts(c);
 
     console.log("Monthly payouts processed:", results);
 

@@ -109,11 +109,11 @@ export const deleteCampaign = async (
  *
  * 1. PAYMENT INITIATION:
  *    - User clicks donate/fund button → Frontend calls donateAnonymous(), createCampaign(), or fundCampaign()
- *    - Backend returns Paystack checkout URL → Frontend redirects user to this URL
- *    - User completes payment on Paystack's secure checkout page
+ *    - Backend returns Flutterwave checkout URL → Frontend redirects user to this URL
+ *    - User completes payment on Flutterwave's secure checkout page
  *
  * 2. RETURN TO APP (Context-Aware Redirects):
- *    - After payment, Paystack redirects to these URLs based on payment type:
+ *    - After payment, Flutterwave redirects to these URLs based on payment type:
  *      • Anonymous donations: `/donation/payment-status?ref=${reference}&type=anonymous`
  *      • Campaign creation: `/donor/campaigns/payment-status?ref=${reference}&type=create&campaignId=${campaignId}`
  *      • Campaign funding: `/donor/campaigns/${campaignId}/payment-status?ref=${reference}&type=fund`
@@ -139,7 +139,7 @@ export const deleteCampaign = async (
  *    - Auto-redirect to relevant page after 3-5 seconds
  */
 
-// Verify payment status with Paystack and get context data
+// Verify payment status with Flutterwave and get context data
 export const verifyPayment = async (
   reference: string,
 ): Promise<TPaymentVerificationResponse> => {

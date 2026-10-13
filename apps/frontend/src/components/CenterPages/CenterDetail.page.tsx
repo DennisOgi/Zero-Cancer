@@ -3,7 +3,7 @@ import {
   getServiceTypeLabel,
   serviceTypeBadgeStyles,
 } from '@/lib/service-types'
-import { centerById } from '@/services/providers/center.provider'
+import { centerById, publicCenterAvailability } from '@/services/providers/center.provider'
 import { useAuthUser } from '@/services/providers/auth.provider'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
@@ -25,6 +25,28 @@ export default function CenterDetailPage() {
 
   const { data, isLoading, error } = useQuery(centerById(centerId))
   const center = data?.data
+  const today = new Date()
+  const from = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const future = new Date(today)
+  future.setDate(future.getDate() + 21)
+  const to = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, '0')}-${String(future.getDate()).padStart(2, '0')}`
+  const { data: availabilityData } = useQuery(
+    publicCenterAvailability(centerId, { from, to }),
+  )
+  const weekly = availabilityData?.data?.weekly || []
+  const nextOpenDays = (availabilityData?.data?.days || [])
+    .filter((day) => day.isOpen)
+    .slice(0, 5)
+  const weekdayNames = [
+    'Sunday',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+  ]
+  const openWeekdays = weekly.filter((rule) => rule.isOpen)
 
   const handleBookNow = (screeningTypeId?: string) => {
     const serviceId = screeningTypeId || center?.services?.[0]?.id
@@ -174,20 +196,43 @@ export default function CenterDetailPage() {
               <div className="flex items-start gap-3">
                 <Calendar className="mt-0.5 h-4 w-4 text-blue-600" />
                 <div>
-                  <p className="font-medium text-foreground">Open weekdays</p>
-                  <p>Monday to Friday</p>
+                  <p className="font-medium text-foreground">Open days</p>
+                  <p>
+                    {openWeekdays.length
+                      ? openWeekdays
+                          .map((rule) => weekdayNames[rule.weekday])
+                          .join(', ')
+                      : 'Monday to Friday'}
+                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <Clock className="mt-0.5 h-4 w-4 text-blue-600" />
                 <div>
                   <p className="font-medium text-foreground">Appointment hours</p>
-                  <p>9:00 AM – 5:00 PM</p>
+                  <p>
+                    {openWeekdays.length
+                      ? `${openWeekdays[0].startTime} – ${openWeekdays[0].endTime}`
+                      : '09:00 – 17:00'}
+                  </p>
                 </div>
               </div>
+              {nextOpenDays.length > 0 ? (
+                <div>
+                  <p className="font-medium text-foreground mb-2">Next open dates</p>
+                  <ul className="space-y-1">
+                    {nextOpenDays.map((day) => (
+                      <li key={day.date}>
+                        {new Date(`${day.date}T00:00:00`).toLocaleDateString()} ·{' '}
+                        {day.slots.filter((slot) => slot.remaining > 0).length} slots
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
             <p className="mt-4 text-xs text-muted-foreground">
-              Sign in as a patient to pick a date and time during booking.
+              Sign in as a patient to pick one of this facility&apos;s open dates.
             </p>
           </div>
         </div>

@@ -12,7 +12,11 @@ import {
   getReferrerBoundCenter,
 } from "../lib/agent.service";
 import { getAgentNetworkConfig } from "../lib/agent-network-config";
-import { getPaystackKeys } from "../lib/paystack-config";
+import {
+  initiateFlutterwaveTransfer,
+  isFlutterwaveConfigured,
+  resolveFlutterwaveAccount,
+} from "../lib/flutterwave";
 import { getSupabaseClient } from "../lib/supabase";
 import { TEnvs, THonoApp } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
@@ -40,7 +44,7 @@ const cashoutSchema = z.object({
 
 function agentShareUrl(frontendUrl: string, code: string) {
   const base = (frontendUrl || "https://zerocancer.africa").replace(/\/$/, "");
-  return `${base}/sign-up/patient?ref=${encodeURIComponent(code)}`;
+  return `${base}/r/${encodeURIComponent(code)}`;
 }
 
 // POST /api/v1/agents/activate
@@ -89,7 +93,7 @@ agentsApp.get("/me", async (c) => {
           sponsorCommissionPercent: config.sponsorCommissionPercent,
           nurseReferralCommissionFlat: config.nurseReferralCommissionFlat,
           homeScreeningEnabled: config.homeScreeningEnabled,
-          payoutProvider: "PAYSTACK",
+          payoutProvider: "FLUTTERWAVE",
         },
       },
     });
@@ -152,7 +156,7 @@ agentsApp.get("/me", async (c) => {
         sponsorCommissionPercent: config.sponsorCommissionPercent,
         nurseReferralCommissionFlat: config.nurseReferralCommissionFlat,
         homeScreeningEnabled: config.homeScreeningEnabled,
-        payoutProvider: "PAYSTACK",
+        payoutProvider: "FLUTTERWAVE",
       },
     },
   });
@@ -180,42 +184,25 @@ agentsApp.patch(
         );
       }
 
-      let accountName = body.accountName;
-      let accountNumber = body.accountNumber;
-      let flutterwaveRecipientId = agent.flutterwaveRecipientId || null;
-      let paystackRecipientCode = agent.paystackRecipientCode || null;
-
-      const { secretKey } = getPaystackKeys(c);
-      const recipRes = await fetch(
-        "https://api.paystack.co/transferrecipient",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${secretKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            type: "nuban",
-            name: body.accountName,
-            account_number: body.accountNumber,
-            bank_code: body.bankCode,
-            currency: "NGN",
-          }),
-        }
-      );
-      const recipBody = await recipRes.json();
-      if (!recipRes.ok) {
+      if (!isFlutterwaveConfigured(c)) {
         return c.json<TErrorResponse>(
           {
             ok: false,
-            error: recipBody?.message || "Could not verify bank account",
+            error:
+              "Flutterwave is not configured. Set FLUTTERWAVE_SECRET_KEY to enable payouts.",
           },
-          400
+          503
         );
       }
-      paystackRecipientCode = recipBody.data.recipient_code;
-      accountName = recipBody.data.details?.account_name || body.accountName;
-      accountNumber = recipBody.data.details?.account_number || body.accountNumber;
+
+      const resolved = await resolveFlutterwaveAccount(c, {
+        accountNumber: body.accountNumber,
+        bankCode: body.bankCode,
+      });
+      const accountName = resolved.accountName || body.accountName;
+      const accountNumber = resolved.accountNumber || body.accountNumber;
+      const flutterwaveRecipientId = `fw:${body.bankCode}:${accountNumber}`;
+      const paystackRecipientCode = agent.paystackRecipientCode || null;
 
       const { data, error } = await supabase
         .from("AgentProfile")
@@ -296,7 +283,18 @@ agentsApp.post(
       const userId = c.get("jwtPayload")?.id as string;
       const { amount } = c.req.valid("json");
       const agent = await getAgentByUserId(c, userId);
-      if (!agent?.paystackRecipientCode) {
+      if (!isFlutterwaveConfigured(c)) {
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            error:
+              "Flutterwave is not configured. Set FLUTTERWAVE_SECRET_KEY to enable payouts.",
+          },
+          503
+        );
+      }
+
+      if (!agent?.accountNumber || !agent?.bankCode) {
         return c.json<TErrorResponse>(
           { ok: false, error: "Add bank details before cashing out" },
           400
@@ -328,73 +326,59 @@ agentsApp.post(
         return reason;
       };
 
-      const { secretKey } = getPaystackKeys(c);
-      const reference = `agc_${agent.id.slice(0, 8)}_${Date.now()}`;
+      const reference = `agc_fw_${agent.id.slice(0, 8)}_${Date.now()}`;
       const cashout = {
         id: crypto.randomUUID(),
         walletId: wallet.id,
         agentId: agent.id,
         amount,
         status: "PROCESSING",
-        payoutProvider: "PAYSTACK",
-        paystackReference: reference,
+        payoutProvider: "FLUTTERWAVE",
+        flutterwaveReference: reference,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
       await supabase.from("AgentCashout").insert(cashout);
 
-      const transferRes = await fetch("https://api.paystack.co/transfer", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${secretKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          source: "balance",
-          amount: Math.round(amount * 100),
-          recipient: agent.paystackRecipientCode,
+      try {
+        const transfer = await initiateFlutterwaveTransfer(c, {
+          accountNumber: agent.accountNumber,
+          bankCode: agent.bankCode,
+          amountNgn: amount,
           reference,
-          reason: "ZeroCancer agent commission payout",
-        }),
-      });
-      const transferBody = await transferRes.json();
-
-      if (!transferRes.ok) {
-        await refundWallet(transferBody?.message || "Transfer failed");
+          narration: "ZeroCancer agent referral payout",
+        });
         await supabase
           .from("AgentCashout")
           .update({
-            status: "FAILED",
-            failureReason: transferBody?.message || "Transfer failed",
+            flutterwaveTransferId: transfer.transferId,
+            flutterwaveReference: transfer.reference || reference,
             updatedAt: new Date().toISOString(),
           })
           .eq("id", cashout.id);
 
+        return c.json({
+          ok: true,
+          data: { cashout: { ...cashout, status: "PROCESSING" }, balanceAfter },
+          message:
+            "Cashout submitted. Flutterwave will send the funds to your bank.",
+        });
+      } catch (error: any) {
+        await refundWallet(error?.message || "Transfer failed");
+        await supabase
+          .from("AgentCashout")
+          .update({
+            status: "FAILED",
+            failureReason: error?.message || "Transfer failed",
+            updatedAt: new Date().toISOString(),
+          })
+          .eq("id", cashout.id);
         return c.json<TErrorResponse>(
-          {
-            ok: false,
-            error: transferBody?.message || "Cashout transfer failed",
-          },
+          { ok: false, error: error?.message || "Cashout transfer failed" },
           400
         );
       }
-
-      await supabase
-        .from("AgentCashout")
-        .update({
-          status: "PROCESSING",
-          paystackTransferCode: transferBody?.data?.transfer_code || null,
-          updatedAt: new Date().toISOString(),
-        })
-        .eq("id", cashout.id);
-
-      return c.json({
-        ok: true,
-        data: { cashout: { ...cashout, status: "PROCESSING" }, balanceAfter },
-        message:
-          "Cashout submitted. Funds will arrive after Paystack confirms the transfer.",
-      });
     } catch (error: any) {
       return c.json<TErrorResponse>(
         { ok: false, error: error?.message || "Cashout failed" },

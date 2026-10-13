@@ -34,7 +34,7 @@ function naira(amount: number) {
 function shareUrlForCode(code?: string, fallback?: string) {
   if (!code) return fallback || ''
   if (typeof window === 'undefined') return fallback || ''
-  return `${window.location.origin}/sign-up/patient?ref=${encodeURIComponent(code)}`
+  return `${window.location.origin}/r/${encodeURIComponent(code)}`
 }
 
 function commissionLabel(sourceType?: string) {
@@ -529,7 +529,7 @@ export function PatientAgentPage() {
           <CardHeader>
             <CardTitle>Bank details & cashout</CardTitle>
             <CardDescription>
-              Paystack verifies your Nigerian bank account, then pays
+              Flutterwave verifies your Nigerian bank account, then pays
               commissions into it.
             </CardDescription>
           </CardHeader>

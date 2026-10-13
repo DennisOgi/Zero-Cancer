@@ -113,7 +113,8 @@ export function FacilityChoicePage() {
             </CardTitle>
             <CardDescription className="text-amber-900">
               Choose another facility in the nearest city, or wait until one
-              opens near you. We will notify you on WhatsApp and email.
+              opens near you. We will keep your city on the demand list for
+              ZeroCancer — we do not send WhatsApp or email yet.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -155,7 +156,7 @@ export function FacilityChoicePage() {
                 checked={notify}
                 onChange={(event) => setNotify(event.target.checked)}
               />
-              Remind me when a facility opens in {options.patientLga}
+              Keep my city on the follow-up list for {options.patientLga}
             </label>
           ) : null}
           <Button
@@ -171,8 +172,8 @@ export function FacilityChoicePage() {
         </div>
       ) : options.hasLocalFacility ? null : (
         <p className="text-sm text-muted-foreground">
-          You can use your account now. We will write when a facility opens in
-          your city.
+          You can use your account now. Your city is on the follow-up list
+          until a facility opens nearby.
         </p>
       )}
     </div>

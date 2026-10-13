@@ -27,6 +27,7 @@ export const joinWaitlistSchema = z.object({
   screeningTypeId: z
     .string()
     .min(1, { message: "Screening type is required." }),
+  centerId: z.string().uuid().optional().nullable(),
 });
 
 export const leaveWaitlistSchema = z.object({

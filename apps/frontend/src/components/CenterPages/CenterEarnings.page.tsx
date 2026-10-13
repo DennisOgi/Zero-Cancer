@@ -89,7 +89,7 @@ export function CenterEarningsPage() {
   const onSaveBank = async () => {
     try {
       await updateBank.mutateAsync(bank)
-      toast.success('Bank details verified with Paystack')
+      toast.success('Bank details verified with Flutterwave')
     } catch (error: any) {
       toast.error(error?.response?.data?.error || 'Could not save bank details')
     }
@@ -103,7 +103,7 @@ export function CenterEarningsPage() {
     }
     try {
       await cashout.mutateAsync(amount)
-      toast.success('Cashout submitted via Paystack')
+      toast.success('Cashout submitted via Flutterwave')
       setCashoutAmount('')
     } catch (error: any) {
       toast.error(error?.response?.data?.error || 'Cashout failed')
@@ -262,7 +262,7 @@ export function CenterEarningsPage() {
           <CardHeader>
             <CardTitle>Bank details & cashout</CardTitle>
             <CardDescription>
-              Paystack verifies your Nigerian account, then pays commissions
+              Flutterwave verifies your Nigerian account, then pays commissions
               into it. This is not visible to the facility administrator.
             </CardDescription>
           </CardHeader>

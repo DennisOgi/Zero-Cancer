@@ -18,6 +18,7 @@ import {
 import { getSupabaseClient } from "../lib/supabase";
 import { getDB } from "../lib/db";
 import { TEnvs, THonoApp } from "../lib/types";
+import { createNotificationForUsers } from "../lib/utils";
 import { authMiddleware } from "../middleware/auth.middleware";
 
 export const boardingApp = new Hono<THonoApp>();
@@ -81,6 +82,75 @@ async function loadCenter(
   return data;
 }
 
+async function recordCityFacilityDemand(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  row: {
+    userId: string;
+    state: string;
+    lga: string;
+    choice: string;
+    assignedCenterId?: string | null;
+  }
+) {
+  const { data: existing } = await supabase
+    .from("CityFacilityDemand")
+    .select("id")
+    .eq("userId", row.userId)
+    .eq("state", row.state)
+    .eq("lga", row.lga)
+    .eq("choice", row.choice)
+    .limit(1)
+    .maybeSingle();
+  if (existing) return existing;
+  return supabase.from("CityFacilityDemand").insert({
+    id: crypto.randomUUID(),
+    userId: row.userId,
+    state: row.state,
+    lga: row.lga,
+    choice: row.choice,
+    assignedCenterId: row.assignedCenterId || null,
+    createdAt: new Date().toISOString(),
+  });
+}
+
+async function maybeSendAnniversaryReminders(c: any, userId: string) {
+  const supabase = getSupabaseClient(c);
+  const { data } = await supabase
+    .from("AnniversaryContact")
+    .select("*")
+    .eq("ownerUserId", userId);
+  const due = (data || []).filter((row) => {
+    const days = daysUntil(Number(row.month), Number(row.day));
+    if (days > 21) return false;
+    if (!row.lastRemindedAt) return true;
+    return Date.now() - new Date(row.lastRemindedAt).getTime() > 40 * 86400000;
+  });
+  if (!due.length) return;
+  const names = due.map((row) => row.name).join(", ");
+  await createNotificationForUsers(c, {
+    type: "ANNIVERSARY_REMINDER",
+    title:
+      due.length === 1
+        ? `${due[0].name}'s ${occasionLabel(due[0].occasion)} is coming up`
+        : "Upcoming birthday and anniversary reminders",
+    message:
+      due.length === 1
+        ? `Open Invite and WhatsApp ${due[0].name} when you're ready. We don't message them for you.`
+        : `Open Invite to WhatsApp ${names}. We remind you — you send the message.`,
+    userIds: [userId],
+    data: { contactIds: due.map((row) => row.id) },
+  });
+  const now = new Date().toISOString();
+  await Promise.all(
+    due.map((row) =>
+      supabase
+        .from("AnniversaryContact")
+        .update({ lastRemindedAt: now })
+        .eq("id", row.id)
+    )
+  );
+}
+
 async function formatInvite(
   c: any,
   supabase: ReturnType<typeof getSupabaseClient>,
@@ -138,7 +208,7 @@ export async function attachBoardingInvite(
   if (invite.inviterUserId === userId) return invite;
 
   const expected = role === "DONOR" ? "CELEBRANT" : "SCREEN";
-  if (invite.type !== expected) return invite;
+  if (invite.type !== expected) return null;
 
   const supabase = getSupabaseClient(c);
   const { data: already } = await supabase
@@ -187,7 +257,7 @@ export async function attachBoardingInvite(
 }
 
 export async function referralCodeForBoardingInvite(c: any, invite: any) {
-  if (!invite?.inviterUserId) return null;
+  if (!invite?.inviterUserId || invite.type !== "SCREEN") return null;
   const agent = await getAgentByUserId(c, invite.inviterUserId);
   return agent?.referralCode || null;
 }
@@ -217,6 +287,7 @@ boardingApp.get("/join/:token", async (c) => {
       type,
       inviterName,
       inviterHospital: center?.centerName || null,
+      waitingListId: invite.waitingListId || null,
       waitingListName,
       nextPath:
         type === "CELEBRANT"
@@ -240,6 +311,7 @@ boardingApp.get(
     const invites = await Promise.all(
       (data || []).map((row) => formatInvite(c, supabase, row))
     );
+    await maybeSendAnniversaryReminders(c, userId as string);
     return c.json({ ok: true, data: { invites } });
   }
 );
@@ -252,7 +324,8 @@ boardingApp.post(
   }),
   async (c) => {
     const userId = c.get("jwtPayload")?.id as string;
-    const { type, waitingListId } = c.req.valid("json");
+    const { type, waitingListId, boundCenterId: requestedCenterId } =
+      c.req.valid("json");
     const supabase = getSupabaseClient(c);
 
     let query = supabase
@@ -266,12 +339,23 @@ boardingApp.post(
 
     let boundCenterId: string | null = existing?.boundCenterId || null;
     if (type === "SCREEN") {
-      const { data: profile } = await supabase
-        .from("PatientProfile")
-        .select("assignedCenterId")
-        .eq("userId", userId)
-        .maybeSingle();
-      boundCenterId = profile?.assignedCenterId || boundCenterId;
+      if (requestedCenterId) {
+        const center = await loadCenter(supabase, requestedCenterId);
+        if (!center) {
+          return c.json<TErrorResponse>(
+            { ok: false, error: "That facility is not available" },
+            400
+          );
+        }
+        boundCenterId = center.id;
+      } else {
+        const { data: profile } = await supabase
+          .from("PatientProfile")
+          .select("assignedCenterId")
+          .eq("userId", userId)
+          .maybeSingle();
+        boundCenterId = profile?.assignedCenterId || boundCenterId;
+      }
     }
 
     if (existing) {
@@ -479,6 +563,22 @@ boardingApp.post(
     }
 
     if (action === "WAIT") {
+      const recommended = await findRecommendedCenters(
+        getDB(c),
+        profile.state,
+        profile.city,
+        12
+      );
+      const hasLocal = recommended.some((row) => row.distanceTier === "same_lga");
+      if (hasLocal) {
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            error: "A facility already exists in your city. Please join one.",
+          },
+          400
+        );
+      }
       await supabase
         .from("PatientProfile")
         .update({
@@ -487,13 +587,11 @@ boardingApp.post(
           assignedCenterId: null,
         })
         .eq("userId", userId);
-      await supabase.from("CityFacilityDemand").insert({
-        id: crypto.randomUUID(),
+      await recordCityFacilityDemand(supabase, {
         userId,
         state: profile.state,
         lga: profile.city,
         choice: "WAIT",
-        createdAt: new Date().toISOString(),
       });
       return c.json({
         ok: true,
@@ -501,7 +599,7 @@ boardingApp.post(
           assignedCenter: null,
           waitingForCity: true,
           message:
-            "You will be notified via WhatsApp and email when a facility opens in your city.",
+            "We've noted that you want a facility in your city. ZeroCancer will follow up when one opens nearby.",
         },
       });
     }
@@ -539,14 +637,12 @@ boardingApp.post(
       .eq("userId", userId);
 
     if (otherCity && notifyWhenLocal) {
-      await supabase.from("CityFacilityDemand").insert({
-        id: crypto.randomUUID(),
+      await recordCityFacilityDemand(supabase, {
         userId,
         state: profile.state,
         lga: profile.city,
         choice: "OTHER_CITY_NOTIFY",
         assignedCenterId: assignment.center.id,
-        createdAt: new Date().toISOString(),
       });
     }
 
@@ -557,7 +653,7 @@ boardingApp.post(
         waitingForCity: false,
         message: otherCity
           ? notifyWhenLocal
-            ? `Joined ${assignment.center.centerName}. We will also tell you when a facility opens in ${profile.city}.`
+            ? `Joined ${assignment.center.centerName}. We'll keep a note to follow up when a facility opens in ${profile.city}.`
             : `Joined ${assignment.center.centerName}.`
           : `You have joined ${assignment.center.centerName}.`,
       },
@@ -654,6 +750,7 @@ boardingApp.get(
       .select("*")
       .eq("ownerUserId", userId)
       .order("createdAt", { ascending: false });
+    await maybeSendAnniversaryReminders(c, userId);
     return c.json({
       ok: true,
       data: {
@@ -705,6 +802,67 @@ boardingApp.post(
       },
       201
     );
+  }
+);
+
+boardingApp.get(
+  "/admin/demand",
+  authMiddleware(["admin"]),
+  async (c) => {
+    const supabase = getSupabaseClient(c);
+    const { data, error } = await supabase
+      .from("CityFacilityDemand")
+      .select("*")
+      .order("createdAt", { ascending: false })
+      .limit(300);
+    if (error) {
+      console.error("[BOARDING] load city demand failed:", error.message);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Could not load facility demand" },
+        500
+      );
+    }
+    const rows = data || [];
+    const userIds = [...new Set(rows.map((row) => row.userId as string))];
+    const centerIds = [
+      ...new Set(
+        rows
+          .map((row) => row.assignedCenterId as string | null)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
+    const [{ data: users }, { data: centers }] = await Promise.all([
+      userIds.length
+        ? supabase.from("User").select("id, fullName, email, phone").in("id", userIds)
+        : Promise.resolve({ data: [] as any[] }),
+      centerIds.length
+        ? supabase.from("ServiceCenter").select("id, centerName").in("id", centerIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const userById = new Map((users || []).map((user: any) => [user.id, user]));
+    const centerById = new Map(
+      (centers || []).map((center: any) => [center.id, center.centerName])
+    );
+    return c.json({
+      ok: true,
+      data: {
+        demands: rows.map((row) => {
+          const user = userById.get(row.userId);
+          return {
+            id: row.id,
+            userId: row.userId,
+            fullName: user?.fullName || null,
+            email: user?.email || null,
+            phone: user?.phone || null,
+            state: row.state,
+            lga: row.lga,
+            choice: row.choice,
+            assignedCenterName: centerById.get(row.assignedCenterId) || null,
+            createdAt: row.createdAt,
+          };
+        }),
+      },
+    });
   }
 );
 

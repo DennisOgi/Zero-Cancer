@@ -115,16 +115,18 @@ export async function assignPatientToCenter(
     where: { userId: patientId },
   });
 
-  if (!profile?.state || !profile?.city) {
+  if (!profile) {
+    return { error: "Patient profile not found" };
+  }
+
+  if (!opts?.skipLocationCheck && (!profile.state || !profile.city)) {
     return { error: "Patient location is required before assigning a center" };
   }
 
-  const recommendedCenters = await findRecommendedCenters(
-    db,
-    profile.state,
-    profile.city,
-    50
-  );
+  const recommendedCenters =
+    profile.state && profile.city
+      ? await findRecommendedCenters(db, profile.state, profile.city, 50)
+      : [];
 
   if (
     !opts?.skipLocationCheck &&

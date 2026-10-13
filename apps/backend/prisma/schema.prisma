@@ -173,6 +173,9 @@ model ServiceCenter {
   performanceSnapshots CenterPerformanceSnapshot[] @relation("CenterSnapshots")
   boardingInvites BoardingInvite[] @relation("BoardingInviteCenter")
   cityFacilityDemands CityFacilityDemand[] @relation("CityFacilityDemandCenter")
+  availabilityRules CenterAvailabilityRule[] @relation("CenterAvailabilityRules")
+  availabilityExceptions CenterAvailabilityException[] @relation("CenterAvailabilityExceptions")
+  notificationRecipients NotificationRecipient[] @relation("CenterNotificationRecipients")
 }
 
 model ServiceCenterScreeningType {
@@ -186,6 +189,41 @@ model ServiceCenterScreeningType {
   screeningType ScreeningType @relation("ScreeningTypeToServiceCenters", fields: [screeningTypeId], references: [id], onDelete: Restrict)
 
   @@unique([centerId, screeningTypeId])
+}
+
+model CenterAvailabilityRule {
+  id                  String   @id @default(uuid())
+  centerId            String
+  weekday             Int
+  isOpen              Boolean  @default(true)
+  startTime           String   @default("09:00")
+  endTime             String   @default("17:00")
+  slotMinutes         Int      @default(60)
+  maxBookingsPerSlot  Int      @default(4)
+  updatedAt           DateTime @updatedAt
+
+  center ServiceCenter @relation("CenterAvailabilityRules", fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@unique([centerId, weekday])
+  @@index([centerId])
+}
+
+model CenterAvailabilityException {
+  id                  String   @id @default(uuid())
+  centerId            String
+  date                String
+  type                String
+  startTime           String?
+  endTime             String?
+  slotMinutes         Int?
+  maxBookingsPerSlot  Int?
+  reason              String?
+  createdAt           DateTime @default(now())
+
+  center ServiceCenter @relation("CenterAvailabilityExceptions", fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@unique([centerId, date])
+  @@index([centerId, date])
 }
 
 model ScreeningType {
@@ -597,11 +635,13 @@ model Notification {
 model NotificationRecipient {
   id             String   @id @default(uuid())
   notificationId String
-  userId         String
+  userId         String?
+  centerId       String?
   read           Boolean  @default(false)
   readAt         DateTime?
   notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  center         ServiceCenter? @relation("CenterNotificationRecipients", fields: [centerId], references: [id], onDelete: Cascade)
 }
 
 model CenterStaff {
@@ -778,6 +818,7 @@ model Kit {
   serialNumber    String         @unique
   batchNumber     String?
   screeningTypeId String
+  kitProduct      String?
   centerId        String
   status          String         @default("AVAILABLE") // AVAILABLE, USED, DAMAGED
   receivedAt      DateTime       @default(now())
@@ -952,6 +993,7 @@ model RestockRequest {
   id                  String    @id @default(uuid())
   centerId            String
   screeningTypeId     String
+  kitProduct          String?
   requestedQuantity   Int
   urgency             String    @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
   reason              String?

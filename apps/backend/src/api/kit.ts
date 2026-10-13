@@ -3,6 +3,9 @@ import {
   addKitsSchema,
   getKitOrdersQuerySchema,
   getKitsQuerySchema,
+  isKitProductId,
+  kitProductLabel,
+  kitProductsForScreening,
   orderKitsSchema,
   updateKitOrderSchema,
 } from "@zerocancer/shared";
@@ -42,7 +45,7 @@ kitApp.get(
     const to = from + pageSize - 1;
     let query = supabase
       .from("Kit")
-      .select("id, serialNumber, batchNumber, status, receivedAt, screeningTypeId, centerId", {
+      .select("id, serialNumber, batchNumber, status, receivedAt, screeningTypeId, kitProduct, centerId", {
         count: "exact",
       })
       .order("receivedAt", { ascending: false })
@@ -74,6 +77,7 @@ kitApp.get(
         kits: (data || []).map((row: any) => ({
           ...row,
           screeningType: { name: nameById.get(row.screeningTypeId) || "Kit" },
+          kitProductName: kitProductLabel(row.kitProduct),
         })),
         page,
         pageSize,
@@ -208,6 +212,7 @@ kitApp.get(
         orders: (data || []).map((row: any) => ({
           ...row,
           screeningTypeName: nameById.get(row.screeningTypeId) || "Kit",
+          kitProductName: kitProductLabel(row.kitProduct),
         })),
       },
     });
@@ -248,10 +253,35 @@ kitApp.post(
         );
       }
 
+      const { data: screeningType } = await supabase
+        .from("ScreeningType")
+        .select("id, name")
+        .eq("id", body.screeningTypeId)
+        .maybeSingle();
+      const products = kitProductsForScreening(screeningType?.name);
+      if (products.length) {
+        if (!body.kitProduct || !isKitProductId(body.kitProduct)) {
+          return c.json(
+            {
+              ok: false,
+              error: "Select which kit product you need for this screening type.",
+            },
+            400
+          );
+        }
+        if (!products.some((product) => product.id === body.kitProduct)) {
+          return c.json(
+            { ok: false, error: "That kit product is not used for this screening type." },
+            400
+          );
+        }
+      }
+
       const order = {
         id: crypto.randomUUID(),
         centerId,
         screeningTypeId: body.screeningTypeId,
+        kitProduct: body.kitProduct || null,
         requestedQuantity: body.quantity,
         urgency: body.urgency || "NORMAL",
         reason:
@@ -362,6 +392,7 @@ kitApp.get(
         orders: rows.map((row: any) => ({
           ...row,
           screeningTypeName: typeById.get(row.screeningTypeId) || "Kit",
+          kitProductName: kitProductLabel(row.kitProduct),
           center: centerById.get(row.centerId) || null,
         })),
       },
@@ -496,6 +527,7 @@ kitApp.patch(
             batchNumber: body.batchNumber || null,
             centerId: order.centerId,
             screeningTypeId: order.screeningTypeId,
+            kitProduct: order.kitProduct || null,
             status: "AVAILABLE",
           }))
         )

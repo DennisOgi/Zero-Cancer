@@ -7,6 +7,12 @@
     "rootDir": ".",
     "lib": ["ES2020", "DOM"]
   },
-  "include": ["index.ts", "schemas/**/*.ts", "types/**/*.ts", "utils.ts"],
+  "include": [
+    "index.ts",
+    "schemas/**/*.ts",
+    "types/**/*.ts",
+    "utils.ts",
+    "constants/**/*.ts"
+  ],
   "references": []
 }

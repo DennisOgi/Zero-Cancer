@@ -13,6 +13,7 @@ import type {
 import { Hono } from "hono";
 import { clearResolvedEnrollmentNotifications } from "../lib/center-enrollment-utils";
 import { getDB } from "../lib/db";
+import { getSupabaseClient } from "../lib/supabase";
 import { THonoApp } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
 
@@ -26,7 +27,6 @@ notificationApp.get("/", async (c) => {
   if (!payload)
     return c.json<TErrorResponse>({ ok: false, error: "Unauthorized" }, 401);
   const userId = payload.id!;
-  const db = getDB(c);
 
   // Clear enrollment request notifications that were already approved/rejected
   try {
@@ -35,12 +35,64 @@ notificationApp.get("/", async (c) => {
     console.error("Failed to clear resolved enrollment notifications:", error);
   }
 
-  const notifications = await db.notificationRecipient.findMany({
-    where: { userId },
-    include: { notification: true },
-    orderBy: { notification: { createdAt: "desc" } },
-    take: 50,
-  });
+  const supabase = getSupabaseClient(c);
+  const { data: recipientRows, error: recipientError } = await supabase
+    .from("NotificationRecipient")
+    .select("*")
+    .or(`userId.eq.${userId},centerId.eq.${userId}`)
+    .order("id", { ascending: false })
+    .limit(50);
+
+  if (recipientError) {
+    console.error("Load notifications error:", recipientError);
+    return c.json<TErrorResponse>(
+      { ok: false, error: "Failed to load notifications" },
+      500
+    );
+  }
+
+  const notificationIds = [
+    ...new Set((recipientRows || []).map((row) => row.notificationId as string)),
+  ];
+  const { data: notificationRows } = notificationIds.length
+    ? await supabase.from("Notification").select("*").in("id", notificationIds)
+    : { data: [] };
+  const notificationsById = new Map(
+    (notificationRows || []).map((row) => [row.id as string, row])
+  );
+  const notifications = (recipientRows || [])
+    .map((row) => {
+      const notification = notificationsById.get(row.notificationId as string);
+      if (!notification) return null;
+      let parsedData: Record<string, any> | null = null;
+      if (notification.data && typeof notification.data === "object") {
+        parsedData = notification.data as Record<string, any>;
+      } else if (typeof notification.data === "string") {
+        try {
+          parsedData = JSON.parse(notification.data);
+        } catch {
+          parsedData = null;
+        }
+      }
+      return {
+        id: row.id as string,
+        userId: (row.userId || row.centerId || userId) as string,
+        notificationId: row.notificationId as string,
+        read: Boolean(row.read),
+        readAt: row.readAt ? new Date(String(row.readAt)) : null,
+        notification: {
+          ...notification,
+          data: parsedData,
+          createdAt: new Date(String(notification.createdAt)),
+        },
+      };
+    })
+    .filter(Boolean)
+    .sort(
+      (a, b) =>
+        b!.notification.createdAt.getTime() - a!.notification.createdAt.getTime()
+    );
+
   // Strictly shape each notification recipient and nested notification
   const safeNotifications = notifications.map((n) => {
     // Ensure data is an object or null
@@ -82,11 +134,12 @@ notificationApp.post("/:id/read", async (c) => {
     return c.json<TErrorResponse>({ ok: false, error: "Unauthorized" }, 401);
   const userId = payload.id!;
   const id = c.req.param("id");
-  const db = getDB(c);
-  await db.notificationRecipient.updateMany({
-    where: { id, userId },
-    data: { read: true, readAt: new Date() },
-  });
+  const supabase = getSupabaseClient(c);
+  await supabase
+    .from("NotificationRecipient")
+    .update({ read: true, readAt: new Date().toISOString() })
+    .eq("id", id)
+    .or(`userId.eq.${userId},centerId.eq.${userId}`);
   return c.json<TMarkNotificationReadResponse>({
     ok: true,
     data: { id, read: true, readAt: new Date().toISOString() },

@@ -150,9 +150,10 @@ export function PatientPayBookingPage({
   const bookSelfPayAppointmentMutation = useBookSelfPayAppointment()
 
   function onSubmit(values: FormData) {
-    const appointmentDateTime = new Date(values.appointmentDate)
+    const [year, month, day] = values.appointmentDate.slice(0, 10).split('-').map(Number)
     const [hours, minutes] = values.appointmentTime.split(':')
-    appointmentDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0)
+    const appointmentDateTime = new Date(year, (month || 1) - 1, day || 1)
+    appointmentDateTime.setHours(parseInt(hours), parseInt(minutes || '0'), 0, 0)
 
     const formattedValues = {
       screeningTypeId: values.screeningTypeId,
@@ -317,6 +318,7 @@ export function PatientPayBookingPage({
           {/* Date and Time Selection */}
           {form.watch('centerId') && (
             <SchedulePicker
+              centerId={form.watch('centerId')}
               date={form.watch('appointmentDate')}
               onDateChange={(v) =>
                 form.setValue('appointmentDate', v, { shouldValidate: true })

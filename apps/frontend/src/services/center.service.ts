@@ -25,6 +25,8 @@ import {
   uploadResultsSchema,
 } from '@zerocancer/shared/schemas/result.schema'
 import type {
+  TGetCenterAvailabilityResponse,
+  TUpdateCenterAvailabilityResponse,
   TCancelCenterAppointmentResponse,
   TCenterStaffMembersResponse,
   TCenterStaffForgotPasswordResponse,
@@ -85,6 +87,28 @@ export const addCenterMyServices = async (screeningTypeIds: string[]) => {
   return res as { ok: boolean; message: string; data: { addedCount: number } }
 }
 
+export const updateCenterMyServicePrice = async (
+  screeningTypeId: string,
+  amount: number,
+  reason?: string,
+) => {
+  const res = await request.patch(
+    endpoints.updateCenterMyServicePrice(screeningTypeId),
+    { amount, reason },
+  )
+  return res as {
+    ok: boolean
+    message: string
+    data: {
+      id: string
+      screeningTypeId: string
+      price: number
+      oldPrice: number
+      agreedPrice: number
+    }
+  }
+}
+
 export const removeCenterMyService = async (screeningTypeId: string) => {
   const res = await request.delete(endpoints.removeCenterMyService(screeningTypeId))
   return res as { ok: boolean; message: string }
@@ -100,6 +124,30 @@ export const getCenterById = async (
   }
   const res = await request.get(endpoints.getCenterById(id))
   return res as TGetCenterByIdResponse
+}
+
+export const getPublicCenterAvailability = async (
+  id: string,
+  params?: { from?: string; to?: string },
+): Promise<TGetCenterAvailabilityResponse> => {
+  const res = await request.get(endpoints.getPublicCenterAvailability(id, params))
+  return res as TGetCenterAvailabilityResponse
+}
+
+export const getCenterAvailability = async (params?: {
+  from?: string
+  to?: string
+}): Promise<TGetCenterAvailabilityResponse> => {
+  const res = await request.get(endpoints.getCenterAvailability(params))
+  return res as TGetCenterAvailabilityResponse
+}
+
+export const updateCenterAvailability = async (body: {
+  weekly: TGetCenterAvailabilityResponse['data']['weekly']
+  exceptions: TGetCenterAvailabilityResponse['data']['exceptions']
+}): Promise<TUpdateCenterAvailabilityResponse> => {
+  const res = await request.put(endpoints.updateCenterAvailability(), body)
+  return res as TUpdateCenterAvailabilityResponse
 }
 
 // --- Appointment Management ---

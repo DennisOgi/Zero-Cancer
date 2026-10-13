@@ -29,6 +29,8 @@ export const getKits = async (params?: {
         batchNumber?: string | null
         receivedAt?: string
         screeningType?: { name?: string }
+        kitProduct?: string | null
+        kitProductName?: string | null
       }>
       page: number
       pageSize: number
@@ -46,6 +48,8 @@ export const getKitOrders = async () => {
         id: string
         screeningTypeId: string
         screeningTypeName?: string
+        kitProduct?: string | null
+        kitProductName?: string | null
         requestedQuantity: number
         urgency: string
         status: string
@@ -67,6 +71,8 @@ export type TAdminKitOrder = {
   centerId: string
   screeningTypeId: string
   screeningTypeName: string
+  kitProduct?: string | null
+  kitProductName?: string | null
   requestedQuantity: number
   urgency: string
   status: string
@@ -112,6 +118,7 @@ export const updateAdminKitOrder = async ({
 
 export const createKitOrder = async (data: {
   screeningTypeId: string
+  kitProduct?: string
   quantity: number
   urgency?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
   notes?: string

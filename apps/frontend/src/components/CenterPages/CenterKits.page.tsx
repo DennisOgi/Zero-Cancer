@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/ui/select'
+import { kitProductsForScreening } from '@zerocancer/shared'
 import { useAuthUser } from '@/services/providers/auth.provider'
 import {
   centerMyServices,
@@ -61,6 +62,7 @@ export function CenterKitsPage() {
   const createOrder = useCreateKitOrder()
 
   const [screeningTypeId, setScreeningTypeId] = useState('')
+  const [kitProduct, setKitProduct] = useState('')
   const [quantity, setQuantity] = useState('50')
   const [notes, setNotes] = useState('')
 
@@ -71,11 +73,19 @@ export function CenterKitsPage() {
     const list = (servicesData as any)?.data?.services || []
     return list as Array<{ screeningTypeId: string; name: string }>
   }, [servicesData])
+  const selectedService = services.find(
+    (service) => service.screeningTypeId === screeningTypeId,
+  )
+  const kitProducts = kitProductsForScreening(selectedService?.name)
 
   const onOrder = async () => {
     const qty = Number(quantity)
     if (!screeningTypeId) {
-      toast.error('Select which kit / screening type you need')
+      toast.error('Select a screening type')
+      return
+    }
+    if (kitProducts.length && !kitProduct) {
+      toast.error('Select which kit product you need')
       return
     }
     if (!qty || qty < 1) {
@@ -85,9 +95,11 @@ export function CenterKitsPage() {
     try {
       await createOrder.mutateAsync({
         screeningTypeId,
+        kitProduct: kitProduct || undefined,
         quantity: qty,
         notes: notes.trim() || undefined,
       })
+      setKitProduct('')
       toast.success('Kit order submitted. Pricing and delivery will follow.')
       setNotes('')
     } catch (error: any) {
@@ -143,8 +155,14 @@ export function CenterKitsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Screening / kit type</Label>
-              <Select value={screeningTypeId} onValueChange={setScreeningTypeId}>
+              <Label>Screening type</Label>
+              <Select
+                value={screeningTypeId}
+                onValueChange={(value) => {
+                  setScreeningTypeId(value)
+                  setKitProduct('')
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a service" />
                 </SelectTrigger>
@@ -165,6 +183,27 @@ export function CenterKitsPage() {
                 </p>
               ) : null}
             </div>
+            {kitProducts.length > 0 ? (
+              <div className="space-y-1.5">
+                <Label>Kit product</Label>
+                <Select value={kitProduct} onValueChange={setKitProduct}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a kit product" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {kitProducts.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Cervical screening uses Mobilab HPV Rapid Test Kits, TruScreen
+                  Single Use Sensor (SUS), or a TruScreen Device.
+                </p>
+              </div>
+            ) : null}
             <div className="space-y-1.5">
               <Label htmlFor="kit-qty">Quantity</Label>
               <Input
@@ -236,9 +275,14 @@ export function CenterKitsPage() {
                 >
                   <div>
                     <p className="font-medium">
-                      {order.screeningTypeName || 'Kit'} ×{' '}
+                      {order.kitProductName || order.screeningTypeName || 'Kit'} ×{' '}
                       {order.requestedQuantity}
                     </p>
+                    {order.kitProductName && order.screeningTypeName ? (
+                      <p className="text-xs text-muted-foreground">
+                        {order.screeningTypeName}
+                      </p>
+                    ) : null}
                     <p className="text-xs text-muted-foreground">
                       {order.requestedAt
                         ? new Date(order.requestedAt).toLocaleDateString()
@@ -315,7 +359,9 @@ export function CenterKitsPage() {
                     {kit.serialNumber}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {kit.screeningType?.name || 'Screening kit'}
+                    {kit.kitProductName ||
+                      kit.screeningType?.name ||
+                      'Screening kit'}
                     {kit.batchNumber ? ` · batch ${kit.batchNumber}` : ''}
                   </p>
                 </div>

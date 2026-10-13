@@ -280,7 +280,7 @@ pricingApp.get(
   async (c) => {
     const db = getDB(c);
     const payload = c.get("jwtPayload");
-    const centerId = payload?.centerId;
+    const centerId = payload?.centerId || payload?.id;
 
     if (!centerId) {
       return c.json({ ok: false, error: "Center ID not found" }, 400);
@@ -341,8 +341,8 @@ pricingApp.patch(
     const serviceId = c.req.param("id");
     const { amount, reason } = c.req.valid("json");
     const payload = c.get("jwtPayload");
-    const centerId = payload?.centerId;
-    const userId = payload?.userId;
+    const centerId = payload?.centerId || payload?.id;
+    const userId = payload?.userId || payload?.id;
 
     if (!centerId) {
       return c.json({ ok: false, error: "Center ID not found" }, 400);

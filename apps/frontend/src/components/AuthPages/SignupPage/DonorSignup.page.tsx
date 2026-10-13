@@ -2,6 +2,7 @@ import { EmailVerificationPage } from '@/components/AuthPages/EmailVerificationP
 import DonorForm from '@/components/AuthPages/SignupPage/DonorForm'
 import { boardingPreview } from '@/services/providers/boarding.provider'
 import { persistAccessToken } from '@/lib/access-token'
+import { persistBoardingVideoProgress } from '@/lib/persist-boarding-videos'
 import type { TDonorRegisterResponse } from '@zerocancer/shared/types'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -31,19 +32,31 @@ export function DonorSignupPage() {
   const { data: boardPreview } = useQuery(boardingPreview(inviteToken))
   const boarding = boardPreview?.data
 
-  const handleFormSubmit = (
+  const handleFormSubmit = async (
     data: { email?: string },
     response: TDonorRegisterResponse,
   ) => {
-    if (data && data.email) {
+    if (data?.email) {
       setEmail(data.email)
     }
     const token = response.data?.token
     if (token) {
       sessionStorage.removeItem('zerocancer_invite')
       persistAccessToken(queryClient, token)
+      await persistBoardingVideoProgress()
       queryClient.invalidateQueries({ queryKey: ['authUser'] })
       toast.success('Welcome. You can fund a waiting list or create one for your event.')
+      if (boarding?.waitingListId) {
+        navigate({
+          to: '/donor/campaigns/create',
+          search: {
+            targetGroupId: boarding.waitingListId,
+            groupName: boarding.waitingListName || undefined,
+          },
+          replace: true,
+        })
+        return
+      }
       navigate({ to: '/donor/waiting-lists', replace: true })
       return
     }
@@ -86,9 +99,15 @@ export function DonorSignupPage() {
         <div className="rounded-xl border border-pink-200 bg-pink-50 p-4 text-sm text-pink-900">
           <p className="font-semibold">{boarding.inviterName} invited you to sponsor screening</p>
           <p className="mt-1">
-            After you create this account you can fund women already waiting, a
-            church or CWO list, or start a waiting list tagged to your event.
+            {boarding.waitingListName
+              ? `After you create this account you can fund “${boarding.waitingListName}”.`
+              : 'After you create this account you can fund women already waiting, a church or CWO list, or start a waiting list tagged to your event.'}
           </p>
+        </div>
+      ) : boarding?.type === 'SCREEN' ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          This invite is for someone who should get screened. Create a patient
+          account instead — this donor signup will not use the invite.
         </div>
       ) : null}
       {hasDonationIntent && (

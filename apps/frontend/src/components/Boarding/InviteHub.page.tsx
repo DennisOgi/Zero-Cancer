@@ -29,6 +29,8 @@ import {
 } from '@/services/providers/boarding.provider'
 import { deleteAnniversaryContact } from '@/services/boarding.service'
 import { useAuthUser } from '@/services/providers/auth.provider'
+import { centers } from '@/services/providers/center.provider'
+import { myWaitingLists } from '@/services/providers/waiting-list.provider'
 import { QueryKeys } from '@/services/keys'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { TBoardingInvite } from '@zerocancer/shared/types'
@@ -41,7 +43,7 @@ import {
   Stethoscope,
   Users,
 } from 'lucide-react'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
 
 const MONTHS = [
@@ -63,9 +65,20 @@ export function InviteHubPage() {
   const queryClient = useQueryClient()
   const { data: auth } = useQuery(useAuthUser())
   const inviterName = auth?.data?.user?.fullName || 'A friend'
+  const profile = auth?.data?.user?.profile
+  const assignedCenter = auth?.data?.user?.assignedCenter
+  const isDonor = profile === 'DONOR'
   const { data: invitesData, isLoading: invitesLoading } = useQuery(myBoardingInvites())
   const { data: inviteesData } = useQuery(boardingInvitees())
   const { data: datesData } = useQuery(anniversaryContacts())
+  const { data: centersData } = useQuery({
+    ...centers({ page: 1, pageSize: 80 }),
+    enabled: isDonor,
+  })
+  const { data: listsData } = useQuery({
+    ...myWaitingLists(),
+    enabled: isDonor,
+  })
   const createInvite = useCreateBoardingInvite()
   const saveDate = useCreateAnniversaryContact()
   const [creating, setCreating] = useState<'SCREEN' | 'CELEBRANT' | null>(null)
@@ -74,22 +87,34 @@ export function InviteHubPage() {
   const [occasion, setOccasion] = useState<'BIRTHDAY' | 'WEDDING'>('BIRTHDAY')
   const [month, setMonth] = useState('6')
   const [day, setDay] = useState('12')
+  const [boundCenterId, setBoundCenterId] = useState('')
+  const [waitingListId, setWaitingListId] = useState('')
 
   const invites = invitesData?.data?.invites || []
   const screenInvite = invites.find((row) => row.type === 'SCREEN' && !row.waitingListId)
-  const celebrantInvite = invites.find(
-    (row) => row.type === 'CELEBRANT' && !row.waitingListId,
+  const celebrantInvite = invites.find((row) =>
+    row.type === 'CELEBRANT' &&
+    (waitingListId ? row.waitingListId === waitingListId : !row.waitingListId),
   )
+  const facilityChoices = centersData?.data?.centers || []
+  const myLists = listsData?.data?.lists || []
   const invitees = inviteesData?.data?.invitees || []
   const dates = datesData?.data?.contacts || []
   const dueSoon = useMemo(() => dates.filter((row) => row.dueSoon), [dates])
 
   const ensureInvite = async (type: 'SCREEN' | 'CELEBRANT') => {
     const existing = type === 'SCREEN' ? screenInvite : celebrantInvite
-    if (existing) return existing
+    if (type === 'SCREEN' && existing && !boundCenterId) return existing
+    if (type === 'CELEBRANT' && existing && !waitingListId) return existing
     setCreating(type)
     try {
-      const res = await createInvite.mutateAsync({ type })
+      const res = await createInvite.mutateAsync({
+        type,
+        boundCenterId:
+          type === 'SCREEN' && boundCenterId ? boundCenterId : undefined,
+        waitingListId:
+          type === 'CELEBRANT' && waitingListId ? waitingListId : undefined,
+      })
       return res.data
     } catch (error: any) {
       toast.error(error?.response?.data?.error || 'Could not create this invite')
@@ -118,6 +143,16 @@ export function InviteHubPage() {
 
   const onSaveDate = async (event: FormEvent) => {
     event.preventDefault()
+    const monthNumber = Number(month)
+    const dayNumber = Number(day)
+    const probe = new Date(2024, monthNumber - 1, dayNumber)
+    if (
+      probe.getMonth() !== monthNumber - 1 ||
+      probe.getDate() !== dayNumber
+    ) {
+      toast.error('That date does not exist. Check the day for that month.')
+      return
+    }
     try {
       await saveDate.mutateAsync({
         name,
@@ -128,7 +163,7 @@ export function InviteHubPage() {
       })
       setName('')
       setPhone('')
-      toast.success('Saved. We will remind you before the date — you send the WhatsApp.')
+      toast.success('Saved. We will remind you in the app — you send the WhatsApp.')
     } catch (error: any) {
       toast.error(error?.response?.data?.error || 'Could not save this date')
     }
@@ -143,19 +178,56 @@ export function InviteHubPage() {
           onboarding, then create an account. You will see who joined — never
           their screening or result.
         </p>
+        <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          Earnings: screen invites pay only if you have Earn / Refer turned on,
+          and only when that person completes a screening. Celebrant invites pay
+          a percentage when they fund a campaign — not per woman screened.
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <InviteCard
           title="Invite someone to screen"
-          description="For a friend, sister, or church member who should get screened. They pick a facility near them after signup."
+          description={
+            screenInvite?.boundCenter
+              ? `Invitees in ${screenInvite.boundCenter.lga} can join ${screenInvite.boundCenter.centerName}. Others pick a nearby facility.`
+              : assignedCenter
+                ? `Your hospital is ${assignedCenter.centerName}. Invitees in the same city can join it.`
+                : 'This link has no hospital yet. Invitees will choose a facility after signup.'
+          }
           icon={Stethoscope}
           invite={screenInvite}
           loading={creating === 'SCREEN' || invitesLoading}
           onGenerate={() => ensureInvite('SCREEN')}
           onCopy={() => screenInvite && copyInvite(screenInvite)}
           onWhatsApp={() => shareInvite('SCREEN')}
-        />
+        >
+          {isDonor ? (
+            <div className="space-y-1.5">
+              <Label>Hospital on this link (optional)</Label>
+              <Select
+                value={boundCenterId || '__none'}
+                onValueChange={(value) =>
+                  setBoundCenterId(value === '__none' ? '' : value)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Invitees choose their own facility" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">
+                    No hospital — they choose after signup
+                  </SelectItem>
+                  {facilityChoices.map((center) => (
+                    <SelectItem key={center.id} value={center.id}>
+                      {center.centerName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+        </InviteCard>
         <InviteCard
           title="Invite a celebrant or donor"
           description="For birthdays, weddings, CWO, and philanthropists. They can fund a waiting list or create one tagged to their event."
@@ -165,7 +237,36 @@ export function InviteHubPage() {
           onGenerate={() => ensureInvite('CELEBRANT')}
           onCopy={() => celebrantInvite && copyInvite(celebrantInvite)}
           onWhatsApp={() => shareInvite('CELEBRANT')}
-        />
+        >
+          {isDonor && myLists.length > 0 ? (
+            <div className="space-y-1.5">
+              <Label>Tag a waiting list (optional)</Label>
+              <Select
+                value={waitingListId || '__none'}
+                onValueChange={(value) =>
+                  setWaitingListId(value === '__none' ? '' : value)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Generic waiting lists page" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">No tagged list</SelectItem>
+                  {myLists.map((list) => (
+                    <SelectItem key={list.id} value={list.id}>
+                      {list.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : isDonor ? (
+            <p className="text-xs text-muted-foreground">
+              Create a waiting list first if you want this celebrant link to
+              open that list.
+            </p>
+          ) : null}
+        </InviteCard>
       </div>
 
       {dueSoon.length > 0 ? (
@@ -176,7 +277,7 @@ export function InviteHubPage() {
               Reminders this month
             </CardTitle>
             <CardDescription className="text-amber-900">
-              We remind you. You send the WhatsApp so they know it came from you.
+              We remind you in the app. You send the WhatsApp so they know it came from you.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -252,8 +353,8 @@ export function InviteHubPage() {
               Birthdays & anniversaries
             </CardTitle>
             <CardDescription>
-              Save a friend’s date and WhatsApp. We remind you before the day so
-              they can start preparing to sponsor screening.
+              Save a friend’s date and WhatsApp. We remind you in the app before
+              the day. We do not message them for you.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -365,6 +466,7 @@ function InviteCard({
   onGenerate,
   onCopy,
   onWhatsApp,
+  children,
 }: {
   title: string
   description: string
@@ -374,6 +476,7 @@ function InviteCard({
   onGenerate: () => void
   onCopy: () => void
   onWhatsApp: () => void
+  children?: ReactNode
 }) {
   return (
     <Card className="overflow-hidden">
@@ -385,6 +488,7 @@ function InviteCard({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        {children}
         {invite ? (
           <p className="truncate rounded-lg bg-slate-50 px-3 py-2 text-xs">{invite.joinUrl}</p>
         ) : null}

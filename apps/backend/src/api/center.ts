@@ -4,6 +4,7 @@ import {
   centerStaffLoginSchema,
   centerStaffResetPasswordSchema,
   createCenterStaffPasswordSchema,
+  getCenterAvailabilityQuerySchema,
   getCenterByIdSchema,
   getCentersQuerySchema,
   inviteStaffSchema,
@@ -12,6 +13,7 @@ import {
   validateStaffInviteSchema,
 } from "@zerocancer/shared";
 import type {
+  TGetCenterAvailabilityResponse,
   TCenterStaffMembersResponse,
   TCenterStaffForgotPasswordResponse,
   TCenterStaffLoginResponse,
@@ -29,6 +31,7 @@ import { env } from "hono/adapter";
 import { setCookie } from "hono/cookie";
 import { sign, verify } from "hono/jwt";
 import { ACCESS_TOKEN_TTL_SEC, REFRESH_TOKEN_TTL_SEC } from "../lib/auth-ttl";
+import { getCenterAvailability } from "../lib/center-availability";
 import { getDB } from "../lib/db";
 import { sendEmail } from "../lib/email";
 import {
@@ -444,6 +447,109 @@ centerApp.post(
   }
 );
 
+// PATCH /api/center/my-services/:screeningTypeId - Update retail price for a service
+centerApp.patch(
+  "/my-services/:screeningTypeId",
+  authMiddleware(["center", "center_staff"]),
+  async (c) => {
+    const db = getDB(c);
+    const payload = c.get("jwtPayload");
+    const centerId = payload?.centerId || payload?.id;
+    const screeningTypeId = c.req.param("screeningTypeId");
+    const body = await c.req.json<{ amount?: number; reason?: string }>().catch(() => ({}));
+    const amount = Number(body?.amount);
+
+    if (!centerId) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Center ID not found" },
+        400
+      );
+    }
+
+    if (!Number.isFinite(amount) || amount < 0) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Enter a valid price in naira" },
+        400
+      );
+    }
+
+    try {
+      const link = await db.serviceCenterScreeningType.findUnique({
+        where: {
+          centerId_screeningTypeId: { centerId, screeningTypeId },
+        },
+        include: {
+          screeningType: {
+            select: { id: true, name: true, agreedPrice: true },
+          },
+        },
+      });
+
+      if (!link) {
+        return c.json<TErrorResponse>(
+          { ok: false, error: "Service not offered by this facility" },
+          404
+        );
+      }
+
+      const basePrice = Number(link.screeningType?.agreedPrice || 0);
+      if (amount < basePrice) {
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            error: `Price cannot be less than the platform base of ₦${basePrice.toLocaleString()}`,
+          },
+          400
+        );
+      }
+
+      const oldPrice = Number(link.amount || 0);
+      const updated = await db.serviceCenterScreeningType.update({
+        where: {
+          centerId_screeningTypeId: { centerId, screeningTypeId },
+        },
+        data: { amount },
+      });
+
+      try {
+        await db.priceHistory.create({
+          data: {
+            screeningTypeId,
+            centerId,
+            priceType: "RETAIL_PRICE",
+            oldPrice,
+            newPrice: amount,
+            changedBy: payload?.userId || payload?.id || centerId,
+            reason:
+              body?.reason ||
+              `Retail price updated from ₦${oldPrice} to ₦${amount}`,
+          },
+        });
+      } catch (historyError) {
+        console.warn("Price history write skipped:", historyError);
+      }
+
+      return c.json({
+        ok: true,
+        message: `Price updated to ₦${amount.toLocaleString()}`,
+        data: {
+          id: updated.id,
+          screeningTypeId,
+          price: amount,
+          oldPrice,
+          agreedPrice: basePrice,
+        },
+      });
+    } catch (error) {
+      console.error("Update center service price error:", error);
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Failed to update service price" },
+        500
+      );
+    }
+  }
+);
+
 // DELETE /api/center/my-services/:screeningTypeId - Remove a service from the center
 centerApp.delete(
   "/my-services/:screeningTypeId",
@@ -473,6 +579,39 @@ centerApp.delete(
       console.error("Remove center service error:", error);
       return c.json<TErrorResponse>(
         { ok: false, error: "Failed to remove service" },
+        500
+      );
+    }
+  }
+);
+
+// GET /api/center/:id/availability - Public bookable days for a center
+centerApp.get(
+  "/:id{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}}/availability",
+  zValidator("param", getCenterByIdSchema, (result, c) => {
+    if (!result.success)
+      return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
+  }),
+  zValidator("query", getCenterAvailabilityQuerySchema, (result, c) => {
+    if (!result.success)
+      return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
+  }),
+  async (c) => {
+    const { id } = c.req.valid("param");
+    const query = c.req.valid("query");
+    try {
+      const data = await getCenterAvailability(c, id, query);
+      return c.json<TGetCenterAvailabilityResponse>({ ok: true, data });
+    } catch (error) {
+      console.error("Get public center availability error:", error);
+      return c.json<TErrorResponse>(
+        {
+          ok: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to load availability",
+        },
         500
       );
     }

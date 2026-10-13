@@ -49,6 +49,12 @@ export function AdminQuickActions() {
           </Link>
         </Button>
         <Button variant="outline" className="w-full justify-start" asChild>
+          <Link to="/admin/facility-demand">
+            <Clock className="h-4 w-4 mr-2" />
+            City facility demand
+          </Link>
+        </Button>
+        <Button variant="outline" className="w-full justify-start" asChild>
           <Link to="/admin/store">
             <Store className="h-4 w-4 mr-2" />
             Store Management

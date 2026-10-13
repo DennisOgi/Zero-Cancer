@@ -20,6 +20,7 @@ import { communityApp } from "./api/community";
 import { kitApp } from "./api/kit";
 import { screeningReportsApp } from "./api/screening-reports";
 import { centerPatientsApp } from "./api/center-patients";
+import { centerAvailabilityApp } from "./api/center-availability";
 import { patientEnrollmentApp } from "./api/patient-enrollment";
 import { patientScreeningReportsApp } from "./api/patient-screening-reports";
 import { publicScreeningReportsApp } from "./api/public-screening-reports";
@@ -34,6 +35,7 @@ import { webhooksApp } from "./api/webhooks";
 import { eventsApp } from "./api/events";
 import { waitingListsApp } from "./api/waiting-lists";
 import { boardingApp } from "./api/boarding";
+import pricingApp from "./api/pricing";
 import { TEnvs } from "./lib/types";
 
 // Create the main app (no basePath for root)
@@ -87,6 +89,7 @@ apiApp.route("/register", registerApp);
 // Mount /center/patients BEFORE /center so "patients" is not captured by /center/:id
 apiApp.route("/center/patients", centerPatientsApp);
 apiApp.route("/center/staff-earnings", staffEarningsApp);
+apiApp.route("/center/availability", centerAvailabilityApp);
 apiApp.route("/center", centerApp);
 apiApp.route("/appointment", appointmentApp);
 apiApp.route("/screening-types", screeningTypesApp);
@@ -113,6 +116,7 @@ apiApp.route("/webhooks", webhooksApp);
 apiApp.route("/events", eventsApp);
 apiApp.route("/waiting-lists", waitingListsApp);
 apiApp.route("/boarding", boardingApp);
+apiApp.route("/pricing", pricingApp);
 
 // Mount API app BEFORE static file serving
 app.route("/api/v1", apiApp);

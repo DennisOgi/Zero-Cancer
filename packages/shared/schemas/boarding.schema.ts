@@ -23,6 +23,7 @@ const inviteToken = z.preprocess(
 export const createBoardingInviteSchema = z.object({
   type: boardingInviteTypeSchema,
   waitingListId: z.string().uuid().optional(),
+  boundCenterId: z.string().uuid().optional(),
 });
 
 export const facilityChoiceSchema = z.object({
@@ -35,13 +36,23 @@ export const completeBoardingVideosSchema = z.object({
   skipped: z.boolean().optional(),
 });
 
-export const createAnniversaryContactSchema = z.object({
-  name: z.string().trim().min(2).max(80),
-  phone: z.string().trim().min(7).max(20),
-  occasion: boardingOccasionSchema,
-  month: z.coerce.number().int().min(1).max(12),
-  day: z.coerce.number().int().min(1).max(31),
-});
+function isValidCalendarDay(month: number, day: number) {
+  const probe = new Date(2024, month - 1, day);
+  return probe.getMonth() === month - 1 && probe.getDate() === day;
+}
+
+export const createAnniversaryContactSchema = z
+  .object({
+    name: z.string().trim().min(2).max(80),
+    phone: z.string().trim().min(7).max(20),
+    occasion: boardingOccasionSchema,
+    month: z.coerce.number().int().min(1).max(12),
+    day: z.coerce.number().int().min(1).max(31),
+  })
+  .refine((value) => isValidCalendarDay(value.month, value.day), {
+    message: "That date does not exist. Check the day for that month.",
+    path: ["day"],
+  });
 
 export { inviteToken as boardingInviteTokenSchema };
 

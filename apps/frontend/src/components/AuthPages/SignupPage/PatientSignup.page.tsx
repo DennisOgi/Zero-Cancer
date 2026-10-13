@@ -1,8 +1,14 @@
 import PatientForm from '@/components/AuthPages/SignupPage/PatientForm'
 import { persistAccessToken } from '@/lib/access-token'
+import { persistBoardingVideoProgress } from '@/lib/persist-boarding-videos'
+import {
+  clearReferralIntent,
+  readReferralIntent,
+} from '@/lib/referral-intent'
 import { useAuthUser } from '@/services/providers/auth.provider'
 import { lookupReferral } from '@/services/agent-network.service'
 import { getCenterById } from '@/services/center.service'
+import { joinWaitlist } from '@/services/patient.service'
 import { waitingListPreview } from '@/services/providers/waiting-list.provider'
 import { boardingPreview } from '@/services/providers/boarding.provider'
 import { Link, useNavigate } from '@tanstack/react-router'
@@ -116,17 +122,73 @@ export function PatientSignupPage({
     _values: FormData,
     response: TPatientRegisterResponse,
   ) => {
+    const referralIntent = readReferralIntent()
     sessionStorage.removeItem('zerocancer_ref')
     sessionStorage.removeItem(FACILITY_CENTER_KEY)
     sessionStorage.removeItem('zerocancer_invite')
     const token = response.data?.token
     if (token) {
       persistAccessToken(queryClient, token)
+      await persistBoardingVideoProgress()
       await queryClient.fetchQuery(useAuthUser()).catch(() => null)
     }
 
     const recommendedCenters = response.data?.recommendedCenters || []
     const assignedCenter = response.data?.assignedCenter || null
+    const intentCenterId =
+      referralIntent?.centerId || assignedCenter?.id || activeFacilityId
+
+    if (referralIntent?.intent && referralIntent.screeningTypeId) {
+      clearReferralIntent()
+      if (referralIntent.intent === 'pay_now') {
+        toast.success('Account created. Continue to pay and book your screening.')
+        navigate({
+          to: '/patient/book/pay',
+          search: {
+            screeningTypeId: referralIntent.screeningTypeId,
+            centerId: intentCenterId,
+            referralCode: referralIntent.code,
+          },
+          replace: true,
+        })
+        return
+      }
+      if (referralIntent.intent === 'pay_later') {
+        toast.success('Account created. Start saving toward your screening.')
+        navigate({
+          to: '/patient/savings',
+          search: {
+            screeningTypeId: referralIntent.screeningTypeId,
+            centerId: intentCenterId,
+            targetAmount: referralIntent.price,
+          },
+          replace: true,
+        })
+        return
+      }
+      if (referralIntent.intent === 'waitlist') {
+        try {
+          await joinWaitlist({
+            screeningTypeId: referralIntent.screeningTypeId,
+            centerId: intentCenterId || undefined,
+          })
+          toast.success(
+            `You're on the waitlist${
+              referralIntent.screeningName
+                ? ` for ${referralIntent.screeningName}`
+                : ''
+            }. A donor can sponsor you next.`,
+          )
+        } catch (error: any) {
+          toast.error(
+            error?.response?.data?.error ||
+              'Account created, but joining the waitlist failed. You can join from Book Screening.',
+          )
+        }
+        navigate({ to: '/patient', replace: true })
+        return
+      }
+    }
 
     if (response.data?.needsFacilityChoice) {
       toast.success('Account created. Choose a health facility next.')
@@ -222,6 +284,11 @@ export function PatientSignupPage({
               After you register we will ask you to join their hospital if you
               live in the same city, or pick the nearest facility.
             </p>
+          </div>
+        ) : boarding?.type === 'CELEBRANT' ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            This invite is for a celebrant or donor. Create a donor account
+            instead — this patient signup will not use the invite.
           </div>
         ) : null}
         {waitingList ? (

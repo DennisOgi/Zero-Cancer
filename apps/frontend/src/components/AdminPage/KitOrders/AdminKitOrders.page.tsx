@@ -201,7 +201,14 @@ export function AdminKitOrdersPage() {
                         {order.center?.phone ? ` · ${order.center.phone}` : ''}
                       </p>
                     </TableCell>
-                    <TableCell>{order.screeningTypeName}</TableCell>
+                    <TableCell>
+                      <p>{order.kitProductName || order.screeningTypeName}</p>
+                      {order.kitProductName ? (
+                        <p className="text-xs text-muted-foreground">
+                          {order.screeningTypeName}
+                        </p>
+                      ) : null}
+                    </TableCell>
                     <TableCell className="text-right font-medium">
                       {order.requestedQuantity}
                     </TableCell>
@@ -253,7 +260,9 @@ export function AdminKitOrdersPage() {
           <DialogHeader>
             <DialogTitle>
               {active ? actionLabel[active.action] : ''}:{' '}
-              {active?.order.requestedQuantity} × {active?.order.screeningTypeName}
+              {active?.order.requestedQuantity} ×{' '}
+              {active?.order.kitProductName ||
+                active?.order.screeningTypeName}
             </DialogTitle>
             <DialogDescription>
               For {active?.order.center?.centerName}. The facility sees the
