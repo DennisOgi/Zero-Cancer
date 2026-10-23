@@ -133,7 +133,7 @@ export function CenterProfilePage() {
 
   const shareUrl =
     profile.patientInviteUrl ||
-    `${typeof window !== 'undefined' ? window.location.origin : ''}/sign-up/patient?center=${profile.id}`
+    `${typeof window !== 'undefined' ? window.location.origin : ''}/c/${profile.id}`
 
   const onCopyInvite = async () => {
     try {

@@ -1178,6 +1178,32 @@ export const getDB = (c: Context) => {
         return link;
       },
 
+      update: async ({ where, data }: any) => {
+        let query = supabase.from('ServiceCenterScreeningType').update({
+          ...(data.amount !== undefined ? { amount: data.amount } : {}),
+          ...(data.centerId !== undefined ? { centerId: data.centerId } : {}),
+          ...(data.screeningTypeId !== undefined
+            ? { screeningTypeId: data.screeningTypeId }
+            : {}),
+        });
+
+        if (where?.centerId_screeningTypeId) {
+          query = query
+            .eq('centerId', where.centerId_screeningTypeId.centerId)
+            .eq('screeningTypeId', where.centerId_screeningTypeId.screeningTypeId);
+        } else if (where?.id) {
+          query = query.eq('id', where.id);
+        } else {
+          throw new Error(
+            'serviceCenterScreeningType.update requires id or centerId_screeningTypeId'
+          );
+        }
+
+        const { data: updated, error } = await query.select().single();
+        if (error) throw error;
+        return updated;
+      },
+
       delete: async ({ where }: any) => {
         let query = supabase.from('ServiceCenterScreeningType').delete();
 
@@ -1192,6 +1218,125 @@ export const getDB = (c: Context) => {
         const { error } = await query;
         if (error) throw error;
         return { id: where.id || where.centerId_screeningTypeId?.screeningTypeId };
+      },
+    },
+
+    priceHistory: {
+      create: async ({ data }: any) => {
+        const row = {
+          id: data.id || crypto.randomUUID(),
+          screeningTypeId: data.screeningTypeId ?? null,
+          centerId: data.centerId ?? null,
+          priceType: data.priceType,
+          oldPrice: data.oldPrice,
+          newPrice: data.newPrice,
+          changedBy: data.changedBy,
+          reason: data.reason ?? null,
+          createdAt: data.createdAt || new Date().toISOString(),
+        };
+        const { data: created, error } = await supabase
+          .from('PriceHistory')
+          .insert(row)
+          .select()
+          .single();
+        if (error) throw error;
+        return created;
+      },
+
+      findMany: async ({ where, include, orderBy, skip, take }: any = {}) => {
+        let query = supabase.from('PriceHistory').select('*');
+
+        if (where?.screeningTypeId)
+          query = query.eq('screeningTypeId', where.screeningTypeId);
+        if (where?.centerId) query = query.eq('centerId', where.centerId);
+        if (where?.priceType) query = query.eq('priceType', where.priceType);
+        if (where?.createdAt?.gte)
+          query = query.gte('createdAt', new Date(where.createdAt.gte).toISOString());
+        if (where?.createdAt?.lte)
+          query = query.lte('createdAt', new Date(where.createdAt.lte).toISOString());
+
+        if (orderBy?.createdAt === 'desc') query = query.order('createdAt', { ascending: false });
+        else if (orderBy?.createdAt === 'asc')
+          query = query.order('createdAt', { ascending: true });
+        else query = query.order('createdAt', { ascending: false });
+
+        if (typeof skip === 'number' && typeof take === 'number') {
+          query = query.range(skip, skip + take - 1);
+        } else if (typeof take === 'number') {
+          query = query.limit(take);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        const rows = data || [];
+
+        if (!include?.screeningType && !include?.center) return rows;
+
+        const screeningTypeIds = [
+          ...new Set(
+            rows
+              .map((row: any) => row.screeningTypeId)
+              .filter(Boolean),
+          ),
+        ];
+        const centerIds = [
+          ...new Set(rows.map((row: any) => row.centerId).filter(Boolean)),
+        ];
+
+        const [{ data: screeningTypes }, { data: centers }] = await Promise.all([
+          screeningTypeIds.length && include?.screeningType
+            ? supabase
+                .from('ScreeningType')
+                .select(
+                  include.screeningType.select
+                    ? Object.keys(include.screeningType.select).join(',')
+                    : 'id, name',
+                )
+                .in('id', screeningTypeIds)
+            : Promise.resolve({ data: [] }),
+          centerIds.length && include?.center
+            ? supabase
+                .from('ServiceCenter')
+                .select(
+                  include.center.select
+                    ? Object.keys(include.center.select).join(',')
+                    : 'id, centerName',
+                )
+                .in('id', centerIds)
+            : Promise.resolve({ data: [] }),
+        ]);
+
+        const screeningById = new Map(
+          (screeningTypes || []).map((row: any) => [row.id, row]),
+        );
+        const centerById = new Map((centers || []).map((row: any) => [row.id, row]));
+
+        return rows.map((row: any) => ({
+          ...row,
+          screeningType: include?.screeningType
+            ? screeningById.get(row.screeningTypeId) || null
+            : undefined,
+          center: include?.center ? centerById.get(row.centerId) || null : undefined,
+        }));
+      },
+
+      count: async ({ where }: any = {}) => {
+        let query = supabase
+          .from('PriceHistory')
+          .select('*', { count: 'exact', head: true });
+
+        if (where?.screeningTypeId)
+          query = query.eq('screeningTypeId', where.screeningTypeId);
+        if (where?.centerId) query = query.eq('centerId', where.centerId);
+        if (where?.priceType) query = query.eq('priceType', where.priceType);
+        if (where?.createdAt?.gte)
+          query = query.gte('createdAt', new Date(where.createdAt.gte).toISOString());
+        if (where?.createdAt?.lte)
+          query = query.lte('createdAt', new Date(where.createdAt.lte).toISOString());
+
+        const { count, error } = await query;
+        if (error) throw error;
+        return count || 0;
       },
     },
     

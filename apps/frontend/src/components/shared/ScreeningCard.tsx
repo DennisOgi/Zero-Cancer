@@ -15,7 +15,7 @@ import {
   useLeaveWaitlist,
 } from '@/services/providers/patient.provider'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import type { TScreeningType } from '@zerocancer/shared/types'
 import { ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
@@ -121,14 +121,40 @@ function ScreeningCardUI({
               </DialogContent>
             </Dialog>
           ) : (
-            <Button
-              variant="outline"
-              className="border-primary text-primary hover:bg-blue-50 hover:text-primary/80  py-2 px-6 rounded-lg cursor-pointer"
-              onClick={onJoinWaitlist}
-              disabled={isJoiningWaitlist}
-            >
-              {isJoiningWaitlist ? 'Joining...' : 'Join Waitlist'}
-            </Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="border-primary text-primary hover:bg-blue-50 hover:text-primary/80  py-2 px-6 rounded-lg cursor-pointer"
+                  disabled={isJoiningWaitlist}
+                >
+                  {isJoiningWaitlist ? 'Joining...' : 'Join Waitlist'}
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Join the waiting list</DialogTitle>
+                  <DialogDescription>
+                    It is advisable to attach your picture when joining the
+                    Waiting List. Patients with profile pictures are more likely
+                    to be funded for screening before those without it.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+                  <DialogClose asChild>
+                    <Button variant="ghost">Cancel</Button>
+                  </DialogClose>
+                  <Button variant="outline" asChild>
+                    <Link to="/patient/profile">Add photo first</Link>
+                  </Button>
+                  <DialogClose asChild>
+                    <Button onClick={onJoinWaitlist} disabled={isJoiningWaitlist}>
+                      {isJoiningWaitlist ? 'Joining...' : 'Join anyway'}
+                    </Button>
+                  </DialogClose>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           )}
         </div>
       </div>

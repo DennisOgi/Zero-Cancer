@@ -104,19 +104,17 @@ export function PatientSignupPage({
   const [facilityDismissed, setFacilityDismissed] = useState(false)
   const facility = (facilityLookup as any)?.data
   const facilityName = facility?.centerName as string | undefined
+  // Facility invites bind the patient when the center is ACTIVE.
+  // Services are not required for assignment — patients can still book later.
   const facilityUsable =
-    !!facility &&
-    String(facility.status || '').toUpperCase() === 'ACTIVE' &&
-    (facility.services?.length || 0) > 0
-  const facilityUnavailable =
-    !!centerId && (facilityLookupError || (!!facility && !facilityUsable))
+    !!facility && String(facility.status || '').toUpperCase() === 'ACTIVE'
   const activeFacilityId =
     centerId && facilityUsable && !facilityDismissed ? centerId : undefined
 
   useEffect(() => {
-    if (facilityUnavailable || facilityDismissed)
+    if (facilityLookupError || facilityDismissed)
       sessionStorage.removeItem(FACILITY_CENTER_KEY)
-  }, [facilityUnavailable, facilityDismissed])
+  }, [facilityLookupError, facilityDismissed])
 
   const handleFormSubmit = async (
     _values: FormData,
@@ -238,21 +236,26 @@ export function PatientSignupPage({
         </Link>
       </div>
       <div className="space-y-2">
+        <p className="text-sm text-muted-foreground">
+          Welcome to Zerocancer Africa where we partner to eliminate cervical
+          cancer from the continent.
+        </p>
         <h1 className="text-2xl font-bold">Create your patient account</h1>
         <p className="text-sm text-muted-foreground">
           Register with your location so we can connect you to the nearest
           health facility for vaccination, screening, and treatment.
         </p>
-        {activeFacilityId && facilityName ? (
+        {facilityName && !facilityDismissed && !facilityLookupError && facilityUsable ? (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
             <p className="font-medium">
-              You&apos;ll be registered at {facilityName}
+              {facilityName} from where you were referred
             </p>
             <p className="mt-0.5 text-emerald-900/80">
               {facility?.lga && facility?.state
                 ? `${facility.lga}, ${facility.state}. `
                 : ''}
-              This health facility invited you.
+              You will be registered under this health facility after you create
+              your account.
             </p>
             <button
               type="button"
@@ -263,18 +266,28 @@ export function PatientSignupPage({
             </button>
           </div>
         ) : null}
+        {facilityName && !facilityDismissed && !facilityLookupError && !facilityUsable ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <p className="font-medium">
+              {facilityName} from where you were referred
+            </p>
+            <p className="mt-0.5 text-amber-900/80">
+              This facility is not accepting new registrations through this
+              link right now. Register with your location and we&apos;ll match
+              you with a health facility near you instead.
+            </p>
+          </div>
+        ) : null}
         {facilityDismissed && facilityName ? (
           <div className="rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-800">
             We&apos;ll match you with a health facility near the location you
             enter below.
           </div>
         ) : null}
-        {facilityUnavailable ? (
+        {facilityLookupError && centerId ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            {facilityName
-              ? `${facilityName} isn't taking new registrations right now.`
-              : "This invite link isn't valid."}{' '}
-            We&apos;ll match you with a health facility near you instead.
+            This facility invite link isn&apos;t valid. We&apos;ll match you
+            with a health facility near you instead.
           </div>
         ) : null}
         {boarding?.type === 'SCREEN' ? (
@@ -307,6 +320,11 @@ export function PatientSignupPage({
                   ? ' This list is for men.'
                   : ''}
             </p>
+            <p className="mt-2 text-pink-900/90">
+              It is advisable to attach your picture when joining the Waiting
+              List. Patients with profile pictures are more likely to be funded
+              for screening before those without it.
+            </p>
           </div>
         ) : null}
         {listCode && listPreviewError ? (
@@ -332,6 +350,7 @@ export function PatientSignupPage({
         onSubmitSuccess={handleFormSubmit}
         referralCode={code || undefined}
         facilityCenterId={activeFacilityId}
+        hideReferralField={Boolean(activeFacilityId)}
         listToken={waitingList ? listCode : undefined}
         inviteToken={boardToken || undefined}
       />

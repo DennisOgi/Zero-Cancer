@@ -20,7 +20,12 @@ export const patientSchema = z.object({
     .min(1, { message: "Please select a local government." }),
   associationId: z.string().optional(),
   groupId: z.string().optional(),
-  photoUrl: z.string().url().optional(),
+  // Empty string from the form must not fail .url() — photo is optional
+  photoUrl: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().url().optional(),
+  ),
   centerId: z.string().uuid().optional(),
   referralCode: z
     .string()
@@ -158,7 +163,11 @@ export const updatePatientProfileSchema = z.object({
     .string()
     .min(1, { message: "Please select a local government." }),
   gender: z.enum(["MALE", "FEMALE"]).optional(),
-  photoUrl: z.string().url().optional(),
+  photoUrl: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().url().optional(),
+  ),
 });
 
 export const assignPatientCenterSchema = z.object({

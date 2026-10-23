@@ -21,6 +21,7 @@ import { Route as DonorIndexRouteImport } from './routes/donor/index'
 import { Route as CenterIndexRouteImport } from './routes/center/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as RegisterPatientRouteImport } from './routes/register/patient'
+import { Route as RCodeRouteImport } from './routes/r.$code'
 import { Route as PatientSelectCenterRouteImport } from './routes/patient/select-center'
 import { Route as PatientSavingsRouteImport } from './routes/patient/savings'
 import { Route as PatientReportsRouteImport } from './routes/patient/reports'
@@ -53,6 +54,7 @@ import { Route as CenterEventsRouteImport } from './routes/center/events'
 import { Route as CenterEarningsRouteImport } from './routes/center/earnings'
 import { Route as CenterAvailabilityRouteImport } from './routes/center/availability'
 import { Route as CenterAppointmentsRouteImport } from './routes/center/appointments'
+import { Route as CCenterIdRouteImport } from './routes/c.$centerId'
 import { Route as AdminWaitlistRouteImport } from './routes/admin/waitlist'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminTransactionsRouteImport } from './routes/admin/transactions'
@@ -169,6 +171,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const RegisterPatientRoute = RegisterPatientRouteImport.update({
   id: '/register/patient',
   path: '/register/patient',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RCodeRoute = RCodeRouteImport.update({
+  id: '/r/$code',
+  path: '/r/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PatientSelectCenterRoute = PatientSelectCenterRouteImport.update({
@@ -330,6 +337,11 @@ const CenterAppointmentsRoute = CenterAppointmentsRouteImport.update({
   id: '/appointments',
   path: '/appointments',
   getParentRoute: () => CenterRouteRoute,
+} as any)
+const CCenterIdRoute = CCenterIdRouteImport.update({
+  id: '/c/$centerId',
+  path: '/c/$centerId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminWaitlistRoute = AdminWaitlistRouteImport.update({
   id: '/waitlist',
@@ -670,6 +682,7 @@ export interface FileRoutesByFullPath {
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/waitlist': typeof AdminWaitlistRoute
+  '/c/$centerId': typeof CCenterIdRoute
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/availability': typeof CenterAvailabilityRoute
   '/center/earnings': typeof CenterEarningsRoute
@@ -702,6 +715,7 @@ export interface FileRoutesByFullPath {
   '/patient/reports': typeof PatientReportsRoute
   '/patient/savings': typeof PatientSavingsRouteWithChildren
   '/patient/select-center': typeof PatientSelectCenterRoute
+  '/r/$code': typeof RCodeRoute
   '/register/patient': typeof RegisterPatientRoute
   '/admin/': typeof AdminIndexRoute
   '/center/': typeof CenterIndexRoute
@@ -769,6 +783,7 @@ export interface FileRoutesByTo {
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/waitlist': typeof AdminWaitlistRoute
+  '/c/$centerId': typeof CCenterIdRoute
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/availability': typeof CenterAvailabilityRoute
   '/center/earnings': typeof CenterEarningsRoute
@@ -801,6 +816,7 @@ export interface FileRoutesByTo {
   '/patient/reports': typeof PatientReportsRoute
   '/patient/savings': typeof PatientSavingsRouteWithChildren
   '/patient/select-center': typeof PatientSelectCenterRoute
+  '/r/$code': typeof RCodeRoute
   '/register/patient': typeof RegisterPatientRoute
   '/admin': typeof AdminIndexRoute
   '/center': typeof CenterIndexRoute
@@ -875,6 +891,7 @@ export interface FileRoutesById {
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/waitlist': typeof AdminWaitlistRoute
+  '/c/$centerId': typeof CCenterIdRoute
   '/center/appointments': typeof CenterAppointmentsRoute
   '/center/availability': typeof CenterAvailabilityRoute
   '/center/earnings': typeof CenterEarningsRoute
@@ -907,6 +924,7 @@ export interface FileRoutesById {
   '/patient/reports': typeof PatientReportsRoute
   '/patient/savings': typeof PatientSavingsRouteWithChildren
   '/patient/select-center': typeof PatientSelectCenterRoute
+  '/r/$code': typeof RCodeRoute
   '/register/patient': typeof RegisterPatientRoute
   '/admin/': typeof AdminIndexRoute
   '/center/': typeof CenterIndexRoute
@@ -980,6 +998,7 @@ export interface FileRouteTypes {
     | '/admin/transactions'
     | '/admin/users'
     | '/admin/waitlist'
+    | '/c/$centerId'
     | '/center/appointments'
     | '/center/availability'
     | '/center/earnings'
@@ -1012,6 +1031,7 @@ export interface FileRouteTypes {
     | '/patient/reports'
     | '/patient/savings'
     | '/patient/select-center'
+    | '/r/$code'
     | '/register/patient'
     | '/admin/'
     | '/center/'
@@ -1079,6 +1099,7 @@ export interface FileRouteTypes {
     | '/admin/transactions'
     | '/admin/users'
     | '/admin/waitlist'
+    | '/c/$centerId'
     | '/center/appointments'
     | '/center/availability'
     | '/center/earnings'
@@ -1111,6 +1132,7 @@ export interface FileRouteTypes {
     | '/patient/reports'
     | '/patient/savings'
     | '/patient/select-center'
+    | '/r/$code'
     | '/register/patient'
     | '/admin'
     | '/center'
@@ -1184,6 +1206,7 @@ export interface FileRouteTypes {
     | '/admin/transactions'
     | '/admin/users'
     | '/admin/waitlist'
+    | '/c/$centerId'
     | '/center/appointments'
     | '/center/availability'
     | '/center/earnings'
@@ -1216,6 +1239,7 @@ export interface FileRouteTypes {
     | '/patient/reports'
     | '/patient/savings'
     | '/patient/select-center'
+    | '/r/$code'
     | '/register/patient'
     | '/admin/'
     | '/center/'
@@ -1263,7 +1287,9 @@ export interface RootRouteChildren {
   CenterRouteRoute: typeof CenterRouteRouteWithChildren
   DonorRouteRoute: typeof DonorRouteRouteWithChildren
   PatientRouteRoute: typeof PatientRouteRouteWithChildren
+  CCenterIdRoute: typeof CCenterIdRoute
   JoinTokenRoute: typeof JoinTokenRoute
+  RCodeRoute: typeof RCodeRoute
   RegisterPatientRoute: typeof RegisterPatientRoute
 }
 
@@ -1351,6 +1377,13 @@ declare module '@tanstack/react-router' {
       path: '/register/patient'
       fullPath: '/register/patient'
       preLoaderRoute: typeof RegisterPatientRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/r/$code': {
+      id: '/r/$code'
+      path: '/r/$code'
+      fullPath: '/r/$code'
+      preLoaderRoute: typeof RCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/patient/select-center': {
@@ -1576,6 +1609,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/center/appointments'
       preLoaderRoute: typeof CenterAppointmentsRouteImport
       parentRoute: typeof CenterRouteRoute
+    }
+    '/c/$centerId': {
+      id: '/c/$centerId'
+      path: '/c/$centerId'
+      fullPath: '/c/$centerId'
+      preLoaderRoute: typeof CCenterIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/waitlist': {
       id: '/admin/waitlist'
@@ -2291,7 +2331,9 @@ const rootRouteChildren: RootRouteChildren = {
   CenterRouteRoute: CenterRouteRouteWithChildren,
   DonorRouteRoute: DonorRouteRouteWithChildren,
   PatientRouteRoute: PatientRouteRouteWithChildren,
+  CCenterIdRoute: CCenterIdRoute,
   JoinTokenRoute: JoinTokenRoute,
+  RCodeRoute: RCodeRoute,
   RegisterPatientRoute: RegisterPatientRoute,
 }
 export const routeTree = rootRouteImport

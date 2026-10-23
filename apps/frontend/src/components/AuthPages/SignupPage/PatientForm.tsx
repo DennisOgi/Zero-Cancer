@@ -47,6 +47,8 @@ type PatientFormProps = {
   ) => void | Promise<void>
   referralCode?: string
   facilityCenterId?: string
+  /** Facility invite links already bind the patient — hide agent/donor referral UI */
+  hideReferralField?: boolean
   listToken?: string
   inviteToken?: string
 }
@@ -55,6 +57,7 @@ export default function PatientForm({
   onSubmitSuccess,
   referralCode,
   facilityCenterId,
+  hideReferralField = false,
   listToken,
   inviteToken,
 }: PatientFormProps) {
@@ -373,7 +376,7 @@ export default function PatientForm({
           </div>
         </div>
 
-        {!referralCode ? (
+        {!referralCode && !hideReferralField ? (
           <FormField
             control={form.control}
             name="referralCode"
@@ -387,16 +390,16 @@ export default function PatientForm({
                   />
                 </FormControl>
                 <p className="text-xs text-muted-foreground">
-                  This links you to the woman who invited you. You can still
-                  decide later whether she earns.
+                  If a friend, nurse, or envoy invited you with a personal code,
+                  enter it here so we can link your accounts.
                 </p>
                 <FormMessage />
               </FormItem>
             )}
           />
-        ) : (
+        ) : referralCode ? (
           <input type="hidden" {...form.register('referralCode')} />
-        )}
+        ) : null}
 
         <Button
           type="submit"

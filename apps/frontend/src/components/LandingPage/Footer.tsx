@@ -58,7 +58,20 @@ export default function Footer() {
           </div>
         </div>
         <div className="border-t mt-8 pt-6 flex flex-col md:flex-row justify-between items-center text-sm text-muted-foreground">
-          <p>Zerocancer © 2025. All Rights Reserved</p>
+          <div className="text-center md:text-left space-y-1">
+            <p>Zerocancer © 2025. All Rights Reserved</p>
+            <p>
+              Developed by{' '}
+              <a
+                href="https://www.wandggroup.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-primary underline-offset-2 hover:underline"
+              >
+                Walls and Gates
+              </a>
+            </p>
+          </div>
           <div className="flex gap-4 mt-4 md:mt-0">
             <a href="#" className="hover:text-primary">
               Terms

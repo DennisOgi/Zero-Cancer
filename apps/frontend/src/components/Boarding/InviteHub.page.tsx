@@ -353,8 +353,9 @@ export function InviteHubPage() {
               Birthdays & anniversaries
             </CardTitle>
             <CardDescription>
-              Save a friend’s date and WhatsApp. We remind you in the app before
-              the day. We do not message them for you.
+              Save a family or friend&apos;s special date and Whatsapp number so we
+              can remind you to invite them to fund screening for the less
+              privileged. We do not message them for you.
             </CardDescription>
           </CardHeader>
           <CardContent>

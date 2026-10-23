@@ -6,13 +6,13 @@ import { useState } from 'react'
 
 export default function Education() {
   const [currentVideo, setCurrentVideo] = useState(
-    '/Mobilab HPV Testing Video.mp4',
+    '/cervical-cancer-awareness.mp4',
   )
 
   const videoData = [
     {
       id: 'cervical',
-      src: '/ZeroCancer_Video_ewxn02.webm',
+      src: '/cervical-cancer-awareness.mp4',
       title: 'Cervical Cancer Awareness',
       description:
         'Understand the risks, symptoms, and importance of early detection.',
