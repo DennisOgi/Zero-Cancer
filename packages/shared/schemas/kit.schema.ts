@@ -34,14 +34,33 @@ export const addKitsSchema = z.object({
   batchNumber: z.string().optional(),
 });
 
-/** Facility request to purchase / restock kits (fulfillment & pricing come later). */
-export const orderKitsSchema = z.object({
-  screeningTypeId: z.string().uuid("Select a screening type"),
-  kitProduct: z.string().min(1, "Select a kit product").optional(),
+const orderKitLineSchema = z.object({
+  kitProduct: z.string().min(1, "Select a device or kit product"),
   quantity: z.coerce.number().int().min(1).max(500),
-  urgency: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
-  notes: z.string().max(500).optional(),
 });
+
+/** Facility request to purchase / restock devices & kits (multi-item checkout). */
+export const orderKitsSchema = z
+  .object({
+    screeningTypeId: z.string().uuid("Select a screening type"),
+    /** Preferred: one or more products in a single checkout. */
+    items: z.array(orderKitLineSchema).min(1).max(10).optional(),
+    /** Legacy single-line fields (still accepted). */
+    kitProduct: z.string().min(1).optional(),
+    quantity: z.coerce.number().int().min(1).max(500).optional(),
+    urgency: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
+    notes: z.string().max(500).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.items?.length) return;
+    if (value.quantity == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Add at least one device or kit to your order",
+        path: ["items"],
+      });
+    }
+  });
 
 export const kitOrderStatuses = [
   "PENDING",

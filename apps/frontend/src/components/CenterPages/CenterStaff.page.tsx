@@ -58,6 +58,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
 import { inviteStaffSchema } from '@zerocancer/shared/schemas/center.schema'
 import {
+  DEFAULT_STAFF_INVITE_ROLE,
+  STAFF_INVITE_ROLE_ORDER,
+  STAFF_ROLE_LABEL,
+  isClinicalStaffRole,
+  normalizeStaffRoleValue,
+  type TStaffRole,
+} from '@zerocancer/shared'
+import {
   Ban,
   CheckCircle2,
   Copy,
@@ -79,13 +87,9 @@ import peopleIcon from '@/assets/images/people.png'
 import { CenterStaffFilters } from './CenterStaffFilters'
 
 type InviteStaffForm = z.input<typeof inviteStaffSchema>
-type StaffRole = 'ADMIN' | 'NURSE' | 'STAFF'
+type StaffRole = TStaffRole
 
-const roleLabel: Record<StaffRole, string> = {
-  ADMIN: 'Facility admin',
-  NURSE: 'Nurse',
-  STAFF: 'Staff',
-}
+const roleLabel = STAFF_ROLE_LABEL
 
 type Row =
   | {
@@ -157,7 +161,7 @@ export function CenterStaffPage() {
         id: m.id,
         name: m.fullName || m.email.split('@')[0],
         email: m.email,
-        role: m.role,
+        role: normalizeStaffRoleValue(m.role),
         status: m.status === 'SUSPENDED' ? ('Suspended' as const) : ('Active' as const),
         patientsRegistered: m.patientsRegistered,
         joined: m.createdAt ? new Date(m.createdAt).toLocaleDateString() : '—',
@@ -168,7 +172,9 @@ export function CenterStaffPage() {
         id: invite.token,
         name: invite.fullName || invite.email.split('@')[0],
         email: invite.email,
-        role: (String(invite.role || 'NURSE').toUpperCase() as StaffRole) || 'NURSE',
+        role: normalizeStaffRoleValue(
+          invite.role || DEFAULT_STAFF_INVITE_ROLE,
+        ),
         status:
           invite.expiresAt && new Date(invite.expiresAt) < new Date()
             ? ('Expired' as const)
@@ -201,7 +207,11 @@ export function CenterStaffPage() {
 
   const form = useForm<InviteStaffForm>({
     resolver: zodResolver(inviteStaffSchema),
-    defaultValues: { emails: [''], role: 'NURSE', fullName: '' },
+    defaultValues: {
+      emails: [''],
+      role: DEFAULT_STAFF_INVITE_ROLE,
+      fullName: '',
+    },
   })
   const emailFields = form.watch('emails')
   const appendEmail = () =>
@@ -220,7 +230,7 @@ export function CenterStaffPage() {
     inviteStaffMutation.mutate(
       {
         emails: validEmails,
-        role: data.role || 'NURSE',
+        role: data.role || DEFAULT_STAFF_INVITE_ROLE,
         fullName: data.fullName || undefined,
       },
       {
@@ -239,7 +249,11 @@ export function CenterStaffPage() {
               token: invite.token,
             })),
           )
-          form.reset({ emails: [''], role: 'NURSE', fullName: '' })
+          form.reset({
+            emails: [''],
+            role: DEFAULT_STAFF_INVITE_ROLE,
+            fullName: '',
+          })
           setInviteDialogOpen(false)
         },
         onError: (error) =>
@@ -309,12 +323,12 @@ export function CenterStaffPage() {
   }
 
   const activeCount = members.filter((m) => m.status === 'ACTIVE').length
-  const nurseCount = members.filter(
-    (m) => m.role === 'NURSE' && m.status === 'ACTIVE',
+  const clinicalCount = members.filter(
+    (m) => isClinicalStaffRole(m.role) && m.status === 'ACTIVE',
   ).length
   const stats = [
     { title: 'Active team', value: activeCount, icon: peopleIcon, color: 'bg-blue-100' },
-    { title: 'Active nurses', value: nurseCount, icon: peopleIcon, color: 'bg-red-100' },
+    { title: 'Doctors & nurses', value: clinicalCount, icon: peopleIcon, color: 'bg-red-100' },
     { title: 'Pending invites', value: invites.length, icon: megaphoneIcon, color: 'bg-purple-100' },
   ]
 
@@ -331,7 +345,7 @@ export function CenterStaffPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Nurses & staff</h1>
+          <h1 className="text-3xl font-bold">Doctors, nurses & staff</h1>
           <p className="text-muted-foreground">
             Manage the health care providers who work at{' '}
             {centerName || 'your health facility'}.
@@ -395,7 +409,7 @@ export function CenterStaffPage() {
                 <TableCell colSpan={7} className="text-center py-10">
                   <p className="font-medium">No staff here yet</p>
                   <p className="text-sm text-muted-foreground">
-                    Invite nurses so they can register and screen patients.
+                    Invite doctors and nurses so they can register and screen patients.
                   </p>
                 </TableCell>
               </TableRow>
@@ -444,9 +458,9 @@ export function CenterStaffPage() {
                           {row.kind === 'member' ? (
                             <>
                               <DropdownMenuLabel>Change role</DropdownMenuLabel>
-                              {(['NURSE', 'ADMIN', 'STAFF'] as StaffRole[])
-                                .filter((r) => r !== row.role)
-                                .map((r) => (
+                              {STAFF_INVITE_ROLE_ORDER.filter(
+                                (r) => r !== row.role,
+                              ).map((r) => (
                                   <DropdownMenuItem key={r} onClick={() => changeRole(row, r)}>
                                     <UserCog className="mr-2 h-4 w-4" />
                                     Make {roleLabel[r].toLowerCase()}
@@ -541,7 +555,7 @@ export function CenterStaffPage() {
       <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Invite nurses & staff</DialogTitle>
+            <DialogTitle>Invite doctors & staff</DialogTitle>
             <DialogDescription>
               Each person gets an email link to set a password and join{' '}
               {centerName || 'your facility'}.
@@ -558,7 +572,7 @@ export function CenterStaffPage() {
                     <FormLabel>Full name (optional)</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Nurse Adaeze"
+                        placeholder="Dr Adaeze"
                         value={field.value ?? ''}
                         onChange={field.onChange}
                       />
@@ -581,15 +595,20 @@ export function CenterStaffPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="NURSE">Nurse</SelectItem>
-                        <SelectItem value="ADMIN">Facility admin</SelectItem>
-                        <SelectItem value="STAFF">Staff</SelectItem>
+                        {STAFF_INVITE_ROLE_ORDER.map((role) => (
+                          <SelectItem key={role} value={role}>
+                            {roleLabel[role]}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Nurses register and screen patients and get their own
-                      referral link. Facility admins can also manage the team,
-                      wallet and kit orders.
+                      Doctors and nurses share a simple clinical path: register
+                      and screen patients, or request a screen for a patient.
+                      Each gets a private referral wallet the facility admin
+                      cannot see. Facility admins manage the team, the
+                      facility wallet, and devices &amp; kits orders — not
+                      individual clinician balances.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

@@ -93,7 +93,7 @@ export type TLoginResponse = TDataResponse<{
     email: string;
     profile: "PATIENT" | "DONOR" | "CENTER" | "CENTER_STAFF" | "ADMIN";
     staffId?: string;
-    staffRole?: "ADMIN" | "NURSE" | "STAFF";
+    staffRole?: "ADMIN" | "DOCTOR" | "NURSE" | "STAFF";
   };
 }>;
 
@@ -120,7 +120,7 @@ export type TAuthMeResponse = TDataResponse<{
     facilityChoice?: string | null;
     mustChangePassword?: boolean;
     staffId?: string;
-    staffRole?: "ADMIN" | "NURSE" | "STAFF";
+    staffRole?: "ADMIN" | "DOCTOR" | "NURSE" | "STAFF";
     staffFullName?: string;
   };
 }>;
@@ -302,7 +302,7 @@ export type TCenter = {
   staff: Array<{
     id: string;
     email: string;
-    role?: "ADMIN" | "NURSE" | "STAFF" | string;
+    role?: "ADMIN" | "DOCTOR" | "NURSE" | "STAFF" | string;
     fullName?: string | null;
     status?: "ACTIVE" | "SUSPENDED" | "PENDING" | string;
   }>;
@@ -899,7 +899,7 @@ export type TCenterStaffLoginResponse = TDataResponse<{
     profile: "CENTER" | "CENTER_STAFF";
     centerId: string;
     staffId?: string;
-    staffRole?: "ADMIN" | "NURSE" | "STAFF";
+    staffRole?: "ADMIN" | "DOCTOR" | "NURSE" | "STAFF";
     fullName?: string;
   };
 }>;
@@ -1231,7 +1231,7 @@ export type TCenterStaffMember = {
   id: string;
   email: string;
   fullName: string | null;
-  role: "ADMIN" | "NURSE" | "STAFF";
+  role: "ADMIN" | "DOCTOR" | "NURSE" | "STAFF";
   status: "ACTIVE" | "SUSPENDED";
   createdAt: string | null;
   patientsRegistered: number;

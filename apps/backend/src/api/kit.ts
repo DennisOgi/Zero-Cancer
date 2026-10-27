@@ -259,53 +259,89 @@ kitApp.post(
         .eq("id", body.screeningTypeId)
         .maybeSingle();
       const products = kitProductsForScreening(screeningType?.name);
+      const lineItems =
+        body.items?.length
+          ? body.items
+          : body.quantity
+            ? [
+                {
+                  kitProduct: body.kitProduct || "",
+                  quantity: body.quantity,
+                },
+              ]
+            : [];
+
+      if (!lineItems.length) {
+        return c.json(
+          {
+            ok: false,
+            error: "Add at least one device or kit to your order.",
+          },
+          400
+        );
+      }
+
       if (products.length) {
-        if (!body.kitProduct || !isKitProductId(body.kitProduct)) {
-          return c.json(
-            {
-              ok: false,
-              error: "Select which kit product you need for this screening type.",
-            },
-            400
-          );
-        }
-        if (!products.some((product) => product.id === body.kitProduct)) {
-          return c.json(
-            { ok: false, error: "That kit product is not used for this screening type." },
-            400
-          );
+        for (const line of lineItems) {
+          if (!line.kitProduct || !isKitProductId(line.kitProduct)) {
+            return c.json(
+              {
+                ok: false,
+                error:
+                  "Select which devices and kits you need for this screening type.",
+              },
+              400
+            );
+          }
+          if (!products.some((product) => product.id === line.kitProduct)) {
+            return c.json(
+              {
+                ok: false,
+                error:
+                  "One of the selected products is not used for this screening type.",
+              },
+              400
+            );
+          }
         }
       }
 
-      const order = {
+      const requestedAt = new Date().toISOString();
+      const requestedBy = payload?.email || payload?.staffId || centerId;
+      const orders = lineItems.map((line) => ({
         id: crypto.randomUUID(),
         centerId,
         screeningTypeId: body.screeningTypeId,
-        kitProduct: body.kitProduct || null,
-        requestedQuantity: body.quantity,
+        kitProduct: line.kitProduct || null,
+        requestedQuantity: line.quantity,
         urgency: body.urgency || "NORMAL",
         reason:
           body.notes ||
-          "Facility kit order — awaiting sales / pricing configuration",
+          "Facility devices & kits order — awaiting sales / pricing configuration",
         status: "PENDING",
-        requestedBy: payload?.email || payload?.staffId || centerId,
-        requestedAt: new Date().toISOString(),
-      };
+        requestedBy,
+        requestedAt,
+      }));
 
       const { data, error } = await supabase
         .from("RestockRequest")
-        .insert(order)
-        .select("*")
-        .single();
+        .insert(orders)
+        .select("*");
 
       if (error) throw error;
 
+      const count = data?.length || orders.length;
       return c.json(
         {
           ok: true,
-          data: data,
+          data: {
+            orders: data || orders,
+            order: data?.[0] || orders[0],
+          },
           message:
-            "Kit order submitted. ZeroCancer will confirm pricing and delivery.",
+            count === 1
+              ? "Order submitted. ZeroCancer will confirm pricing and delivery."
+              : `${count} items ordered. ZeroCancer will confirm pricing and delivery.`,
         },
         201
       );

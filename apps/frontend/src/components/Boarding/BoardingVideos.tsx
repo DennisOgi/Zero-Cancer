@@ -12,6 +12,9 @@ function StepMedia({ step }: { step: BoardingVideoStep }) {
         src={step.src}
         controls
         autoPlay
+        muted
+        defaultMuted
+        playsInline
         className="h-full w-full object-cover"
         onError={() => setFailed(true)}
       />

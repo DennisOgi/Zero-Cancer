@@ -25,6 +25,7 @@ function naira(amount: number) {
 }
 
 function commissionTitle(sourceType?: string, note?: string) {
+  // Source type names are historical (NURSE_DIRECT_*); doctors earn the same.
   if (
     sourceType === 'NURSE_DIRECT_SCREEN' ||
     sourceType === 'NURSE_DIRECT_HOME_SCREEN'
@@ -125,8 +126,8 @@ export function CenterEarningsPage() {
         <CardHeader>
           <CardTitle>Could not load earnings</CardTitle>
           <CardDescription>
-            This page is private to nurses. Facility administrators cannot view
-            it.
+            This page is private to doctors and nurses. Facility administrators
+            cannot view it.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -141,7 +142,8 @@ export function CenterEarningsPage() {
       <div className="bg-white p-4 lg:p-6 rounded-lg">
         <h1 className="text-3xl font-bold">Your referral earnings</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Private to you — the facility administrator cannot see this wallet.
+          Private to you as a doctor or nurse — the facility administrator
+          cannot see this wallet.
           Share your code with anyone, including people who live outside this
           hospital&apos;s area. You earn {screenPay} when they complete
           screening at any ZeroCancer center, or {homePay} for a home screening.
@@ -374,7 +376,7 @@ export function CenterEarningsPage() {
                       {commissionTitle(commission.sourceType, commission.note)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {commission.note || 'Nurse referral reward'}
+                      {commission.note || 'Referral reward'}
                     </p>
                   </div>
                   <div className="text-right space-y-1">

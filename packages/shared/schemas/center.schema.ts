@@ -12,7 +12,8 @@ export const inviteStaffSchema = z.object({
       ),
     )
     .pipe(z.array(z.string().email()).min(1, "Add at least one email")),
-  role: z.enum(["ADMIN", "NURSE", "STAFF"]).optional(),
+  // Order matches invite UX: Doctor → Nurse → Facility admin → Staff
+  role: z.enum(["DOCTOR", "NURSE", "ADMIN", "STAFF"]).optional(),
   fullName: z
     .string()
     .trim()

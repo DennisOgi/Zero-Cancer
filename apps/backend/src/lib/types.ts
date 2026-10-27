@@ -3,7 +3,7 @@ export type AuthPayload = {
   email: string;
   profile: "PATIENT" | "DONOR" | "CENTER" | "CENTER_STAFF" | "ADMIN";
   staffId?: string;
-  staffRole?: "ADMIN" | "NURSE" | "STAFF";
+  staffRole?: "ADMIN" | "DOCTOR" | "NURSE" | "STAFF";
 };
 
 export type THonoApp = {

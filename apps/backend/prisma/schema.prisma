@@ -649,7 +649,7 @@ model CenterStaff {
   centerId  String
   email     String  
   passwordHash String
-  role      String? @default("STAFF") // ADMIN, NURSE, STAFF
+  role      String? @default("STAFF") // ADMIN, DOCTOR, NURSE, STAFF
   status    String? @default("ACTIVE")
   fullName  String?
   bankName  String?

@@ -1,13 +1,15 @@
 import type { Context } from "hono";
+import {
+  isClinicalStaffRole,
+  normalizeStaffRoleValue,
+  type TStaffRole,
+} from "@zerocancer/shared";
 import type { AuthPayload } from "./types";
 
-export type StaffRole = "ADMIN" | "NURSE" | "STAFF";
+export type StaffRole = TStaffRole;
 
 export function normalizeStaffRole(role?: string | null): StaffRole {
-  const value = String(role || "").trim().toUpperCase();
-  if (value === "ADMIN") return "ADMIN";
-  if (value === "NURSE") return "NURSE";
-  return "STAFF";
+  return normalizeStaffRoleValue(role);
 }
 
 export function isHospitalAdminRole(role?: string | null) {
@@ -15,11 +17,15 @@ export function isHospitalAdminRole(role?: string | null) {
   return value === "ADMIN";
 }
 
-/** Facility admins sign in as the center; nurses and staff stay CENTER_STAFF. */
+/** Facility admins sign in as the center; doctors/nurses/staff stay CENTER_STAFF. */
 export function staffJwtProfile(role?: string | null): "CENTER" | "CENTER_STAFF" {
   return isHospitalAdminRole(role) ? "CENTER" : "CENTER_STAFF";
 }
 
+/**
+ * Personal referral wallets are private to doctors and nurses.
+ * Facility admins (CENTER / ADMIN) never see clinician balances.
+ */
 export function canAccessStaffEarnings(ctx: {
   profile?: string | null;
   staffRole?: string | null;
@@ -28,7 +34,7 @@ export function canAccessStaffEarnings(ctx: {
   if (!ctx.staffId) return false;
   if (ctx.profile === "CENTER") return false;
   if (isHospitalAdminRole(ctx.staffRole)) return false;
-  return true;
+  return isClinicalStaffRole(ctx.staffRole);
 }
 
 export function getCenterContext(c: Context) {

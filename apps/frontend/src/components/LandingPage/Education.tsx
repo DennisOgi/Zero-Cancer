@@ -54,7 +54,12 @@ export default function Education() {
               onClick={() => setCurrentVideo(video.src)}
             >
               <div className="w-24 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-black">
-                <video src={video.src} className="w-full h-full object-cover" />
+                <video
+                  src={video.src}
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div>
                 <h4 className="font-bold">{video.title}</h4>
@@ -80,6 +85,9 @@ export default function Education() {
           key={currentVideo}
           src={currentVideo}
           controls
+          muted
+          defaultMuted
+          playsInline
           className="w-full h-full object-cover"
         />
       </div>

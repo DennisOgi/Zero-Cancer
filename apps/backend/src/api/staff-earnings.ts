@@ -50,14 +50,14 @@ const inviteSchema = z.object({
 const MIN_CASHOUT_NGN = 100;
 
 const EARNINGS_PRIVATE_ERROR =
-  "Referral earnings are private to nurses and are not available to facility administrators.";
+  "Referral earnings are private to each doctor or nurse and are not available to facility administrators.";
 
 function staffShareUrl(frontendUrl: string, code: string) {
   const base = (frontendUrl || "https://zerocancer.africa").replace(/\/$/, "");
   return `${base}/r/${encodeURIComponent(code)}`;
 }
 
-async function requireNurseEarnings(c: any) {
+async function requireClinicalEarnings(c: any) {
   const db = getDB(c);
   const resolved = await resolveCenterStaff(c, db);
   if (!canAccessStaffEarnings(resolved) || !resolved.staff) {
@@ -74,7 +74,7 @@ async function requireNurseEarnings(c: any) {
 
 staffEarningsApp.get("/me", async (c) => {
   try {
-    const { error, resolved } = await requireNurseEarnings(c);
+    const { error, resolved } = await requireClinicalEarnings(c);
     if (error || !resolved?.staffId) return error!;
 
     const supabase = getSupabaseClient(c);
@@ -185,7 +185,7 @@ staffEarningsApp.post(
   }),
   async (c) => {
     try {
-      const { error, resolved } = await requireNurseEarnings(c);
+      const { error, resolved } = await requireClinicalEarnings(c);
       if (error || !resolved?.staffId) return error!;
 
       const supabase = getSupabaseClient(c);
@@ -223,7 +223,7 @@ staffEarningsApp.patch(
   }),
   async (c) => {
     try {
-      const { error, resolved } = await requireNurseEarnings(c);
+      const { error, resolved } = await requireClinicalEarnings(c);
       if (error || !resolved?.staffId) return error!;
 
       if (!isFlutterwaveConfigured(c)) {
@@ -279,7 +279,7 @@ staffEarningsApp.post(
   }),
   async (c) => {
     try {
-      const { error, resolved } = await requireNurseEarnings(c);
+      const { error, resolved } = await requireClinicalEarnings(c);
       if (error || !resolved?.staffId || !resolved.staff) return error!;
 
       if (!isFlutterwaveConfigured(c)) {

@@ -60,9 +60,11 @@ const createPasswordFormSchema = createCenterStaffPasswordSchema
 const roleIntro = (role?: string) =>
   role === 'ADMIN'
     ? 'a facility admin'
-    : role === 'NURSE'
-      ? 'a nurse'
-      : 'a staff member'
+    : role === 'DOCTOR'
+      ? 'a doctor'
+      : role === 'NURSE'
+        ? 'a nurse'
+        : 'a staff member'
 
 const roleAbilities = (role?: string) => {
   const shared = [
@@ -71,10 +73,14 @@ const roleAbilities = (role?: string) => {
     'Manage facility appointments',
   ]
   if (role === 'ADMIN')
-    return [...shared, 'Invite and manage nurses & staff', 'Order screening kits']
-  if (role === 'NURSE')
     return [
-      'Register and screen patients',
+      ...shared,
+      'Invite and manage doctors & staff',
+      'Order devices and kits',
+    ]
+  if (role === 'DOCTOR' || role === 'NURSE')
+    return [
+      'Register and screen patients, or request a screen for a patient',
       ...shared,
       'Share your own referral link and earn privately',
     ]

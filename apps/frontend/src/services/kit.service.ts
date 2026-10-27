@@ -118,8 +118,9 @@ export const updateAdminKitOrder = async ({
 
 export const createKitOrder = async (data: {
   screeningTypeId: string
+  items?: Array<{ kitProduct: string; quantity: number }>
   kitProduct?: string
-  quantity: number
+  quantity?: number
   urgency?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
   notes?: string
 }) => {

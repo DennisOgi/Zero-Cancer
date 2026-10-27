@@ -762,7 +762,7 @@ centerApp.get("/staff/invite", authMiddleware(["center"]), async (c) => {
   const transformedInvites = invites.map((invite) => ({
     email: invite.email,
     token: invite.token,
-    role: invite.role || "NURSE",
+    role: normalizeStaffRole(invite.role || "DOCTOR"),
     fullName: invite.fullName || null,
     expiresAt: invite.expiresAt
       ? new Date(invite.expiresAt).toISOString()
@@ -1020,7 +1020,7 @@ centerApp.post(
         email: invite.email,
         token,
         centerName: center?.centerName || "a ZeroCancer health facility",
-        role: normalizeStaffRole(invite.role || "NURSE"),
+        role: normalizeStaffRole(invite.role || "DOCTOR"),
       });
     } catch (error) {
       console.error("Staff invite resend email failed:", error);
@@ -1040,9 +1040,11 @@ async function sendStaffInviteEmail(
   const roleLabel =
     opts.role === "ADMIN"
       ? "hospital admin"
-      : opts.role === "NURSE"
-        ? "nurse"
-        : "staff member";
+      : opts.role === "DOCTOR"
+        ? "doctor"
+        : opts.role === "NURSE"
+          ? "nurse"
+          : "staff member";
   const inviteUrl = `${
     env<{ FRONTEND_URL: string }>(c).FRONTEND_URL
   }/staff/create-new-password?token=${opts.token}`;
@@ -1066,7 +1068,8 @@ centerApp.post(
     const supabase = getSupabaseClient(c);
     const centerId = c.get("jwtPayload")?.id as string;
     const { emails, role, fullName } = c.req.valid("json");
-    const staffRole = normalizeStaffRole(role || "NURSE");
+    // Doctor-first product default when role omitted
+    const staffRole = normalizeStaffRole(role || "DOCTOR");
     const center = await db.serviceCenter.findUnique({ where: { id: centerId } });
     const centerName = center?.centerName || "a ZeroCancer health facility";
     const invites: Array<{
@@ -1187,7 +1190,7 @@ centerApp.post(
           where: { id: previous.id },
           data: {
             passwordHash,
-            role: normalizeStaffRole(invite.role || "NURSE"),
+            role: normalizeStaffRole(invite.role || "DOCTOR"),
             fullName: invite.fullName || previous.fullName || null,
             status: "ACTIVE",
           },
@@ -1197,7 +1200,7 @@ centerApp.post(
             centerId: invite.centerId!,
             email: invite.email!.toLowerCase(),
             passwordHash,
-            role: normalizeStaffRole(invite.role || "NURSE"),
+            role: normalizeStaffRole(invite.role || "DOCTOR"),
             fullName: invite.fullName || null,
             status: "ACTIVE",
             createdAt: new Date(),
@@ -1460,7 +1463,7 @@ centerApp.get(
         data: {
           isValid: !isExpired,
           centerId: invitation.centerId,
-          role: normalizeStaffRole(invitation.role || "NURSE"),
+          role: normalizeStaffRole(invitation.role || "DOCTOR"),
           fullName: invitation.fullName || null,
           centerName,
           centerAddress,

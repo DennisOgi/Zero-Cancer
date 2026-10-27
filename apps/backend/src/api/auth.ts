@@ -79,7 +79,7 @@ authApp.post(
       let id = "";
 
       let staffId: string | undefined;
-      let staffRole: "ADMIN" | "NURSE" | "STAFF" | undefined;
+      let staffRole: "ADMIN" | "DOCTOR" | "NURSE" | "STAFF" | undefined;
       let authProfile:
         | "PATIENT"
         | "DONOR"

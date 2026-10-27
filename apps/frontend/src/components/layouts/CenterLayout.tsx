@@ -17,6 +17,7 @@ import screening from '@/assets/images/screening.png'
 import treatment from '@/assets/images/treatment.png'
 import waitlistIcon from '@/assets/images/waitlist.png'
 import walletIcon from '@/assets/images/wallet.png'
+import { isClinicalStaffRole } from '@zerocancer/shared'
 import { useAuthUser, useLogout } from '@/services/providers/auth.provider'
 import { useNotifications } from '@/services/providers/notification.provider'
 
@@ -28,10 +29,11 @@ export function CenterLayout() {
   const isStaff = user?.profile === 'CENTER_STAFF'
   const isAdmin = user?.profile === 'CENTER'
   const staffId = user?.staffId
+  // Personal referral wallets — doctors/nurses only; never facility admins
   const canSeePrivateEarnings =
     Boolean(staffId) &&
     user?.profile !== 'CENTER' &&
-    user?.staffRole !== 'ADMIN'
+    isClinicalStaffRole(user?.staffRole)
 
   // Fetch notifications for unread count
   const { data: notificationsData } = useQuery(useNotifications())
@@ -48,7 +50,7 @@ export function CenterLayout() {
     { to: '/center/verify-code', label: 'Verify Code', icon: screening },
     { to: '/center/upload-results', label: 'Upload Results', icon: treatment },
     { to: '/center/reports', label: 'Reports', icon: reportsIcon },
-    { to: '/center/kits', label: 'Kits', icon: kitsIcon },
+    { to: '/center/kits', label: 'Devices and Kits', icon: kitsIcon },
     { to: '/center/notifications', label: 'Notifications', icon: notificationIcon },
   ]
 
@@ -56,7 +58,7 @@ export function CenterLayout() {
     { to: '/center/profile', label: 'Profile', icon: profileIcon },
     { to: '/center/receipt-history', label: 'Payouts', icon: payoutsIcon },
     { to: '/center/wallet', label: 'Wallet', icon: walletIcon },
-    { to: '/center/staff', label: 'Nurses & staff', icon: nursesIcon },
+    { to: '/center/staff', label: 'Doctors & staff', icon: nursesIcon },
     { to: '/center/events', label: 'Events', icon: eventsIcon },
   ]
 

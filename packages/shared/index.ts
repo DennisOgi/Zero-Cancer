@@ -2,3 +2,4 @@ export * from "./schemas";
 export * from "./types";
 export * from "./utils";
 export * from "./constants/kit-products";
+export * from "./constants/staff-roles";

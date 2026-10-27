@@ -27,7 +27,7 @@ export const validateStaffInviteSchema = z.object({
 
 export const updateCenterStaffMemberSchema = z
   .object({
-    role: z.enum(["ADMIN", "NURSE", "STAFF"]).optional(),
+    role: z.enum(["DOCTOR", "NURSE", "ADMIN", "STAFF"]).optional(),
     status: z.enum(["ACTIVE", "SUSPENDED"]).optional(),
     fullName: z.string().trim().min(1).max(120).optional(),
   })

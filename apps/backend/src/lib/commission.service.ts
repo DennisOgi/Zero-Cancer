@@ -281,8 +281,8 @@ async function creditStaffDirectReferralCommission(
     status: "AVAILABLE",
     appointmentId: params.appointmentId,
     note: params.isHome
-      ? "Nurse referral — home screening (any center)"
-      : "Nurse referral — screening at any center",
+      ? "Clinical referral — home screening (any center)"
+      : "Clinical referral — screening at any center",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
