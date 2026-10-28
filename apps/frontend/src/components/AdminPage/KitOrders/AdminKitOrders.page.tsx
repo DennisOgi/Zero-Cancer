@@ -121,11 +121,11 @@ export function AdminKitOrdersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Kit orders</h1>
+        <h1 className="text-3xl font-bold">Kits and Devices orders</h1>
         <p className="text-muted-foreground">
-          Screening kits health facilities have ordered from ZeroCancer.
-          Approve, ship and deliver them here. Delivered kits go straight into
-          the facility&apos;s inventory.
+          Expressions of Interest from health facilities for devices and kits.
+          Confirm pricing with the facility, then approve, ship, and deliver.
+          Delivered items go into the facility&apos;s inventory.
         </p>
       </div>
 
@@ -144,7 +144,7 @@ export function AdminKitOrdersPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Kits in this view</CardDescription>
+            <CardDescription>Units in this view</CardDescription>
             <CardTitle className="text-2xl">{totalKits}</CardTitle>
           </CardHeader>
         </Card>
@@ -166,7 +166,8 @@ export function AdminKitOrdersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Facility</TableHead>
-                <TableHead>Kit</TableHead>
+                <TableHead>EOI</TableHead>
+                <TableHead>Product</TableHead>
                 <TableHead className="text-right">Qty</TableHead>
                 <TableHead>Requested</TableHead>
                 <TableHead>Notes</TableHead>
@@ -177,14 +178,14 @@ export function AdminKitOrdersPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-8 text-center">
+                  <TableCell colSpan={8} className="py-8 text-center">
                     <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
                   </TableCell>
                 </TableRow>
               ) : orders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
-                    No kit orders here.
+                  <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
+                    No Expressions of Interest here.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -201,13 +202,15 @@ export function AdminKitOrdersPage() {
                         {order.center?.phone ? ` · ${order.center.phone}` : ''}
                       </p>
                     </TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {order.invoiceNumber || '—'}
+                    </TableCell>
                     <TableCell>
-                      <p>{order.kitProductName || order.screeningTypeName}</p>
-                      {order.kitProductName ? (
-                        <p className="text-xs text-muted-foreground">
-                          {order.screeningTypeName}
-                        </p>
-                      ) : null}
+                      <p>
+                        {order.kitProductName ||
+                          order.kitProduct ||
+                          order.screeningTypeName}
+                      </p>
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {order.requestedQuantity}
@@ -265,8 +268,12 @@ export function AdminKitOrdersPage() {
                 active?.order.screeningTypeName}
             </DialogTitle>
             <DialogDescription>
-              For {active?.order.center?.centerName}. The facility sees the
-              new status and your note on their Kits page.
+              For {active?.order.center?.centerName}
+              {active?.order.invoiceNumber
+                ? ` · ${active.order.invoiceNumber}`
+                : ''}
+              . The facility sees the new status and your note on Kits and
+              Devices.
             </DialogDescription>
           </DialogHeader>
 
@@ -295,7 +302,7 @@ export function AdminKitOrdersPage() {
             {active?.action === 'DELIVERED' ? (
               <div className="space-y-1.5">
                 <Label htmlFor="kit-serials">
-                  Kit serial numbers (optional)
+                  Serial numbers (optional)
                 </Label>
                 <Textarea
                   id="kit-serials"
@@ -305,7 +312,7 @@ export function AdminKitOrdersPage() {
                   onChange={(e) => setSerials(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Nurses use these serials when completing a screening.
+                  Staff use these serials when completing a screening.
                 </p>
               </div>
             ) : null}

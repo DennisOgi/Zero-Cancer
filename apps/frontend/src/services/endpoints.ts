@@ -507,6 +507,8 @@ export const getKits = (params?: {
 export const getKitStats = () => '/api/kit/stats'
 export const getKitOrders = () => '/api/kit/orders'
 export const createKitOrder = () => '/api/kit/orders'
+export const getKitOrderInvoice = (invoiceNumber: string) =>
+  `/api/kit/orders/invoice/${encodeURIComponent(invoiceNumber)}`
 export const cancelKitOrder = (id: string) => `/api/kit/orders/${id}/cancel`
 export const adminKitOrders = (params?: { status?: string }) =>
   `/api/kit/admin/orders${buildQuery({ status: params?.status })}`

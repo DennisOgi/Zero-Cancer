@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  isKitProductId,
+  kitProductMinQuantity,
+} from "../constants/kit-products";
 
 export const kitSchema = z.object({
   id: z.string().uuid().optional(),
@@ -36,30 +40,58 @@ export const addKitsSchema = z.object({
 
 const orderKitLineSchema = z.object({
   kitProduct: z.string().min(1, "Select a device or kit product"),
-  quantity: z.coerce.number().int().min(1).max(500),
+  quantity: z.coerce.number().int().min(1).max(10000),
 });
 
-/** Facility request to purchase / restock devices & kits (multi-item checkout). */
+/**
+ * Facility shop checkout — product catalogue only (no screening-type picker).
+ * Prices are confirmed later via Expression of Interest.
+ */
 export const orderKitsSchema = z
   .object({
-    screeningTypeId: z.string().uuid("Select a screening type"),
-    /** Preferred: one or more products in a single checkout. */
-    items: z.array(orderKitLineSchema).min(1).max(10).optional(),
-    /** Legacy single-line fields (still accepted). */
+    /** Optional; server attaches a default cervical type for inventory FK if omitted. */
+    screeningTypeId: z.string().uuid().optional(),
+    items: z.array(orderKitLineSchema).min(1).max(20).optional(),
     kitProduct: z.string().min(1).optional(),
-    quantity: z.coerce.number().int().min(1).max(500).optional(),
+    quantity: z.coerce.number().int().min(1).max(10000).optional(),
     urgency: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
     notes: z.string().max(500).optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.items?.length) return;
-    if (value.quantity == null) {
+    const lines =
+      value.items?.length
+        ? value.items
+        : value.quantity != null
+          ? [{ kitProduct: value.kitProduct || "", quantity: value.quantity }]
+          : [];
+
+    if (!lines.length) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Add at least one device or kit to your order",
         path: ["items"],
       });
+      return;
     }
+
+    lines.forEach((line, index) => {
+      if (!isKitProductId(line.kitProduct)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Unknown device or kit product",
+          path: ["items", index, "kitProduct"],
+        });
+        return;
+      }
+      const min = kitProductMinQuantity(line.kitProduct);
+      if (line.quantity < min) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Minimum quantity for this product is ${min}`,
+          path: ["items", index, "quantity"],
+        });
+      }
+    });
   });
 
 export const kitOrderStatuses = [

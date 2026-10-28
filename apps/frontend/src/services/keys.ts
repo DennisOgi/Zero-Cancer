@@ -183,6 +183,7 @@ export enum MutationKeys {
   staffCashout = 'staffCashout',
   createKitOrder = 'createKitOrder',
   cancelKitOrder = 'cancelKitOrder',
+  getKitOrderInvoice = 'getKitOrderInvoice',
   updateAdminKitOrder = 'updateAdminKitOrder',
   updateStaffMember = 'updateStaffMember',
   removeStaffMember = 'removeStaffMember',

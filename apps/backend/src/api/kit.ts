@@ -1,11 +1,14 @@
 import { zValidator } from "@hono/zod-validator";
 import {
   addKitsSchema,
+  DEFAULT_KIT_ORDER_SCREENING_TYPE_ID,
   getKitOrdersQuerySchema,
   getKitsQuerySchema,
   isKitProductId,
+  kitProductById,
   kitProductLabel,
-  kitProductsForScreening,
+  kitProductMinQuantity,
+  kitShopCatalog,
   orderKitsSchema,
   updateKitOrderSchema,
 } from "@zerocancer/shared";
@@ -15,6 +18,66 @@ import { THonoApp } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
 
 export const kitApp = new Hono<THonoApp>();
+
+type EoiLineInput = {
+  kitProduct: string;
+  quantity: number;
+};
+
+function buildEoiInvoice(params: {
+  invoiceNumber: string;
+  issuedAt: string;
+  lines: EoiLineInput[];
+  buyer: {
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+    address?: string;
+  };
+}) {
+  return {
+    type: "EXPRESSION_OF_INTEREST" as const,
+    title: "Expression of Interest Invoice",
+    invoiceNumber: params.invoiceNumber,
+    issuedAt: params.issuedAt,
+    priceNote: "For Confirmation",
+    footerNote: "You will be contacted later.",
+    lines: params.lines.map((line) => {
+      const product = kitProductById(line.kitProduct);
+      return {
+        kitProduct: line.kitProduct,
+        name: product?.name || kitProductLabel(line.kitProduct) || line.kitProduct,
+        shortName: product?.shortName || null,
+        quantity: line.quantity,
+        unitLabel: product?.unitLabel || "units",
+        priceDisplay: "For Confirmation",
+      };
+    }),
+    buyer: params.buyer,
+  };
+}
+
+function centerBuyerFromRow(
+  center: {
+    centerName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    whatsappNumber?: string | null;
+    address?: string | null;
+    state?: string | null;
+    lga?: string | null;
+  } | null,
+  emailFallback?: string | null
+) {
+  return {
+    name: center?.centerName || "Health facility",
+    email: center?.email || emailFallback || null,
+    phone: center?.whatsappNumber || center?.phone || null,
+    address: [center?.address, center?.lga, center?.state]
+      .filter(Boolean)
+      .join(", "),
+  };
+}
 
 // GET /api/v1/kit - List kits (paginated, filtered)
 kitApp.get(
@@ -235,30 +298,6 @@ kitApp.post(
       const centerId = payload?.id as string;
       const body = c.req.valid("json");
 
-      const { data: serviceLink } = await supabase
-        .from("ServiceCenterScreeningType")
-        .select("screeningTypeId")
-        .eq("centerId", centerId)
-        .eq("screeningTypeId", body.screeningTypeId)
-        .maybeSingle();
-
-      if (!serviceLink) {
-        return c.json(
-          {
-            ok: false,
-            error:
-              "Add this screening service to your facility before ordering kits for it.",
-          },
-          400
-        );
-      }
-
-      const { data: screeningType } = await supabase
-        .from("ScreeningType")
-        .select("id, name")
-        .eq("id", body.screeningTypeId)
-        .maybeSingle();
-      const products = kitProductsForScreening(screeningType?.name);
       const lineItems =
         body.items?.length
           ? body.items
@@ -281,43 +320,89 @@ kitApp.post(
         );
       }
 
-      if (products.length) {
-        for (const line of lineItems) {
-          if (!line.kitProduct || !isKitProductId(line.kitProduct)) {
-            return c.json(
-              {
-                ok: false,
-                error:
-                  "Select which devices and kits you need for this screening type.",
-              },
-              400
-            );
-          }
-          if (!products.some((product) => product.id === line.kitProduct)) {
-            return c.json(
-              {
-                ok: false,
-                error:
-                  "One of the selected products is not used for this screening type.",
-              },
-              400
-            );
-          }
+      const catalog = kitShopCatalog();
+      for (const line of lineItems) {
+        if (!line.kitProduct || !isKitProductId(line.kitProduct)) {
+          return c.json(
+            {
+              ok: false,
+              error: "Select products from the Kits and Devices catalogue.",
+            },
+            400
+          );
+        }
+        if (!catalog.some((product) => product.id === line.kitProduct)) {
+          return c.json(
+            { ok: false, error: "One of the selected products is not available." },
+            400
+          );
+        }
+        const min = kitProductMinQuantity(line.kitProduct);
+        if (line.quantity < min) {
+          const label = kitProductLabel(line.kitProduct) || "This product";
+          return c.json(
+            {
+              ok: false,
+              error: `${label}: minimum order quantity is ${min}.`,
+            },
+            400
+          );
         }
       }
 
+      // Inventory FK still expects a screening type; shop UI does not ask for one.
+      let screeningTypeId =
+        body.screeningTypeId || DEFAULT_KIT_ORDER_SCREENING_TYPE_ID;
+      const { data: screeningType } = await supabase
+        .from("ScreeningType")
+        .select("id")
+        .eq("id", screeningTypeId)
+        .maybeSingle();
+      if (!screeningType) {
+        const { data: fallback } = await supabase
+          .from("ScreeningType")
+          .select("id")
+          .ilike("name", "%cervical%")
+          .limit(1)
+          .maybeSingle();
+        if (!fallback?.id) {
+          return c.json(
+            {
+              ok: false,
+              error: "Could not place order. Please contact ZeroCancer support.",
+            },
+            500
+          );
+        }
+        screeningTypeId = fallback.id;
+      }
+
+      const { data: center } = await supabase
+        .from("ServiceCenter")
+        .select("id, centerName, email, phone, whatsappNumber, address, state, lga")
+        .eq("id", centerId)
+        .maybeSingle();
+
       const requestedAt = new Date().toISOString();
       const requestedBy = payload?.email || payload?.staffId || centerId;
+      const invoiceNumber = `EOI-${Date.now().toString(36).toUpperCase()}`;
+      const lineSummary = lineItems
+        .map((line) => {
+          const product = kitProductById(line.kitProduct);
+          return `${product?.name || line.kitProduct} × ${line.quantity}`;
+        })
+        .join("; ");
       const orders = lineItems.map((line) => ({
         id: crypto.randomUUID(),
         centerId,
-        screeningTypeId: body.screeningTypeId,
+        screeningTypeId,
         kitProduct: line.kitProduct || null,
+        invoiceNumber,
         requestedQuantity: line.quantity,
         urgency: body.urgency || "NORMAL",
         reason:
           body.notes ||
-          "Facility devices & kits order — awaiting sales / pricing configuration",
+          `Expression of Interest ${invoiceNumber}: ${lineSummary}`,
         status: "PENDING",
         requestedBy,
         requestedAt,
@@ -330,6 +415,13 @@ kitApp.post(
 
       if (error) throw error;
 
+      const invoice = buildEoiInvoice({
+        invoiceNumber,
+        issuedAt: requestedAt,
+        lines: lineItems,
+        buyer: centerBuyerFromRow(center, payload?.email),
+      });
+
       const count = data?.length || orders.length;
       return c.json(
         {
@@ -337,11 +429,13 @@ kitApp.post(
           data: {
             orders: data || orders,
             order: data?.[0] || orders[0],
+            invoiceNumber,
+            invoice,
           },
           message:
             count === 1
-              ? "Order submitted. ZeroCancer will confirm pricing and delivery."
-              : `${count} items ordered. ZeroCancer will confirm pricing and delivery.`,
+              ? "Expression of Interest submitted. You will be contacted later."
+              : `Expression of Interest for ${count} items submitted. You will be contacted later.`,
         },
         201
       );
@@ -355,32 +449,119 @@ kitApp.post(
   }
 );
 
-// POST /api/v1/kit/orders/:id/cancel - Facility withdraws a pending order
+// GET /api/v1/kit/orders/invoice/:invoiceNumber - Rebuild EOI invoice for reprint
+kitApp.get(
+  "/orders/invoice/:invoiceNumber",
+  authMiddleware(["center", "center_staff"]),
+  async (c) => {
+    const supabase = getSupabaseClient(c);
+    const payload = c.get("jwtPayload");
+    const centerId = payload?.id as string;
+    const invoiceNumber = c.req.param("invoiceNumber");
+
+    const { data: rows, error } = await supabase
+      .from("RestockRequest")
+      .select("*")
+      .eq("centerId", centerId)
+      .eq("invoiceNumber", invoiceNumber)
+      .order("requestedAt", { ascending: true });
+
+    if (error) {
+      console.error("Load EOI invoice failed:", error);
+      return c.json({ ok: false, error: "Failed to load invoice" }, 500);
+    }
+    if (!rows?.length) {
+      return c.json({ ok: false, error: "Invoice not found" }, 404);
+    }
+
+    const { data: center } = await supabase
+      .from("ServiceCenter")
+      .select("id, centerName, email, phone, whatsappNumber, address, state, lga")
+      .eq("id", centerId)
+      .maybeSingle();
+
+    const invoice = buildEoiInvoice({
+      invoiceNumber,
+      issuedAt: rows[0].requestedAt,
+      lines: rows.map((row: any) => ({
+        kitProduct: row.kitProduct || "UNKNOWN",
+        quantity: row.requestedQuantity,
+      })),
+      buyer: centerBuyerFromRow(center, payload?.email),
+    });
+
+    return c.json({
+      ok: true,
+      data: {
+        invoice,
+        orders: rows.map((row: any) => ({
+          ...row,
+          kitProductName: kitProductLabel(row.kitProduct),
+        })),
+      },
+    });
+  }
+);
+
+// POST /api/v1/kit/orders/:id/cancel - Facility withdraws a pending EOI (all lines in the invoice)
 kitApp.post("/orders/:id/cancel", authMiddleware(["center"]), async (c) => {
   const supabase = getSupabaseClient(c);
   const payload = c.get("jwtPayload");
-  const { data, error } = await supabase
+  const centerId = payload?.id as string;
+  const id = c.req.param("id");
+
+  const { data: existing } = await supabase
+    .from("RestockRequest")
+    .select("id, invoiceNumber, status")
+    .eq("id", id)
+    .eq("centerId", centerId)
+    .maybeSingle();
+
+  if (!existing) {
+    return c.json({ ok: false, error: "Order not found" }, 404);
+  }
+  if (existing.status !== "PENDING") {
+    return c.json(
+      { ok: false, error: "Only pending Expressions of Interest can be cancelled" },
+      400
+    );
+  }
+
+  let query = supabase
     .from("RestockRequest")
     .update({
       status: "CANCELLED",
       reviewedAt: new Date().toISOString(),
       reviewedBy: payload?.email || payload?.id,
     })
-    .eq("id", c.req.param("id"))
-    .eq("centerId", payload?.id as string)
-    .eq("status", "PENDING")
-    .select("id");
+    .eq("centerId", centerId)
+    .eq("status", "PENDING");
+
+  if (existing.invoiceNumber) {
+    query = query.eq("invoiceNumber", existing.invoiceNumber);
+  } else {
+    query = query.eq("id", id);
+  }
+
+  const { data, error } = await query.select("id");
   if (error) {
     console.error("Cancel kit order failed:", error);
     return c.json({ ok: false, error: "Failed to cancel order" }, 500);
   }
   if (!data?.length) {
     return c.json(
-      { ok: false, error: "Only pending orders can be cancelled" },
+      { ok: false, error: "Only pending Expressions of Interest can be cancelled" },
       400
     );
   }
-  return c.json({ ok: true, data: { id: data[0].id } });
+  return c.json({
+    ok: true,
+    data: {
+      id: data[0].id,
+      invoiceNumber: existing.invoiceNumber || null,
+      cancelledCount: data.length,
+    },
+  });
 });
 
 // GET /api/v1/kit/admin/orders - All facility kit orders (platform admin)

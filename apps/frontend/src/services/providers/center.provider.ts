@@ -388,6 +388,12 @@ export const useCancelKitOrder = () => {
   })
 }
 
+export const useKitOrderInvoice = () =>
+  useMutation({
+    mutationKey: [MutationKeys.getKitOrderInvoice],
+    mutationFn: kitService.getKitOrderInvoice,
+  })
+
 export const adminKitOrders = (params?: { status?: string }) =>
   queryOptions({
     queryKey: [QueryKeys.adminKitOrders, params],

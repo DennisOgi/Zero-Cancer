@@ -139,7 +139,7 @@ export function AdminLayout() {
                 activeProps={{ className: 'bg-muted text-primary' }}
               >
                 <Package className="h-4 w-4" />
-                Kit orders
+                Kits and Devices
               </Link>
               <Link
                 to="/admin/events"

@@ -50,7 +50,7 @@ export function CenterLayout() {
     { to: '/center/verify-code', label: 'Verify Code', icon: screening },
     { to: '/center/upload-results', label: 'Upload Results', icon: treatment },
     { to: '/center/reports', label: 'Reports', icon: reportsIcon },
-    { to: '/center/kits', label: 'Devices and Kits', icon: kitsIcon },
+    { to: '/center/kits', label: 'Kits and Devices', icon: kitsIcon },
     { to: '/center/notifications', label: 'Notifications', icon: notificationIcon },
   ]
 

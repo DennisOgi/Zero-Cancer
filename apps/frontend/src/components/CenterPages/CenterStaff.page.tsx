@@ -607,7 +607,7 @@ export function CenterStaffPage() {
                       and screen patients, or request a screen for a patient.
                       Each gets a private referral wallet the facility admin
                       cannot see. Facility admins manage the team, the
-                      facility wallet, and devices &amp; kits orders — not
+                      facility wallet, and Kits and Devices orders — not
                       individual clinician balances.
                     </FormDescription>
                     <FormMessage />

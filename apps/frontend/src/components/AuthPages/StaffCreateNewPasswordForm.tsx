@@ -76,7 +76,7 @@ const roleAbilities = (role?: string) => {
     return [
       ...shared,
       'Invite and manage doctors & staff',
-      'Order devices and kits',
+      'Order Kits and Devices',
     ]
   if (role === 'DOCTOR' || role === 'NURSE')
     return [
