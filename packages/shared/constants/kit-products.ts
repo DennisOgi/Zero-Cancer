@@ -59,6 +59,16 @@ export const KIT_AND_DEVICE_PRODUCTS = [
     unitLabel: "packets",
     kind: "kit" as const,
   },
+  {
+    id: "DELPHI_VAGINAL_SAMPLER",
+    name: "Delphi Vaginal Sampler (for self-collection of cervical lavage)",
+    shortName: "Delphi Vaginal Sampler",
+    description:
+      "For self-collection of cervical lavage. Minimum order 10 units.",
+    minQuantity: 10,
+    unitLabel: "units",
+    kind: "device" as const,
+  },
 ] as const;
 
 export type TKitProductId = (typeof KIT_AND_DEVICE_PRODUCTS)[number]["id"];

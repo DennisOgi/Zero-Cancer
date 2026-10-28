@@ -1,4 +1,5 @@
 import logoBlue from '@/assets/images/logo-blue.svg'
+import logoBlueSvg from '@/assets/images/logo-blue.svg?raw'
 import { Badge } from '@/components/shared/ui/badge'
 import { Button } from '@/components/shared/ui/button'
 import {
@@ -109,10 +110,10 @@ function escapeHtml(value: string) {
     .replace(/"/g, '&quot;')
 }
 
-function logoAbsoluteUrl() {
-  if (typeof window === 'undefined') return '/zerocancer-logo.svg'
-  return `${window.location.origin}/zerocancer-logo.svg`
-}
+/** Inline logo so print/PDF never depends on a network image load. */
+const LOGO_DATA_URI = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+  logoBlueSvg,
+)}`
 
 function groupKitOrders(orders: TKitOrder[]): OrderGroup[] {
   const map = new Map<string, OrderGroup>()
@@ -146,7 +147,6 @@ function groupKitOrders(orders: TKitOrder[]): OrderGroup[] {
 }
 
 function printEoiInvoice(invoice: TEoiInvoice) {
-  const logoUrl = logoAbsoluteUrl()
   const linesHtml = invoice.lines
     .map(
       (line) =>
@@ -162,7 +162,7 @@ function printEoiInvoice(invoice: TEoiInvoice) {
 <style>
   body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;padding:36px;max-width:740px;margin:0 auto}
   .brand{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:2px solid #0b2c5f;padding-bottom:16px;margin-bottom:20px}
-  .brand img{height:52px;width:auto}
+  .brand img{height:56px;width:auto;display:block}
   .brand-meta{text-align:right;font-size:12px;color:#64748b;line-height:1.5}
   h1{font-size:22px;margin:0 0 6px;color:#0b2c5f}
   .muted{color:#64748b;font-size:13px;margin:0}
@@ -173,7 +173,7 @@ function printEoiInvoice(invoice: TEoiInvoice) {
   .buyer{margin-top:12px}
 </style></head><body>
   <div class="brand">
-    <img src="${escapeHtml(logoUrl)}" alt="ZeroCancer" />
+    <img src="${LOGO_DATA_URI}" alt="ZeroCancer" width="146" height="80" />
     <div class="brand-meta">
       <div><strong>ZeroCancer Africa</strong></div>
       <div>Expression of Interest</div>
@@ -209,8 +209,7 @@ function printEoiInvoice(invoice: TEoiInvoice) {
     popup.document.write(html)
     popup.document.close()
     popup.focus()
-    // Give the logo a moment to load before print
-    window.setTimeout(() => popup.print(), 250)
+    popup.print()
     return
   }
 
@@ -229,11 +228,11 @@ function printEoiInvoice(invoice: TEoiInvoice) {
   frameDoc.open()
   frameDoc.write(html)
   frameDoc.close()
+  iframe.contentWindow?.focus()
+  iframe.contentWindow?.print()
   window.setTimeout(() => {
-    iframe.contentWindow?.focus()
-    iframe.contentWindow?.print()
     document.body.removeChild(iframe)
-  }, 250)
+  }, 500)
 }
 
 export function CenterKitsPage() {

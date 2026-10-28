@@ -18,14 +18,6 @@ import {
 } from '@/components/shared/ui/dialog'
 import { Input } from '@/components/shared/ui/input'
 import { Label } from '@/components/shared/ui/label'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/shared/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/shared/ui/tabs'
 import { Textarea } from '@/components/shared/ui/textarea'
 import {
@@ -33,8 +25,15 @@ import {
   useUpdateAdminKitOrder,
 } from '@/services/providers/center.provider'
 import type { TAdminKitOrder } from '@/services/kit.service'
+import { kitProductById } from '@zerocancer/shared'
 import { useQuery } from '@tanstack/react-query'
-import { Loader2 } from 'lucide-react'
+import {
+  Building2,
+  Clock3,
+  Loader2,
+  Package,
+  Phone,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -55,6 +54,87 @@ const actionLabel: Record<Action, string> = {
 
 const tabs = ['PENDING', 'APPROVED', 'SHIPPED', 'DELIVERED', 'ALL'] as const
 
+const STATUS_RANK: Record<string, number> = {
+  PENDING: 1,
+  APPROVED: 2,
+  SHIPPED: 3,
+  DELIVERED: 4,
+  REJECTED: 5,
+  CANCELLED: 6,
+}
+
+type OrderGroup = {
+  key: string
+  invoiceNumber: string | null
+  center: TAdminKitOrder['center']
+  requestedAt: string
+  requestedBy: string
+  status: string
+  lines: TAdminKitOrder[]
+  facilityNote: string | null
+  reviewNotes: string[]
+}
+
+function productLabel(order: TAdminKitOrder) {
+  const catalog = kitProductById(order.kitProduct)
+  return (
+    catalog?.shortName ||
+    order.kitProductName ||
+    order.kitProduct ||
+    order.screeningTypeName ||
+    'Product'
+  )
+}
+
+function productFullName(order: TAdminKitOrder) {
+  const catalog = kitProductById(order.kitProduct)
+  return catalog?.name || order.kitProductName || order.kitProduct || null
+}
+
+function facilityNoteFromReason(reason?: string | null) {
+  if (!reason?.trim()) return null
+  // Auto-generated EOI summary — not useful as a "notes" dump in the admin UI
+  if (/^Expression of Interest\s+EOI-/i.test(reason.trim())) return null
+  return reason.trim()
+}
+
+function groupOrders(orders: TAdminKitOrder[]): OrderGroup[] {
+  const map = new Map<string, OrderGroup>()
+  for (const order of orders) {
+    const key = order.invoiceNumber || order.id
+    const existing = map.get(key)
+    const note = facilityNoteFromReason(order.reason)
+    if (!existing) {
+      map.set(key, {
+        key,
+        invoiceNumber: order.invoiceNumber || null,
+        center: order.center,
+        requestedAt: order.requestedAt,
+        requestedBy: order.requestedBy,
+        status: order.status,
+        lines: [order],
+        facilityNote: note,
+        reviewNotes: order.reviewNotes ? [order.reviewNotes] : [],
+      })
+      continue
+    }
+    existing.lines.push(order)
+    if (!existing.facilityNote && note) existing.facilityNote = note
+    if (
+      order.reviewNotes &&
+      !existing.reviewNotes.includes(order.reviewNotes)
+    ) {
+      existing.reviewNotes.push(order.reviewNotes)
+    }
+    if (
+      (STATUS_RANK[order.status] || 0) > (STATUS_RANK[existing.status] || 0)
+    ) {
+      existing.status = order.status
+    }
+  }
+  return Array.from(map.values())
+}
+
 export function AdminKitOrdersPage() {
   const [tab, setTab] = useState<(typeof tabs)[number]>('PENDING')
   const { data, isLoading } = useQuery(
@@ -73,8 +153,9 @@ export function AdminKitOrdersPage() {
   const [serials, setSerials] = useState('')
 
   const orders = data?.data?.orders || []
+  const groups = useMemo(() => groupOrders(orders), [orders])
   const pendingCount = pendingData?.data?.orders?.length || 0
-  const totalKits = useMemo(
+  const totalUnits = useMemo(
     () => orders.reduce((sum, o) => sum + (o.requestedQuantity || 0), 0),
     [orders],
   )
@@ -107,7 +188,7 @@ export function AdminKitOrdersPage() {
           const added = res?.data?.kitsAdded || 0
           toast.success(
             active.action === 'DELIVERED'
-              ? `Delivered. ${added} kits added to ${active.order.center?.centerName || 'the facility'}'s inventory.`
+              ? `Delivered. ${added} items added to ${active.order.center?.centerName || 'the facility'}'s inventory.`
               : `Order ${actionLabel[active.action].toLowerCase()}`,
           )
           setActive(null)
@@ -120,143 +201,214 @@ export function AdminKitOrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Kits and Devices orders</h1>
-        <p className="text-muted-foreground">
-          Expressions of Interest from health facilities for devices and kits.
-          Confirm pricing with the facility, then approve, ship, and deliver.
-          Delivered items go into the facility&apos;s inventory.
-        </p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Waiting for review</CardDescription>
-            <CardTitle className="text-2xl">{pendingCount}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Orders in this view</CardDescription>
-            <CardTitle className="text-2xl">{orders.length}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Units in this view</CardDescription>
-            <CardTitle className="text-2xl">{totalKits}</CardTitle>
-          </CardHeader>
-        </Card>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="bg-gradient-to-r from-[#0b2c5f] to-[#163a73] px-5 py-6 text-white lg:px-7">
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-white/70">
+            Procurement
+          </p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight">
+            Kits and Devices orders
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm text-white/80">
+            Review Expressions of Interest, confirm pricing with the facility,
+            then approve, ship, and deliver. Delivered items go into facility
+            inventory.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 divide-y border-t border-slate-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <div className="px-5 py-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Waiting for review
+            </p>
+            <p className="mt-1 text-2xl font-semibold text-slate-900">
+              {pendingCount}
+            </p>
+          </div>
+          <div className="px-5 py-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              EOIs in this view
+            </p>
+            <p className="mt-1 text-2xl font-semibold text-slate-900">
+              {groups.length}
+            </p>
+          </div>
+          <div className="px-5 py-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Line items / units
+            </p>
+            <p className="mt-1 text-2xl font-semibold text-slate-900">
+              {orders.length} / {totalUnits}
+            </p>
+          </div>
+        </div>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-        <TabsList>
+        <TabsList className="h-auto flex-wrap gap-1 bg-slate-100 p-1">
           {tabs.map((t) => (
-            <TabsTrigger key={t} value={t}>
+            <TabsTrigger key={t} value={t} className="px-3 py-1.5">
               {t === 'ALL' ? 'All' : t.charAt(0) + t.slice(1).toLowerCase()}
+              {t === 'PENDING' && pendingCount > 0 ? (
+                <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                  {pendingCount}
+                </span>
+              ) : null}
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
 
-      <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Facility</TableHead>
-                <TableHead>EOI</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
-                <TableHead>Requested</TableHead>
-                <TableHead>Notes</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center">
-                    <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
-                  </TableCell>
-                </TableRow>
-              ) : orders.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
-                    No Expressions of Interest here.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell>
-                      <p className="font-medium">
-                        {order.center?.centerName || 'Unknown facility'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {[order.center?.lga, order.center?.state]
-                          .filter(Boolean)
-                          .join(', ')}
-                        {order.center?.phone ? ` · ${order.center.phone}` : ''}
-                      </p>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {order.invoiceNumber || '—'}
-                    </TableCell>
-                    <TableCell>
-                      <p>
-                        {order.kitProductName ||
-                          order.kitProduct ||
-                          order.screeningTypeName}
-                      </p>
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {order.requestedQuantity}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {new Date(order.requestedAt).toLocaleDateString()}
-                      <p className="text-xs text-muted-foreground">
-                        {order.requestedBy}
-                      </p>
-                    </TableCell>
-                    <TableCell className="max-w-[220px] text-sm text-muted-foreground">
-                      {order.reason}
-                      {order.reviewNotes ? (
-                        <p className="text-xs text-slate-700">
-                          You: {order.reviewNotes}
-                        </p>
-                      ) : null}
-                    </TableCell>
-                    <TableCell>
+      {isLoading ? (
+        <Card className="border-slate-200 shadow-sm">
+          <CardContent className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Loading Expressions of Interest...
+          </CardContent>
+        </Card>
+      ) : groups.length === 0 ? (
+        <Card className="border-slate-200 shadow-sm">
+          <CardContent className="py-16 text-center text-sm text-muted-foreground">
+            No Expressions of Interest in this view.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {groups.map((group) => (
+            <Card
+              key={group.key}
+              className="overflow-hidden border-slate-200 shadow-sm"
+            >
+              <CardHeader className="space-y-3 border-b bg-slate-50/80 pb-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <CardTitle className="text-lg">
+                        {group.center?.centerName || 'Unknown facility'}
+                      </CardTitle>
                       <Badge
-                        className={`border-transparent ${kitOrderStatusStyle[order.status] || ''}`}
+                        className={`border-transparent ${
+                          kitOrderStatusStyle[group.status] ||
+                          'bg-slate-100 text-slate-800'
+                        }`}
                       >
-                        {order.status}
+                        {group.status}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                    </div>
+                    <CardDescription className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                      <span className="inline-flex items-center gap-1 font-mono text-slate-700">
+                        <Package className="h-3.5 w-3.5" />
+                        {group.invoiceNumber || 'Single-line order'}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Clock3 className="h-3.5 w-3.5" />
+                        {new Date(group.requestedAt).toLocaleString(undefined, {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Building2 className="h-3.5 w-3.5" />
+                        {[group.center?.lga, group.center?.state]
+                          .filter(Boolean)
+                          .join(', ') || 'Location n/a'}
+                      </span>
+                      {group.center?.phone ? (
+                        <span className="inline-flex items-center gap-1">
+                          <Phone className="h-3.5 w-3.5" />
+                          {group.center.phone}
+                        </span>
+                      ) : null}
+                    </CardDescription>
+                  </div>
+                  <div className="rounded-lg bg-white px-3 py-2 text-right text-xs text-muted-foreground shadow-sm ring-1 ring-slate-200">
+                    <p className="font-medium text-slate-900">
+                      {group.lines.length}{' '}
+                      {group.lines.length === 1 ? 'line' : 'lines'}
+                    </p>
+                    <p>
+                      {group.lines.reduce(
+                        (sum, line) => sum + line.requestedQuantity,
+                        0,
+                      )}{' '}
+                      units
+                    </p>
+                  </div>
+                </div>
+                {group.facilityNote ? (
+                  <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                    <span className="font-medium text-slate-900">
+                      Facility note:{' '}
+                    </span>
+                    {group.facilityNote}
+                  </div>
+                ) : null}
+                {group.reviewNotes.length > 0 ? (
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-950">
+                    <span className="font-medium">Your notes: </span>
+                    {group.reviewNotes.join(' · ')}
+                  </div>
+                ) : null}
+              </CardHeader>
+
+              <CardContent className="divide-y p-0">
+                {group.lines.map((order) => {
+                  const fullName = productFullName(order)
+                  const short = productLabel(order)
+                  return (
+                    <div
+                      key={order.id}
+                      className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-900">{short}</p>
+                        {fullName && fullName !== short ? (
+                          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                            {fullName}
+                          </p>
+                        ) : null}
+                        <p className="mt-2 text-sm text-slate-600">
+                          Qty{' '}
+                          <span className="font-semibold text-slate-900">
+                            {order.requestedQuantity}
+                          </span>
+                          <span className="mx-2 text-slate-300">·</span>
+                          <Badge
+                            className={`border-transparent ${
+                              kitOrderStatusStyle[order.status] ||
+                              'bg-slate-100 text-slate-800'
+                            }`}
+                          >
+                            {order.status}
+                          </Badge>
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 sm:justify-end">
                         {(actionsFor[order.status] || []).map((action) => (
                           <Button
                             key={action}
                             size="sm"
-                            variant={action === 'REJECTED' ? 'outline' : 'default'}
+                            variant={
+                              action === 'REJECTED' ? 'outline' : 'default'
+                            }
                             onClick={() => open(order, action)}
                           >
                             {actionLabel[action]}
                           </Button>
                         ))}
+                        {(actionsFor[order.status] || []).length === 0 ? (
+                          <span className="text-xs text-muted-foreground">
+                            No actions
+                          </span>
+                        ) : null}
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                    </div>
+                  )
+                })}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <Dialog open={!!active} onOpenChange={(o) => !o && setActive(null)}>
         <DialogContent className="sm:max-w-[480px]">
@@ -264,8 +416,7 @@ export function AdminKitOrdersPage() {
             <DialogTitle>
               {active ? actionLabel[active.action] : ''}:{' '}
               {active?.order.requestedQuantity} ×{' '}
-              {active?.order.kitProductName ||
-                active?.order.screeningTypeName}
+              {active ? productLabel(active.order) : ''}
             </DialogTitle>
             <DialogDescription>
               For {active?.order.center?.centerName}
@@ -301,9 +452,7 @@ export function AdminKitOrdersPage() {
 
             {active?.action === 'DELIVERED' ? (
               <div className="space-y-1.5">
-                <Label htmlFor="kit-serials">
-                  Serial numbers (optional)
-                </Label>
+                <Label htmlFor="kit-serials">Serial numbers (optional)</Label>
                 <Textarea
                   id="kit-serials"
                   rows={4}
@@ -319,7 +468,8 @@ export function AdminKitOrdersPage() {
 
             <div className="space-y-1.5">
               <Label htmlFor="kit-notes">
-                Note to the facility {active?.action === 'REJECTED' ? '' : '(optional)'}
+                Note to the facility{' '}
+                {active?.action === 'REJECTED' ? '' : '(optional)'}
               </Label>
               <Textarea
                 id="kit-notes"
@@ -347,9 +497,13 @@ export function AdminKitOrdersPage() {
                 updateOrder.isPending ||
                 (active?.action === 'REJECTED' && !notes.trim())
               }
-              variant={active?.action === 'REJECTED' ? 'destructive' : 'default'}
+              variant={
+                active?.action === 'REJECTED' ? 'destructive' : 'default'
+              }
             >
-              {updateOrder.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {updateOrder.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               {active ? actionLabel[active.action] : 'Save'}
             </Button>
           </DialogFooter>
