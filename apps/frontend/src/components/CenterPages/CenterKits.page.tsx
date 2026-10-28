@@ -1,3 +1,4 @@
+import logoBlue from '@/assets/images/logo-blue.svg'
 import { Badge } from '@/components/shared/ui/badge'
 import { Button } from '@/components/shared/ui/button'
 import {
@@ -33,7 +34,13 @@ import {
   useKitOrderInvoice,
 } from '@/services/providers/center.provider'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, Loader2, Package, Printer, ShoppingCart } from 'lucide-react'
+import {
+  FileText,
+  Loader2,
+  Package,
+  Printer,
+  ShoppingCart,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -65,6 +72,18 @@ const kitOrderStatusHint: Record<string, string> = {
   CANCELLED: 'Cancelled by your facility',
 }
 
+const kindStyle: Record<string, string> = {
+  device: 'bg-sky-100 text-sky-900',
+  kit: 'bg-violet-100 text-violet-900',
+  bundle: 'bg-amber-100 text-amber-900',
+}
+
+const kindLabel: Record<string, string> = {
+  device: 'Device',
+  kit: 'Kit',
+  bundle: 'Bundle',
+}
+
 type CartLine = {
   kitProduct: TKitProductId
   quantity: number
@@ -88,6 +107,11 @@ function escapeHtml(value: string) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
+}
+
+function logoAbsoluteUrl() {
+  if (typeof window === 'undefined') return '/zerocancer-logo.svg'
+  return `${window.location.origin}/zerocancer-logo.svg`
 }
 
 function groupKitOrders(orders: TKitOrder[]): OrderGroup[] {
@@ -122,31 +146,43 @@ function groupKitOrders(orders: TKitOrder[]): OrderGroup[] {
 }
 
 function printEoiInvoice(invoice: TEoiInvoice) {
+  const logoUrl = logoAbsoluteUrl()
   const linesHtml = invoice.lines
     .map(
       (line) =>
         `<tr>
-            <td style="padding:8px;border-bottom:1px solid #ddd;vertical-align:top">${escapeHtml(line.name)}</td>
-            <td style="padding:8px;border-bottom:1px solid #ddd;white-space:nowrap">${line.quantity} ${escapeHtml(line.unitLabel || '')}</td>
-            <td style="padding:8px;border-bottom:1px solid #ddd;font-weight:600;color:#92400e">${escapeHtml(line.priceDisplay || invoice.priceNote)}</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;vertical-align:top">${escapeHtml(line.name)}</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;white-space:nowrap">${line.quantity} ${escapeHtml(line.unitLabel || '')}</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#92400e">${escapeHtml(line.priceDisplay || invoice.priceNote)}</td>
           </tr>`,
     )
     .join('')
   const html = `<!doctype html>
 <html><head><title>${escapeHtml(invoice.invoiceNumber)} — Expression of Interest</title>
 <style>
-  body{font-family:Arial,sans-serif;color:#111;padding:32px;max-width:720px;margin:0 auto}
-  h1{font-size:20px;margin:0 0 8px}
-  .muted{color:#555;font-size:13px}
+  body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;padding:36px;max-width:740px;margin:0 auto}
+  .brand{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:2px solid #0b2c5f;padding-bottom:16px;margin-bottom:20px}
+  .brand img{height:52px;width:auto}
+  .brand-meta{text-align:right;font-size:12px;color:#64748b;line-height:1.5}
+  h1{font-size:22px;margin:0 0 6px;color:#0b2c5f}
+  .muted{color:#64748b;font-size:13px;margin:0}
   table{width:100%;border-collapse:collapse;margin:16px 0}
-  th{text-align:left;padding:8px;border-bottom:2px solid #111;font-size:13px}
-  .price-box{border:1px solid #f59e0b;background:#fffbeb;padding:12px;margin:16px 0;border-radius:8px}
-  .footer{border-top:1px solid #ddd;margin-top:20px;padding-top:12px;font-size:14px}
+  th{text-align:left;padding:10px 8px;border-bottom:2px solid #0b2c5f;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#334155}
+  .price-box{border:1px solid #f59e0b;background:#fffbeb;padding:14px;margin:18px 0;border-radius:10px}
+  .footer{border-top:1px solid #e2e8f0;margin-top:22px;padding-top:14px;font-size:14px}
+  .buyer{margin-top:12px}
 </style></head><body>
+  <div class="brand">
+    <img src="${escapeHtml(logoUrl)}" alt="ZeroCancer" />
+    <div class="brand-meta">
+      <div><strong>ZeroCancer Africa</strong></div>
+      <div>Expression of Interest</div>
+      <div>${escapeHtml(invoice.invoiceNumber)}</div>
+    </div>
+  </div>
   <h1>${escapeHtml(invoice.title)}</h1>
-  <p class="muted">Invoice No: ${escapeHtml(invoice.invoiceNumber)}</p>
   <p class="muted">Date: ${escapeHtml(new Date(invoice.issuedAt).toLocaleString())}</p>
-  <h2 style="font-size:15px;margin:20px 0 8px">Order</h2>
+  <h2 style="font-size:15px;margin:24px 0 8px;color:#0b2c5f">Order</h2>
   <table>
     <thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead>
     <tbody>${linesHtml}</tbody>
@@ -154,24 +190,30 @@ function printEoiInvoice(invoice: TEoiInvoice) {
   <div class="price-box"><strong>Price</strong><div>${escapeHtml(invoice.priceNote)}</div></div>
   <div class="footer">
     <p><strong>${escapeHtml(invoice.footerNote)}</strong></p>
-    <p style="margin-top:12px"><strong>Buyer</strong></p>
-    <p>${escapeHtml(invoice.buyer.name)}</p>
-    ${invoice.buyer.email ? `<p>${escapeHtml(invoice.buyer.email)}</p>` : ''}
-    ${invoice.buyer.phone ? `<p>${escapeHtml(invoice.buyer.phone)}</p>` : ''}
-    ${invoice.buyer.address ? `<p>${escapeHtml(invoice.buyer.address)}</p>` : ''}
+    <div class="buyer">
+      <p><strong>Buyer</strong></p>
+      <p>${escapeHtml(invoice.buyer.name)}</p>
+      ${invoice.buyer.email ? `<p>${escapeHtml(invoice.buyer.email)}</p>` : ''}
+      ${invoice.buyer.phone ? `<p>${escapeHtml(invoice.buyer.phone)}</p>` : ''}
+      ${invoice.buyer.address ? `<p>${escapeHtml(invoice.buyer.address)}</p>` : ''}
+    </div>
   </div>
 </body></html>`
 
-  const popup = window.open('', '_blank', 'noopener,noreferrer,width=800,height=900')
+  const popup = window.open(
+    '',
+    '_blank',
+    'noopener,noreferrer,width=800,height=900',
+  )
   if (popup) {
     popup.document.write(html)
     popup.document.close()
     popup.focus()
-    popup.print()
+    // Give the logo a moment to load before print
+    window.setTimeout(() => popup.print(), 250)
     return
   }
 
-  // Fallback when pop-ups are blocked: hidden iframe print
   const iframe = document.createElement('iframe')
   iframe.setAttribute(
     'style',
@@ -187,11 +229,11 @@ function printEoiInvoice(invoice: TEoiInvoice) {
   frameDoc.open()
   frameDoc.write(html)
   frameDoc.close()
-  iframe.contentWindow?.focus()
-  iframe.contentWindow?.print()
   window.setTimeout(() => {
+    iframe.contentWindow?.focus()
+    iframe.contentWindow?.print()
     document.body.removeChild(iframe)
-  }, 1000)
+  }, 250)
 }
 
 export function CenterKitsPage() {
@@ -297,60 +339,73 @@ export function CenterKitsPage() {
         setInvoice(result.data.invoice)
       }
     } catch (error: any) {
-      toast.error(
-        error?.response?.data?.error || 'Could not open invoice',
-      )
+      toast.error(error?.response?.data?.error || 'Could not open invoice')
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white p-4 lg:p-6 rounded-lg">
-        <h1 className="text-3xl font-bold">Kits and Devices</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Shop screening devices and kits. Select products, check out once, and
-          receive an Expression of Interest invoice — prices are confirmed when
-          ZeroCancer contacts you.
-        </p>
-      </div>
+    <div className="space-y-6 pb-28">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="bg-gradient-to-r from-[#0b2c5f] to-[#163a73] px-5 py-6 text-white lg:px-7">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.16em] text-white/70">
+                Procurement
+              </p>
+              <h1 className="mt-1 text-3xl font-bold tracking-tight">
+                Kits and Devices
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm text-white/80">
+                Select products from the catalogue, check out once, and receive
+                an Expression of Interest invoice. Prices are confirmed when
+                ZeroCancer contacts you.
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/10 px-4 py-3 text-sm backdrop-blur">
+              <p className="font-medium">No prices at checkout</p>
+              <p className="text-white/75">EOI · For Confirmation</p>
+            </div>
+          </div>
+        </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        {[
-          { label: 'Available', value: stats?.AVAILABLE },
-          { label: 'Used', value: stats?.USED },
-          { label: 'Damaged', value: stats?.DAMAGED },
-          { label: 'Total', value: stats?.TOTAL },
-        ].map((item) => (
-          <Card key={item.label}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">{item.label}</CardTitle>
-            </CardHeader>
-            <CardContent>
+        <div className="grid grid-cols-2 divide-x divide-y border-t border-slate-100 md:grid-cols-4 md:divide-y-0">
+          {[
+            { label: 'Available', value: stats?.AVAILABLE },
+            { label: 'Used', value: stats?.USED },
+            { label: 'Damaged', value: stats?.DAMAGED },
+            { label: 'Total', value: stats?.TOTAL },
+          ].map((item) => (
+            <div key={item.label} className="px-4 py-4 lg:px-6">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {item.label}
+              </p>
               {statsLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <Loader2 className="mt-2 h-5 w-5 animate-spin text-muted-foreground" />
               ) : (
-                <div className="text-2xl font-bold">{item.value ?? 0}</div>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">
+                  {item.value ?? 0}
+                </p>
               )}
-            </CardContent>
-          </Card>
-        ))}
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
         {canOrder ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                Shop — Kits and Devices
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader className="border-b bg-slate-50/80">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Package className="h-5 w-5 text-primary" />
+                Catalogue
               </CardTitle>
               <CardDescription>
-                Choose from the devices and kits catalogue below. Checkout
-                generates an Expression of Interest (no prices yet).
+                Tick what you need, set quantities, then submit one Expression
+                of Interest.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
+            <CardContent className="p-4 lg:p-5">
+              <div className="grid gap-3 sm:grid-cols-2">
                 {CATALOG.map((product) => {
                   const line = cart.find(
                     (item) => item.kitProduct === product.id,
@@ -360,12 +415,16 @@ export function CenterKitsPage() {
                     selected: false,
                   }
                   return (
-                    <div
+                    <button
                       key={product.id}
-                      className={`rounded-xl border p-3 transition-colors ${
+                      type="button"
+                      onClick={() =>
+                        updateLine(product.id, { selected: !line.selected })
+                      }
+                      className={`rounded-2xl border p-4 text-left transition-all ${
                         line.selected
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border'
+                          ? 'border-primary bg-primary/[0.04] shadow-sm ring-1 ring-primary/30'
+                          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80'
                       }`}
                     >
                       <div className="flex items-start gap-3">
@@ -376,21 +435,36 @@ export function CenterKitsPage() {
                               selected: checked === true,
                             })
                           }
+                          onClick={(event) => event.stopPropagation()}
                           className="mt-1"
                         />
-                        <div className="min-w-0 flex-1 space-y-2">
-                          <div>
-                            <p className="font-medium leading-snug">
+                        <div className="min-w-0 flex-1 space-y-3">
+                          <div className="space-y-1.5">
+                            <Badge
+                              className={`border-transparent ${
+                                kindStyle[product.kind] ||
+                                'bg-slate-100 text-slate-800'
+                              }`}
+                            >
+                              {kindLabel[product.kind] || product.kind}
+                            </Badge>
+                            <p className="font-semibold leading-snug text-slate-900">
+                              {product.shortName}
+                            </p>
+                            <p className="text-xs leading-relaxed text-muted-foreground">
                               {product.name}
                             </p>
-                            <p className="mt-0.5 text-xs text-muted-foreground">
+                            <p className="text-xs text-muted-foreground">
                               {product.description}
                               {'bundleNote' in product && product.bundleNote
                                 ? ` · ${product.bundleNote}`
                                 : ''}
                             </p>
                           </div>
-                          <div className="flex flex-wrap items-center gap-2">
+                          <div
+                            className="flex flex-wrap items-center gap-2"
+                            onClick={(event) => event.stopPropagation()}
+                          >
                             <Label
                               htmlFor={`qty-${product.id}`}
                               className="text-xs text-muted-foreground"
@@ -403,7 +477,7 @@ export function CenterKitsPage() {
                               min={product.minQuantity}
                               max={10000}
                               disabled={!line.selected}
-                              className="h-9 w-28"
+                              className="h-9 w-24 bg-white"
                               value={line.quantity}
                               onChange={(event) =>
                                 updateLine(product.id, {
@@ -417,57 +491,14 @@ export function CenterKitsPage() {
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   )
                 })}
               </div>
-
-              {selectedLines.length > 0 ? (
-                <div className="rounded-xl border bg-slate-50 p-3">
-                  <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-                    <ShoppingCart className="h-4 w-4" />
-                    Checkout ({selectedLines.length}{' '}
-                    {selectedLines.length === 1 ? 'product' : 'products'})
-                  </div>
-                  <ul className="space-y-1 text-sm">
-                    {selectedLines.map((line) => {
-                      const product = CATALOG.find(
-                        (item) => item.id === line.kitProduct,
-                      )
-                      return (
-                        <li key={line.kitProduct}>
-                          {product?.shortName || line.kitProduct} ×{' '}
-                          {line.quantity} {product?.unitLabel}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              ) : null}
-
-              <div className="space-y-1.5">
-                <Label htmlFor="kit-notes">Notes (optional)</Label>
-                <Input
-                  id="kit-notes"
-                  placeholder="Delivery preference or special request"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
-              <Button
-                className="w-full bg-primary text-white"
-                onClick={onCheckout}
-                disabled={createOrder.isPending || selectedLines.length === 0}
-              >
-                {createOrder.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Checkout — Expression of Interest
-              </Button>
             </CardContent>
           </Card>
         ) : (
-          <Card>
+          <Card className="border-slate-200 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Package className="h-4 w-4" />
@@ -481,156 +512,210 @@ export function CenterKitsPage() {
           </Card>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Your orders</CardTitle>
-            <CardDescription>
-              Expressions of Interest and fulfilment status.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {ordersLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading orders...
-              </div>
-            ) : orderGroups.length === 0 ? (
-              <div className="rounded-lg border-2 border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
-                No orders yet.
-              </div>
-            ) : (
-              orderGroups.map((group) => (
-                <div
-                  key={group.key}
-                  className="rounded-lg border px-3 py-2.5 space-y-2"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium">
-                        {group.invoiceNumber || 'Order'}
-                        {group.lines.length > 1
-                          ? ` · ${group.lines.length} items`
-                          : ''}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {group.requestedAt
-                          ? new Date(group.requestedAt).toLocaleDateString()
-                          : ''}
-                        {' · '}
-                        {kitOrderStatusHint[group.status] || group.status}
-                      </p>
-                      {group.reviewNotes ? (
-                        <p className="mt-0.5 text-xs text-slate-700">
-                          ZeroCancer: {group.reviewNotes}
+        <div className="space-y-6">
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader className="border-b bg-slate-50/80">
+              <CardTitle>Your orders</CardTitle>
+              <CardDescription>
+                Expressions of Interest and fulfilment status.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 p-4">
+              {ordersLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading orders...
+                </div>
+              ) : orderGroups.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-muted-foreground">
+                  No orders yet. Select products from the catalogue to get
+                  started.
+                </div>
+              ) : (
+                orderGroups.map((group) => (
+                  <div
+                    key={group.key}
+                    className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-900">
+                          {group.invoiceNumber || 'Order'}
+                          {group.lines.length > 1
+                            ? ` · ${group.lines.length} items`
+                            : ''}
                         </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {group.requestedAt
+                            ? new Date(group.requestedAt).toLocaleDateString()
+                            : ''}
+                          {' · '}
+                          {kitOrderStatusHint[group.status] || group.status}
+                        </p>
+                        {group.reviewNotes ? (
+                          <p className="mt-1 text-xs text-slate-700">
+                            ZeroCancer: {group.reviewNotes}
+                          </p>
+                        ) : null}
+                      </div>
+                      <Badge
+                        className={`border-transparent ${
+                          kitOrderStatusStyle[group.status] ||
+                          'bg-slate-100 text-slate-800'
+                        }`}
+                      >
+                        {group.status}
+                      </Badge>
+                    </div>
+                    <ul className="mt-3 space-y-1.5 border-t border-slate-100 pt-3 text-sm text-slate-600">
+                      {group.lines.map((line) => (
+                        <li
+                          key={line.id}
+                          className="flex items-start justify-between gap-3"
+                        >
+                          <span className="leading-snug">
+                            {line.kitProductName ||
+                              line.kitProduct ||
+                              'Device / kit'}
+                          </span>
+                          <span className="shrink-0 font-medium text-slate-900">
+                            × {line.requestedQuantity}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {group.invoiceNumber ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={loadInvoice.isPending}
+                          onClick={() => openInvoice(group)}
+                        >
+                          <FileText className="mr-1.5 h-3.5 w-3.5" />
+                          View invoice
+                        </Button>
+                      ) : null}
+                      {canOrder && group.canCancel ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={cancelOrder.isPending}
+                          onClick={() =>
+                            cancelOrder.mutate(group.lines[0].id, {
+                              onSuccess: () =>
+                                toast.success(
+                                  'Expression of Interest cancelled',
+                                ),
+                              onError: (error: any) =>
+                                toast.error(
+                                  error?.response?.data?.error ||
+                                    'Could not cancel order',
+                                ),
+                            })
+                          }
+                        >
+                          Cancel
+                        </Button>
                       ) : null}
                     </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader className="border-b bg-slate-50/80">
+              <CardTitle>Recent inventory</CardTitle>
+              <CardDescription>
+                Serial numbers currently or recently held by this facility.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 p-4">
+              {kitsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading
+                  inventory...
+                </div>
+              ) : kits.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-muted-foreground">
+                  No devices or kits in inventory yet.
+                </div>
+              ) : (
+                kits.map((kit) => (
+                  <div
+                    key={kit.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2.5"
+                  >
+                    <div>
+                      <p className="font-mono text-sm font-medium">
+                        {kit.serialNumber}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {kit.kitProductName ||
+                          kit.screeningType?.name ||
+                          'Supply'}
+                        {kit.batchNumber ? ` · batch ${kit.batchNumber}` : ''}
+                      </p>
+                    </div>
                     <Badge
-                      className={`border-transparent ${
-                        kitOrderStatusStyle[group.status] ||
-                        'bg-slate-100 text-slate-800'
-                      }`}
+                      className={
+                        kit.status === 'AVAILABLE'
+                          ? 'border-transparent bg-emerald-100 text-emerald-800'
+                          : 'border-transparent bg-slate-100 text-slate-800'
+                      }
                     >
-                      {group.status}
+                      {kit.status}
                     </Badge>
                   </div>
-                  <ul className="space-y-1 text-sm text-muted-foreground">
-                    {group.lines.map((line) => (
-                      <li key={line.id}>
-                        {line.kitProductName || line.kitProduct || 'Device / kit'}{' '}
-                        × {line.requestedQuantity}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {group.invoiceNumber ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={loadInvoice.isPending}
-                        onClick={() => openInvoice(group)}
-                      >
-                        <FileText className="mr-1.5 h-3.5 w-3.5" />
-                        View invoice
-                      </Button>
-                    ) : null}
-                    {canOrder && group.canCancel ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={cancelOrder.isPending}
-                        onClick={() =>
-                          cancelOrder.mutate(group.lines[0].id, {
-                            onSuccess: () =>
-                              toast.success(
-                                'Expression of Interest cancelled',
-                              ),
-                            onError: (error: any) =>
-                              toast.error(
-                                error?.response?.data?.error ||
-                                  'Could not cancel order',
-                              ),
-                          })
-                        }
-                      >
-                        Cancel
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent inventory</CardTitle>
-          <CardDescription>
-            Serial numbers currently or recently held by this facility.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {kitsLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading inventory...
-            </div>
-          ) : kits.length === 0 ? (
-            <div className="rounded-lg border-2 border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
-              No devices or kits in inventory yet. Place an Expression of
-              Interest above when you are ready.
-            </div>
-          ) : (
-            kits.map((kit) => (
-              <div
-                key={kit.id}
-                className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5"
-              >
-                <div>
-                  <p className="font-medium font-mono text-sm">
-                    {kit.serialNumber}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {kit.kitProductName ||
-                      kit.screeningType?.name ||
-                      'Supply'}
-                    {kit.batchNumber ? ` · batch ${kit.batchNumber}` : ''}
-                  </p>
-                </div>
-                <Badge
-                  className={
-                    kit.status === 'AVAILABLE'
-                      ? 'border-transparent bg-emerald-100 text-emerald-800'
-                      : 'border-transparent bg-slate-100 text-slate-800'
-                  }
-                >
-                  {kit.status}
-                </Badge>
+      {canOrder && selectedLines.length > 0 ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur md:left-60 xl:left-72">
+          <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                <ShoppingCart className="h-4 w-4 text-primary" />
+                Ready to submit · {selectedLines.length}{' '}
+                {selectedLines.length === 1 ? 'product' : 'products'}
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+              <p className="mt-1 truncate text-xs text-muted-foreground">
+                {selectedLines
+                  .map((line) => {
+                    const product = CATALOG.find(
+                      (item) => item.id === line.kitProduct,
+                    )
+                    return `${product?.shortName || line.kitProduct} × ${line.quantity}`
+                  })
+                  .join(' · ')}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Input
+                placeholder="Notes (optional)"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="h-10 w-full bg-white sm:w-64"
+              />
+              <Button
+                className="h-10 shrink-0 bg-primary px-5 text-white"
+                onClick={onCheckout}
+                disabled={createOrder.isPending}
+              >
+                {createOrder.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Checkout — Expression of Interest
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <Dialog
         open={Boolean(invoice)}
@@ -651,10 +736,24 @@ export function CenterKitsPage() {
 
           {invoice ? (
             <div id="eoi-invoice" className="space-y-4 text-sm">
-              <div className="border-b pb-3">
-                <p className="text-lg font-bold">{invoice.title}</p>
-                <p className="text-muted-foreground">
-                  Invoice No: {invoice.invoiceNumber}
+              <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+                <img
+                  src={logoBlue}
+                  alt="ZeroCancer"
+                  className="h-12 w-auto"
+                />
+                <div className="text-right text-xs text-muted-foreground">
+                  <p className="font-semibold text-slate-900">
+                    ZeroCancer Africa
+                  </p>
+                  <p>Expression of Interest</p>
+                  <p className="font-mono">{invoice.invoiceNumber}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-lg font-bold text-[#0b2c5f]">
+                  {invoice.title}
                 </p>
                 <p className="text-muted-foreground">
                   Date:{' '}
@@ -666,23 +765,29 @@ export function CenterKitsPage() {
               </div>
 
               <div>
-                <p className="mb-2 font-semibold">Order</p>
+                <p className="mb-2 font-semibold text-[#0b2c5f]">Order</p>
                 <table className="w-full border-collapse text-left">
                   <thead>
-                    <tr className="border-b">
-                      <th className="py-2 pr-2 font-medium">Item</th>
-                      <th className="py-2 pr-2 font-medium">Qty</th>
-                      <th className="py-2 font-medium">Price</th>
+                    <tr className="border-b-2 border-[#0b2c5f]">
+                      <th className="py-2 pr-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        Item
+                      </th>
+                      <th className="py-2 pr-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        Qty
+                      </th>
+                      <th className="py-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        Price
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {invoice.lines.map((line) => (
                       <tr key={line.kitProduct} className="border-b align-top">
-                        <td className="py-2 pr-2">{line.name}</td>
-                        <td className="py-2 pr-2 whitespace-nowrap">
+                        <td className="py-2.5 pr-2">{line.name}</td>
+                        <td className="whitespace-nowrap py-2.5 pr-2">
                           {line.quantity} {line.unitLabel || ''}
                         </td>
-                        <td className="py-2 font-medium text-amber-800">
+                        <td className="py-2.5 font-medium text-amber-800">
                           {line.priceDisplay || invoice.priceNote}
                         </td>
                       </tr>
@@ -691,7 +796,7 @@ export function CenterKitsPage() {
                 </table>
               </div>
 
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3">
                 <p className="font-semibold text-amber-950">Price</p>
                 <p className="text-amber-900">{invoice.priceNote}</p>
               </div>
