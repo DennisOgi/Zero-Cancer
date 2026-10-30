@@ -18,6 +18,7 @@ import screening from '@/assets/images/screening.png'
 import treatment from '@/assets/images/treatment.png'
 import waitlistIcon from '@/assets/images/waitlist.png'
 import walletIcon from '@/assets/images/wallet.png'
+import { DashboardAccountActions } from '@/components/layouts/DashboardAccountActions'
 import { Button } from '@/components/shared/ui/button'
 import {
   Dialog,
@@ -259,26 +260,21 @@ export function CenterLayout() {
       </div>
 
       <div className="flex flex-col md:ml-60 xl:ml-72">
-        <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b bg-primary px-4 py-6 shadow-md md:hidden">
-          <Link to="/" className="flex items-center gap-2 font-semibold">
-            <img
-              src={whiteLogo}
-              alt="ZeroCancer"
-              className="h-12 cursor-pointer hover:opacity-90 transition-opacity"
-            />
-          </Link>
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-xs text-white font-medium truncate max-w-[140px]">
-              {displayName}
-            </span>
-            <button
-              onClick={() => logout()}
-              className="cursor-pointer rounded-full p-2 text-white transition-all hover:bg-white/20"
-              aria-label="Logout"
-            >
-              <img src={logoutIcon} alt="logout" className="h-6 w-6" />
-            </button>
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-primary px-4 shadow-md md:h-20 md:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link to="/" className="flex items-center gap-2 font-semibold md:hidden">
+              <img
+                src={whiteLogo}
+                alt="ZeroCancer"
+                className="h-12 cursor-pointer hover:opacity-90 transition-opacity"
+              />
+            </Link>
+            <div className="hidden min-w-0 sm:block md:hidden">
+              <p className="truncate text-xs font-medium text-white">{displayName}</p>
+              <p className="truncate text-[11px] text-white/70">{roleLabel}</p>
+            </div>
           </div>
+          <DashboardAccountActions />
         </header>
 
         <main className="flex-grow bg-neutral-50 p-4 pb-24 md:p-6 md:pb-6">

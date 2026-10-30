@@ -17,6 +17,7 @@ import {
   Users,
 } from 'lucide-react'
 import logo from '@/assets/images/logo-blue.svg'
+import { DashboardAccountActions } from '@/components/layouts/DashboardAccountActions'
 import { useLogout } from '@/services/providers/auth.provider'
 
 export function AdminLayout() {
@@ -182,8 +183,11 @@ export function AdminLayout() {
           </div>
         </div>
       </div>
-      <div className="flex flex-col min-h-screen">
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 overflow-y-auto">
+      <div className="flex min-h-screen flex-col">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-end border-b bg-white px-4 shadow-sm md:h-20 md:px-6">
+          <DashboardAccountActions tone="onLight" />
+        </header>
+        <main className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 lg:gap-6 lg:p-6">
           <Outlet />
         </main>
       </div>

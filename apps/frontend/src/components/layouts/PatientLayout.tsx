@@ -7,6 +7,7 @@ import notification from '@/assets/images/notification.png'
 import people from '@/assets/images/people.png'
 import stethoscope from '@/assets/images/stethoscope.png'
 import reportIcon from '@/assets/images/stethoscope.png'
+import { DashboardAccountActions } from '@/components/layouts/DashboardAccountActions'
 import { cn } from '@/lib/utils'
 import { useLogout } from '@/services/providers/auth.provider'
 import { useNotifications } from '@/services/providers/notification.provider'
@@ -182,23 +183,16 @@ export function PatientLayout() {
       </div>
 
       <div className="flex flex-col md:ml-60 xl:ml-72">
-        <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b bg-primary px-4 py-6 shadow-md md:hidden">
-          <Link to="/" className="flex items-center gap-2 font-semibold">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-primary px-4 shadow-md md:h-20 md:px-6">
+          <Link to="/" className="flex items-center gap-2 font-semibold md:hidden">
             <img
               src={logo}
               alt="ZeroCancer"
               className="h-12 cursor-pointer hover:opacity-90 transition-opacity"
             />
           </Link>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => logout()}
-              className="cursor-pointer rounded-full p-2 text-white transition-all hover:bg-white/20"
-              aria-label="Logout"
-            >
-              <img src={logoutIcon} alt="logout" className="h-6 w-6" />
-            </button>
-          </div>
+          <div className="hidden md:block" />
+          <DashboardAccountActions />
         </header>
 
         <main className="flex-grow bg-neutral-50 p-4 pb-24 md:p-6 md:pb-6">

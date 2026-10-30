@@ -1,22 +1,12 @@
 import logo from '@/assets/images/logo.svg'
-import { useAuthUser, useLogout } from '@/services/providers/auth.provider'
+import { useAuthUser } from '@/services/providers/auth.provider'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
-import { ChevronDown, Globe, LogOut } from 'lucide-react'
+import { ChevronDown, Globe } from 'lucide-react'
 
 const navBtnBase =
   'inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-semibold transition-all'
-
-function initialsFromName(name?: string | null) {
-  const parts = String(name || '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-  if (!parts.length) return 'ZC'
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-}
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -24,11 +14,9 @@ export default function Navbar() {
   const [activeCta, setActiveCta] = useState<'donate' | 'screening'>('donate')
   const countryDropdownRef = useRef<HTMLDivElement>(null)
   const { data: authData } = useQuery(useAuthUser())
-  const { mutate: logout, isPending: isLoggingOut } = useLogout()
 
-  const user = authData?.data?.user
-  const isAuthenticated = !!user
-  const userProfile = user?.profile?.toLowerCase()
+  const isAuthenticated = !!authData?.data?.user
+  const userProfile = authData?.data?.user?.profile?.toLowerCase()
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -72,20 +60,7 @@ export default function Navbar() {
     }
   }
 
-  const getProfileLink = () => {
-    switch (userProfile) {
-      case 'patient':
-        return '/patient/profile'
-      case 'center':
-      case 'center_staff':
-        return '/center/profile'
-      default:
-        return getDashboardLink()
-    }
-  }
-
   const dashboardLink = getDashboardLink()
-  const profileLink = getProfileLink()
 
   const scrollToSection = (sectionId: string, e: React.MouseEvent) => {
     e.preventDefault()
@@ -125,22 +100,6 @@ export default function Navbar() {
     { name: 'Rwanda 🇷🇼', active: false },
   ]
 
-  const avatar = (
-    <span className="inline-flex h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-white/40 bg-white/15 text-xs font-bold text-white ring-offset-2 transition hover:border-white">
-      {user?.photoUrl ? (
-        <img
-          src={user.photoUrl}
-          alt={user.fullName || 'Profile'}
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <span className="flex h-full w-full items-center justify-center">
-          {initialsFromName(user?.fullName)}
-        </span>
-      )}
-    </span>
-  )
-
   const countryPicker = (
     <div className="relative" ref={countryDropdownRef}>
       <button
@@ -157,7 +116,7 @@ export default function Navbar() {
       </button>
 
       {isCountryOpen && (
-        <div className="absolute top-full right-0 mt-2 w-56 rounded-xl border border-neutral-100 bg-white py-2 text-neutral-800 shadow-xl z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className="absolute top-full right-0 z-50 mt-2 w-56 rounded-xl border border-neutral-100 bg-white py-2 text-neutral-800 shadow-xl animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="mb-1 border-b border-neutral-50 px-3 py-1.5 text-xs font-semibold text-neutral-400">
             Target Countries
           </div>
@@ -222,40 +181,15 @@ export default function Navbar() {
         >
           {activeCtaConfig.label}
         </a>
-        {isAuthenticated ? (
-          <>
-            {profileLink ? (
-              <Link
-                to={profileLink}
-                preload="render"
-                title={user?.fullName || 'Profile'}
-                className="shrink-0"
-              >
-                {avatar}
-              </Link>
-            ) : (
-              avatar
-            )}
-            {dashboardLink ? (
-              <Link to={dashboardLink} preload="render">
-                <button
-                  type="button"
-                  className={`${navBtnBase} border border-neutral-200 bg-white text-primary hover:bg-neutral-50`}
-                >
-                  Dashboard
-                </button>
-              </Link>
-            ) : null}
+        {isAuthenticated && dashboardLink ? (
+          <Link to={dashboardLink} preload="render">
             <button
               type="button"
-              disabled={isLoggingOut}
-              onClick={() => logout()}
-              className={`${navBtnBase} border border-white/40 text-white hover:border-white hover:bg-white/10 disabled:opacity-60`}
+              className={`${navBtnBase} border border-neutral-200 bg-white text-primary hover:bg-neutral-50`}
             >
-              <LogOut size={14} />
-              Log out
+              Dashboard
             </button>
-          </>
+          </Link>
         ) : (
           <>
             <Link to="/login" preload="render">
@@ -343,20 +277,6 @@ export default function Navbar() {
             </svg>
           </button>
           <div className="flex flex-col items-center gap-6 text-xl text-white">
-            {isAuthenticated ? (
-              <div className="flex flex-col items-center gap-3">
-                {profileLink ? (
-                  <Link to={profileLink} onClick={() => setIsOpen(false)}>
-                    {avatar}
-                  </Link>
-                ) : (
-                  avatar
-                )}
-                <p className="text-base font-medium">
-                  {user?.fullName || user?.email}
-                </p>
-              </div>
-            ) : null}
             <Link to="/learn" onClick={() => setIsOpen(false)}>
               How it Works
             </Link>
@@ -405,31 +325,15 @@ export default function Navbar() {
             >
               {activeCtaConfig.label}
             </a>
-            {isAuthenticated ? (
-              <div className="flex flex-col gap-3">
-                {dashboardLink ? (
-                  <Link to={dashboardLink} onClick={() => setIsOpen(false)}>
-                    <button
-                      type="button"
-                      className={`${navBtnBase} w-48 bg-white text-primary`}
-                    >
-                      Dashboard
-                    </button>
-                  </Link>
-                ) : null}
+            {isAuthenticated && dashboardLink ? (
+              <Link to={dashboardLink} onClick={() => setIsOpen(false)}>
                 <button
                   type="button"
-                  disabled={isLoggingOut}
-                  onClick={() => {
-                    setIsOpen(false)
-                    logout()
-                  }}
-                  className={`${navBtnBase} w-48 border-2 border-white text-white disabled:opacity-60`}
+                  className={`${navBtnBase} w-48 bg-white text-primary`}
                 >
-                  <LogOut size={16} />
-                  Log out
+                  Dashboard
                 </button>
-              </div>
+              </Link>
             ) : (
               <div className="flex flex-col gap-3">
                 <Link
