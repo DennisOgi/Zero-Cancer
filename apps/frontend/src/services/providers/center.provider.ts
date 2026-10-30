@@ -55,13 +55,42 @@ export const centerById = (id: string) =>
 
 export const publicCenterAvailability = (
   id: string,
-  params?: { from?: string; to?: string },
+  params?: { from?: string; to?: string; staffId?: string },
 ) =>
   queryOptions({
     queryKey: [QueryKeys.centerAvailability, id, params],
     queryFn: () => centerService.getPublicCenterAvailability(id, params),
     enabled: !!id,
   })
+
+export const staffAvailability = (params?: {
+  from?: string
+  to?: string
+  staffId?: string
+}) =>
+  queryOptions({
+    queryKey: [QueryKeys.centerAvailability, 'staff', params],
+    queryFn: () => centerService.getStaffAvailability(params),
+  })
+
+export const teamStaffSchedules = () =>
+  queryOptions({
+    queryKey: [QueryKeys.centerAvailability, 'team'],
+    queryFn: () => centerService.getTeamStaffSchedules(),
+  })
+
+export const useUpdateStaffAvailability = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: [MutationKeys.updateCenterAvailability, 'staff'],
+    mutationFn: centerService.updateStaffAvailability,
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QueryKeys.centerAvailability],
+      })
+    },
+  })
+}
 
 export const ownCenterAvailability = (params?: { from?: string; to?: string }) =>
   queryOptions({
@@ -170,6 +199,8 @@ export const centerPatientsList = (params: {
   page?: number
   pageSize?: number
   search?: string
+  assignmentSource?: string
+  funding?: string
 }) =>
   queryOptions({
     queryKey: [QueryKeys.centerPatientsList, params],
@@ -327,6 +358,29 @@ export const useUpdateStaffBank = () => {
   })
 }
 
+export const useUpdateStaffProfile = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: [MutationKeys.updateStaffProfile],
+    mutationFn: staffEarningsService.updateStaffProfile,
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.staffEarnings] })
+      queryClient.invalidateQueries({ queryKey: ['authUser'] })
+    },
+  })
+}
+
+export const useCreateStaffReferralInvite = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: [MutationKeys.createStaffReferralInvite],
+    mutationFn: staffEarningsService.createStaffReferralInvite,
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.staffEarnings] })
+    },
+  })
+}
+
 export const useStaffCashout = () => {
   const queryClient = useQueryClient()
   return useMutation({
@@ -417,6 +471,13 @@ export const staffMembers = () =>
   queryOptions({
     queryKey: [QueryKeys.centerStaffMembers],
     queryFn: () => centerService.getStaffMembers(),
+  })
+
+export const staffMemberActivity = (staffId: string) =>
+  queryOptions({
+    queryKey: [QueryKeys.centerStaffMemberActivity, staffId],
+    queryFn: () => centerService.getStaffMemberActivity(staffId),
+    enabled: Boolean(staffId),
   })
 
 const useTeamMutation = <TArgs,>(

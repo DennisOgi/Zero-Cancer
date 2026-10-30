@@ -168,7 +168,10 @@ export async function assignPatientToCenter(
     if (opts?.setOnboardedByCenter && !profile.onboardedByCenterId) {
       await db.patientProfile.update({
         where: { userId: patientId },
-        data: { onboardedByCenterId: centerId },
+        data: {
+          onboardedByCenterId: centerId,
+          assignmentSource: "FACILITY_INVITE",
+        },
       });
     }
     return {
@@ -190,8 +193,11 @@ export async function assignPatientToCenter(
     data: {
       assignedCenterId: centerId,
       ...(opts?.setOnboardedByCenter
-        ? { onboardedByCenterId: centerId }
-        : {}),
+        ? {
+            onboardedByCenterId: centerId,
+            assignmentSource: "FACILITY_INVITE",
+          }
+        : { assignmentSource: profile.assignmentSource || "ALGORITHM" }),
     },
   });
 

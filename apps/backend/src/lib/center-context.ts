@@ -17,6 +17,17 @@ export function isHospitalAdminRole(role?: string | null) {
   return value === "ADMIN";
 }
 
+/** Facility owner JWT or invited ADMIN staff (profile CENTER / staffRole ADMIN). */
+export function isFacilityAdminPayload(payload?: {
+  profile?: string | null;
+  staffRole?: string | null;
+} | null) {
+  if (!payload) return false;
+  return (
+    payload.profile === "CENTER" || isHospitalAdminRole(payload.staffRole)
+  );
+}
+
 /** Facility admins sign in as the center; doctors/nurses/staff stay CENTER_STAFF. */
 export function staffJwtProfile(role?: string | null): "CENTER" | "CENTER_STAFF" {
   return isHospitalAdminRole(role) ? "CENTER" : "CENTER_STAFF";

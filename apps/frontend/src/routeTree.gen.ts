@@ -40,6 +40,7 @@ import { Route as DonorEventsRouteImport } from './routes/donor/events'
 import { Route as CenterWalletRouteImport } from './routes/center/wallet'
 import { Route as CenterVerifyCodeRouteImport } from './routes/center/verify-code'
 import { Route as CenterUploadResultsRouteImport } from './routes/center/upload-results'
+import { Route as CenterTeamSchedulesRouteImport } from './routes/center/team-schedules'
 import { Route as CenterStaffRouteImport } from './routes/center/staff'
 import { Route as CenterServicesRouteImport } from './routes/center/services'
 import { Route as CenterReportsRouteImport } from './routes/center/reports'
@@ -49,6 +50,7 @@ import { Route as CenterReceiptHistoryRouteImport } from './routes/center/receip
 import { Route as CenterProfileRouteImport } from './routes/center/profile'
 import { Route as CenterPatientsRouteImport } from './routes/center/patients'
 import { Route as CenterNotificationsRouteImport } from './routes/center/notifications'
+import { Route as CenterMyScheduleRouteImport } from './routes/center/my-schedule'
 import { Route as CenterKitsRouteImport } from './routes/center/kits'
 import { Route as CenterEventsRouteImport } from './routes/center/events'
 import { Route as CenterEarningsRouteImport } from './routes/center/earnings'
@@ -268,6 +270,11 @@ const CenterUploadResultsRoute = CenterUploadResultsRouteImport.update({
   path: '/upload-results',
   getParentRoute: () => CenterRouteRoute,
 } as any)
+const CenterTeamSchedulesRoute = CenterTeamSchedulesRouteImport.update({
+  id: '/team-schedules',
+  path: '/team-schedules',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
 const CenterStaffRoute = CenterStaffRouteImport.update({
   id: '/staff',
   path: '/staff',
@@ -311,6 +318,11 @@ const CenterPatientsRoute = CenterPatientsRouteImport.update({
 const CenterNotificationsRoute = CenterNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => CenterRouteRoute,
+} as any)
+const CenterMyScheduleRoute = CenterMyScheduleRouteImport.update({
+  id: '/my-schedule',
+  path: '/my-schedule',
   getParentRoute: () => CenterRouteRoute,
 } as any)
 const CenterKitsRoute = CenterKitsRouteImport.update({
@@ -688,6 +700,7 @@ export interface FileRoutesByFullPath {
   '/center/earnings': typeof CenterEarningsRoute
   '/center/events': typeof CenterEventsRoute
   '/center/kits': typeof CenterKitsRoute
+  '/center/my-schedule': typeof CenterMyScheduleRoute
   '/center/notifications': typeof CenterNotificationsRoute
   '/center/patients': typeof CenterPatientsRoute
   '/center/profile': typeof CenterProfileRoute
@@ -697,6 +710,7 @@ export interface FileRoutesByFullPath {
   '/center/reports': typeof CenterReportsRoute
   '/center/services': typeof CenterServicesRoute
   '/center/staff': typeof CenterStaffRoute
+  '/center/team-schedules': typeof CenterTeamSchedulesRoute
   '/center/upload-results': typeof CenterUploadResultsRoute
   '/center/verify-code': typeof CenterVerifyCodeRoute
   '/center/wallet': typeof CenterWalletRoute
@@ -789,6 +803,7 @@ export interface FileRoutesByTo {
   '/center/earnings': typeof CenterEarningsRoute
   '/center/events': typeof CenterEventsRoute
   '/center/kits': typeof CenterKitsRoute
+  '/center/my-schedule': typeof CenterMyScheduleRoute
   '/center/notifications': typeof CenterNotificationsRoute
   '/center/patients': typeof CenterPatientsRoute
   '/center/profile': typeof CenterProfileRoute
@@ -798,6 +813,7 @@ export interface FileRoutesByTo {
   '/center/reports': typeof CenterReportsRoute
   '/center/services': typeof CenterServicesRoute
   '/center/staff': typeof CenterStaffRoute
+  '/center/team-schedules': typeof CenterTeamSchedulesRoute
   '/center/upload-results': typeof CenterUploadResultsRoute
   '/center/verify-code': typeof CenterVerifyCodeRoute
   '/center/wallet': typeof CenterWalletRoute
@@ -897,6 +913,7 @@ export interface FileRoutesById {
   '/center/earnings': typeof CenterEarningsRoute
   '/center/events': typeof CenterEventsRoute
   '/center/kits': typeof CenterKitsRoute
+  '/center/my-schedule': typeof CenterMyScheduleRoute
   '/center/notifications': typeof CenterNotificationsRoute
   '/center/patients': typeof CenterPatientsRoute
   '/center/profile': typeof CenterProfileRoute
@@ -906,6 +923,7 @@ export interface FileRoutesById {
   '/center/reports': typeof CenterReportsRoute
   '/center/services': typeof CenterServicesRoute
   '/center/staff': typeof CenterStaffRoute
+  '/center/team-schedules': typeof CenterTeamSchedulesRoute
   '/center/upload-results': typeof CenterUploadResultsRoute
   '/center/verify-code': typeof CenterVerifyCodeRoute
   '/center/wallet': typeof CenterWalletRoute
@@ -1004,6 +1022,7 @@ export interface FileRouteTypes {
     | '/center/earnings'
     | '/center/events'
     | '/center/kits'
+    | '/center/my-schedule'
     | '/center/notifications'
     | '/center/patients'
     | '/center/profile'
@@ -1013,6 +1032,7 @@ export interface FileRouteTypes {
     | '/center/reports'
     | '/center/services'
     | '/center/staff'
+    | '/center/team-schedules'
     | '/center/upload-results'
     | '/center/verify-code'
     | '/center/wallet'
@@ -1105,6 +1125,7 @@ export interface FileRouteTypes {
     | '/center/earnings'
     | '/center/events'
     | '/center/kits'
+    | '/center/my-schedule'
     | '/center/notifications'
     | '/center/patients'
     | '/center/profile'
@@ -1114,6 +1135,7 @@ export interface FileRouteTypes {
     | '/center/reports'
     | '/center/services'
     | '/center/staff'
+    | '/center/team-schedules'
     | '/center/upload-results'
     | '/center/verify-code'
     | '/center/wallet'
@@ -1212,6 +1234,7 @@ export interface FileRouteTypes {
     | '/center/earnings'
     | '/center/events'
     | '/center/kits'
+    | '/center/my-schedule'
     | '/center/notifications'
     | '/center/patients'
     | '/center/profile'
@@ -1221,6 +1244,7 @@ export interface FileRouteTypes {
     | '/center/reports'
     | '/center/services'
     | '/center/staff'
+    | '/center/team-schedules'
     | '/center/upload-results'
     | '/center/verify-code'
     | '/center/wallet'
@@ -1512,6 +1536,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CenterUploadResultsRouteImport
       parentRoute: typeof CenterRouteRoute
     }
+    '/center/team-schedules': {
+      id: '/center/team-schedules'
+      path: '/team-schedules'
+      fullPath: '/center/team-schedules'
+      preLoaderRoute: typeof CenterTeamSchedulesRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
     '/center/staff': {
       id: '/center/staff'
       path: '/staff'
@@ -1573,6 +1604,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/center/notifications'
       preLoaderRoute: typeof CenterNotificationsRouteImport
+      parentRoute: typeof CenterRouteRoute
+    }
+    '/center/my-schedule': {
+      id: '/center/my-schedule'
+      path: '/my-schedule'
+      fullPath: '/center/my-schedule'
+      preLoaderRoute: typeof CenterMyScheduleRouteImport
       parentRoute: typeof CenterRouteRoute
     }
     '/center/kits': {
@@ -2182,6 +2220,7 @@ interface CenterRouteRouteChildren {
   CenterEarningsRoute: typeof CenterEarningsRoute
   CenterEventsRoute: typeof CenterEventsRoute
   CenterKitsRoute: typeof CenterKitsRoute
+  CenterMyScheduleRoute: typeof CenterMyScheduleRoute
   CenterNotificationsRoute: typeof CenterNotificationsRoute
   CenterPatientsRoute: typeof CenterPatientsRoute
   CenterProfileRoute: typeof CenterProfileRoute
@@ -2191,6 +2230,7 @@ interface CenterRouteRouteChildren {
   CenterReportsRoute: typeof CenterReportsRoute
   CenterServicesRoute: typeof CenterServicesRoute
   CenterStaffRoute: typeof CenterStaffRoute
+  CenterTeamSchedulesRoute: typeof CenterTeamSchedulesRoute
   CenterUploadResultsRoute: typeof CenterUploadResultsRoute
   CenterVerifyCodeRoute: typeof CenterVerifyCodeRoute
   CenterWalletRoute: typeof CenterWalletRoute
@@ -2204,6 +2244,7 @@ const CenterRouteRouteChildren: CenterRouteRouteChildren = {
   CenterEarningsRoute: CenterEarningsRoute,
   CenterEventsRoute: CenterEventsRoute,
   CenterKitsRoute: CenterKitsRoute,
+  CenterMyScheduleRoute: CenterMyScheduleRoute,
   CenterNotificationsRoute: CenterNotificationsRoute,
   CenterPatientsRoute: CenterPatientsRoute,
   CenterProfileRoute: CenterProfileRoute,
@@ -2213,6 +2254,7 @@ const CenterRouteRouteChildren: CenterRouteRouteChildren = {
   CenterReportsRoute: CenterReportsRoute,
   CenterServicesRoute: CenterServicesRoute,
   CenterStaffRoute: CenterStaffRoute,
+  CenterTeamSchedulesRoute: CenterTeamSchedulesRoute,
   CenterUploadResultsRoute: CenterUploadResultsRoute,
   CenterVerifyCodeRoute: CenterVerifyCodeRoute,
   CenterWalletRoute: CenterWalletRoute,

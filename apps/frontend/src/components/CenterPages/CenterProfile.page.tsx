@@ -26,6 +26,7 @@ import {
 import { FileUploadService } from '@/services/upload.service'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
+import { formatFacilityInviteShareMessage } from '@zerocancer/shared'
 import { updateCenterProfileSchema } from '@zerocancer/shared/schemas/center.schema'
 import { Building2, Copy, Loader2, MessageCircle, Palette, Share2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -134,13 +135,17 @@ export function CenterProfilePage() {
   const shareUrl =
     profile.patientInviteUrl ||
     `${typeof window !== 'undefined' ? window.location.origin : ''}/c/${profile.id}`
+  const shareMessage = formatFacilityInviteShareMessage({
+    centerName: profile.centerName || 'Our health facility',
+    shareUrl,
+  })
 
-  const onCopyInvite = async () => {
+  const onCopyInvite = async (text: string, success: string) => {
     try {
-      await navigator.clipboard.writeText(shareUrl)
-      toast.success('Patient invite link copied')
+      await navigator.clipboard.writeText(text)
+      toast.success(success)
     } catch {
-      toast.error('Could not copy link')
+      toast.error('Could not copy')
     }
   }
 
@@ -161,18 +166,38 @@ export function CenterProfilePage() {
             Invite patients to this facility
           </CardTitle>
           <CardDescription>
-            Share this link. When a patient registers with it, they are
-            registered under {profile.centerName}.
+            Share as your health facility. Patients who register with this link
+            are attributed to {profile.centerName} (not to an individual
+            doctor or nurse).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="break-all rounded-md bg-muted px-3 py-2 text-xs">
             {shareUrl}
           </p>
-          <Button type="button" variant="outline" onClick={onCopyInvite}>
-            <Copy className="mr-2 h-4 w-4" />
-            Copy invite link
-          </Button>
+          <p className="rounded-md border bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+            {shareMessage}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onCopyInvite(shareUrl, 'Patient invite link copied')}
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Copy link
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                onCopyInvite(shareMessage, 'Invite message copied')
+              }
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Copy share message
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

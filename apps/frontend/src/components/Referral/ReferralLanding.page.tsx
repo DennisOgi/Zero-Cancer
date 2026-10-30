@@ -237,17 +237,33 @@ export function ReferralLandingPage({ code }: { code: string }) {
       </div>
       <div className="space-y-3">
         <Badge className="bg-pink-100 text-pink-900 hover:bg-pink-100">
-          Referral invite
+          {meta.type === 'nurse'
+            ? meta.referrerRole === 'DOCTOR'
+              ? 'Doctor invite'
+              : meta.referrerRole === 'NURSE'
+                ? 'Nurse invite'
+                : 'Health worker invite'
+            : meta.type === 'agent'
+              ? 'Agent invite'
+              : 'Referral invite'}
         </Badge>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">
           {meta.referrerName} invited you to get screened
         </h1>
         <p className="max-w-2xl text-muted-foreground">
-          Create a patient account, connect to a health facility, and choose
-          how you want to cover the screening — pay now, save for later, or
-          join the waitlist for donor support. Prices always follow the
-          facility you connect to.
+          {meta.type === 'nurse'
+            ? `${meta.referrerName} shared this ZeroCancer link with you. Create a patient account, connect to a health facility, and choose how you want to cover screening — pay now, save for later, or join the waitlist.`
+            : 'Create a patient account, connect to a health facility, and choose how you want to cover the screening — pay now, save for later, or join the waitlist for donor support. Prices always follow the facility you connect to.'}
         </p>
+        {meta.type === 'nurse' && meta.boundCenter?.centerName ? (
+          <p className="text-sm text-slate-600">
+            Their facility is{' '}
+            <span className="font-medium text-slate-900">
+              {meta.boundCenter.centerName}
+            </span>
+            . You can still choose a facility nearer to you.
+          </p>
+        ) : null}
       </div>
 
       <Card>

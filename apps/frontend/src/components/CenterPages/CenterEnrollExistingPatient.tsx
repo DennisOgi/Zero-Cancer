@@ -58,7 +58,7 @@ export function CenterEnrollExistingPatient() {
   const [lastScreeningName, setLastScreeningName] = useState('')
   const queryClient = useQueryClient()
   const { data: authData } = useQuery(useAuthUser())
-  const centerName = authData?.data?.user?.fullName || 'Your center'
+  const centerName = authData?.data?.user?.centerName || 'Your center'
   const loginUrl =
     typeof window !== 'undefined'
       ? `${window.location.origin}/login`

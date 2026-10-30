@@ -39,7 +39,7 @@ import { z } from "zod";
 
 export const authApp = new Hono<THonoApp>();
 
-// POST /api/auth/login?actor=patient|donor|center
+// POST /api/auth/login?actor=patient|donor|center (actor optional — auto-resolved)
 authApp.post(
   "/login",
   zValidator("json", loginSchema, (result, c) => {
@@ -53,18 +53,22 @@ authApp.post(
         400
       );
   }),
-  zValidator("query", z.object({ actor: actorSchema }), (result, c) => {
-    if (!result.success)
-      return c.json<TErrorResponse>(
-        {
-          ok: false,
-          err_code: "invalid_actor" as const,
-          error:
-            "Actor type is required and must be one of: patient, donor, center.",
-        },
-        400
-      );
-  }),
+  zValidator(
+    "query",
+    z.object({ actor: actorSchema.optional() }),
+    (result, c) => {
+      if (!result.success)
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            err_code: "invalid_actor" as const,
+            error:
+              "Actor type must be one of: patient, donor, center (or omitted to auto-detect).",
+          },
+          400
+        );
+    }
+  ),
   async (c) => {
     try {
       const { JWT_TOKEN_SECRET } = env<TEnvs>(c);
@@ -86,45 +90,114 @@ authApp.post(
         | "CENTER"
         | "CENTER_STAFF"
         | undefined;
+      let centerNameForUser: string | undefined;
 
-      if (actor === "center") {
-        user = await db.serviceCenter.findUnique({
+      const tryCenterOwner = async () => {
+        const center = await db.serviceCenter.findUnique({
           where: { email: normalizedEmail },
         });
-        if (user) {
-          passwordHash = user.passwordHash!;
-          id = user.id!;
-          authProfile = "CENTER";
+        if (!center?.passwordHash) return false;
+        if (!(await bcrypt.compare(password!, center.passwordHash))) return false;
+        user = center;
+        passwordHash = center.passwordHash;
+        id = center.id!;
+        authProfile = "CENTER";
+        centerNameForUser = center.centerName || undefined;
+        const ownerStaff = await db.centerStaff.findFirst({
+          where: { centerId: id, email: normalizedEmail },
+        });
+        if (ownerStaff) {
+          staffId = ownerStaff.id;
+          staffRole = "ADMIN";
+        }
+        return true;
+      };
+
+      const tryStaff = async (requireSingle = false) => {
+        const staffMembers = await db.centerStaff.findMany({
+          where: { email: normalizedEmail },
+        });
+        const candidates = (staffMembers || []).filter((member: any) => {
+          const status = String(member.status || "ACTIVE").toUpperCase();
+          return status === "ACTIVE" && Boolean(member.passwordHash);
+        });
+
+        const matches: any[] = [];
+        for (const member of candidates) {
+          if (await bcrypt.compare(password!, member.passwordHash)) {
+            matches.push(member);
+          }
+        }
+
+        if (!matches.length) return false;
+
+        if (requireSingle && matches.length > 1) {
+          return "MULTI" as const;
+        }
+
+        // Prefer ADMIN facility-owner style if multiple (shouldn't happen often)
+        const matchedStaff =
+          matches.find((m) => normalizeStaffRole(m.role) === "ADMIN") ||
+          matches[0];
+
+        const staffStatus = String(matchedStaff.status || "ACTIVE").toUpperCase();
+        if (staffStatus !== "ACTIVE") {
+          return "SUSPENDED" as const;
+        }
+
+        const staffCenter = await db.serviceCenter.findUnique({
+          where: { id: matchedStaff.centerId },
+          select: { centerName: true },
+        });
+        user = {
+          email: matchedStaff.email,
+          fullName: matchedStaff.fullName,
+          centerName: staffCenter?.centerName || "",
+        };
+        passwordHash = matchedStaff.passwordHash;
+        id = matchedStaff.centerId;
+        staffId = matchedStaff.id;
+        staffRole = normalizeStaffRole(matchedStaff.role);
+        authProfile = staffJwtProfile(matchedStaff.role);
+        centerNameForUser = staffCenter?.centerName || undefined;
+        return true;
+      };
+
+      const tryPatientOrDonor = async (forcedActor?: "patient" | "donor") => {
+        const { user: justUser, profiles: userProfiles } =
+          await getUserWithProfiles(c, { email: normalizedEmail });
+
+        if (!justUser?.passwordHash) return false;
+        if (!(await bcrypt.compare(password!, justUser.passwordHash))) {
+          return false;
+        }
+
+        const profiles = userProfiles || [];
+        let chosen: "PATIENT" | "DONOR" | null = null;
+        if (forcedActor) {
+          const upper = forcedActor.toUpperCase() as "PATIENT" | "DONOR";
+          if (!profiles.includes(upper)) return false;
+          chosen = upper;
+        } else if (profiles.includes("PATIENT")) {
+          chosen = "PATIENT";
+        } else if (profiles.includes("DONOR")) {
+          chosen = "DONOR";
         } else {
-          const staffMembers = await db.centerStaff.findMany({
-            where: { email: normalizedEmail },
-          });
-          const candidates = (staffMembers || []).filter((member: any) => {
-            const status = String(member.status || "ACTIVE").toUpperCase();
-            return status === "ACTIVE" && Boolean(member.passwordHash);
-          });
+          return false;
+        }
 
-          let matchedStaff: any = null;
-          for (const member of candidates) {
-            if (await bcrypt.compare(password!, member.passwordHash)) {
-              matchedStaff = member;
-              break;
-            }
-          }
+        user = { ...justUser, profiles };
+        passwordHash = justUser.passwordHash!;
+        id = justUser.id!;
+        authProfile = chosen;
+        return true;
+      };
 
-          if (!matchedStaff) {
-            return c.json<TErrorResponse>(
-              {
-                ok: false,
-                err_code: "invalid_credentials",
-                error: "Invalid health facility email or password.",
-              },
-              400
-            );
-          }
-
-          const staffStatus = String(matchedStaff.status || "ACTIVE").toUpperCase();
-          if (staffStatus !== "ACTIVE") {
+      if (actor === "center") {
+        const ownerOk = await tryCenterOwner();
+        if (!ownerOk) {
+          const staffResult = await tryStaff(false);
+          if (staffResult === "SUSPENDED") {
             return c.json<TErrorResponse>(
               {
                 ok: false,
@@ -134,38 +207,20 @@ authApp.post(
               403
             );
           }
-
-          user = {
-            email: matchedStaff.email,
-            fullName: matchedStaff.fullName,
-            centerName: "",
-          };
-          passwordHash = matchedStaff.passwordHash;
-          id = matchedStaff.centerId;
-          staffId = matchedStaff.id;
-          staffRole = normalizeStaffRole(matchedStaff.role);
-          authProfile = staffJwtProfile(matchedStaff.role);
+          if (!staffResult) {
+            return c.json<TErrorResponse>(
+              {
+                ok: false,
+                err_code: "invalid_credentials",
+                error: "Invalid health facility email or password.",
+              },
+              400
+            );
+          }
         }
-      } else {
-        let { user: justUser, profiles: userProfiles } =
-          await getUserWithProfiles(c, {
-            email: normalizedEmail,
-          });
-
-        user = { ...justUser, profiles: userProfiles };
-
-        if (!justUser) {
-          return c.json<TErrorResponse>(
-            {
-              ok: false,
-              err_code: "user_not_found",
-              error: "User not found.",
-            },
-            404
-          );
-        }
-
-        if (!userProfiles.includes(actor.toUpperCase() as "PATIENT" | "DONOR")) {
+      } else if (actor === "patient" || actor === "donor") {
+        const ok = await tryPatientOrDonor(actor);
+        if (!ok) {
           return c.json<TErrorResponse>(
             {
               ok: false,
@@ -175,47 +230,57 @@ authApp.post(
             400
           );
         }
-
-        passwordHash = user.passwordHash!;
-        id = user.id!;
-      }
-
-      // If user not found or password doesn't match
-      if (!user || !passwordHash) {
-        return c.json<TErrorResponse>(
-          {
-            ok: false,
-            err_code: "invalid_credentials",
-            error: `Invalid ${actor} email or password.`,
-          },
-          400
-        );
-      }
-      if (!(await bcrypt.compare(password!, passwordHash))) {
-        return c.json<TErrorResponse>(
-          {
-            ok: false,
-            err_code: "invalid_credentials",
-            error: `Invalid ${actor} email or password.`,
-          },
-          400
-        );
-      }
-
-      if (!authProfile) {
-        authProfile = user.profiles.includes(actor.toUpperCase())
-          ? actor.toUpperCase()
-          : user.profiles[0];
-      }
-
-      if (actor === "center" && id && !staffId) {
-        const ownerStaff = await db.centerStaff.findFirst({
-          where: { centerId: id, email: normalizedEmail },
-        });
-        if (ownerStaff) {
-          staffId = ownerStaff.id;
-          staffRole = "ADMIN";
+      } else {
+        // Auto-detect: facility owner → staff → patient/donor
+        const ownerOk = await tryCenterOwner();
+        if (!ownerOk) {
+          const staffResult = await tryStaff(true);
+          if (staffResult === "MULTI") {
+            return c.json(
+              {
+                ok: false,
+                err_code: "needs_facility_pick",
+                error:
+                  "This email belongs to multiple health facilities. Choose your facility to continue.",
+              },
+              400
+            );
+          }
+          if (staffResult === "SUSPENDED") {
+            return c.json<TErrorResponse>(
+              {
+                ok: false,
+                error:
+                  "Your account has been suspended by your health facility. Contact your facility admin.",
+              },
+              403
+            );
+          }
+          if (!staffResult) {
+            const userOk = await tryPatientOrDonor();
+            if (!userOk) {
+              return c.json<TErrorResponse>(
+                {
+                  ok: false,
+                  err_code: "invalid_credentials",
+                  error: "Invalid email or password.",
+                },
+                400
+              );
+            }
+          }
         }
+      }
+
+      if (!user || !passwordHash || !authProfile || !id) {
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            err_code: "invalid_credentials",
+            error: "Invalid email or password.",
+          },
+          400
+        );
       }
 
       const payload = {
@@ -234,7 +299,6 @@ authApp.post(
         JWT_TOKEN_SECRET
       );
 
-      // Set refresh token as httpOnly, secure cookie using Hono's setCookie
       setCookie(c, "refreshToken", refreshToken, {
         httpOnly: true,
         secure: true,
@@ -253,6 +317,7 @@ authApp.post(
             email: user.email!,
             profile: payload.profile,
             ...(staffId ? { staffId, staffRole } : {}),
+            ...(centerNameForUser ? { centerName: centerNameForUser } : {}),
           },
         },
       });
@@ -371,17 +436,21 @@ authApp.get(
         staffRole = normalizeStaffRole(staff.role);
       }
 
+      const staffName = staff?.fullName || undefined;
+      const isFacilityAdmin =
+        jwtPayload.profile === "CENTER" || staffRole === "ADMIN";
       return c.json<TAuthMeResponse>({
         ok: true,
         data: {
           user: {
             id: center.id!,
-            fullName: center.centerName!,
+            fullName: staffName || center.centerName!,
             email: jwtPayload.email || center.email!,
             profile: jwtPayload.profile,
             staffId,
-            staffRole,
-            staffFullName: staff?.fullName || undefined,
+            staffRole: isFacilityAdmin && !staffRole ? "ADMIN" : staffRole,
+            staffFullName: staffName,
+            centerName: center.centerName!,
           },
         },
       });
@@ -456,6 +525,8 @@ authApp.get(
                 assignedCenter,
                 facilityChoice: patientProfile?.facilityChoice ?? null,
                 mustChangePassword: Boolean(patientProfile?.mustChangePassword),
+                referredByStaffId:
+                  (patientProfile as any)?.referredByStaffId ?? null,
               }
             : {}),
         },

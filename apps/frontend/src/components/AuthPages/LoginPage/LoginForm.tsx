@@ -21,25 +21,16 @@ import {
   loginSchema,
   type TLoginParams,
 } from '@zerocancer/shared/schemas/auth.schema'
-import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import Spinner from '../../shared/Spinner'
-import RoleSelection from './RoleSelection'
 
 export default function LoginForm() {
-  const [role, setRole] = useState<'patient' | 'donor' | 'center'>('patient')
   const queryClient = useQueryClient()
   const loginMutation = useLogin()
   const resendVerificationMutation = useResendVerification()
   const navigate = useNavigate()
   const search = useSearch({ from: '/(auth)/login' })
-
-  useEffect(() => {
-    if (search.role) {
-      setRole(search.role)
-    }
-  }, [search.role])
 
   const form = useForm<TLoginParams>({
     resolver: zodResolver(loginSchema),
@@ -56,7 +47,6 @@ export default function LoginForm() {
           email: values.email,
           password: values.password,
         },
-        actor: role,
       },
       {
         onSuccess: () => {
@@ -71,10 +61,7 @@ export default function LoginForm() {
               return
             }
 
-            if (
-              userProfile === 'patient' &&
-              user?.mustChangePassword
-            ) {
+            if (userProfile === 'patient' && user?.mustChangePassword) {
               navigate({ to: '/patient/change-password' })
               return
             }
@@ -88,7 +75,18 @@ export default function LoginForm() {
           })
         },
         onError: (error) => {
-          if (error.response?.data?.err_code === 'email_not_verified') {
+          const errCode = error.response?.data?.err_code
+          if (errCode === 'needs_facility_pick') {
+            toast.message(
+              'This email is used at multiple facilities. Sign in with your facility below.',
+            )
+            navigate({
+              to: '/staff/login',
+              search: { email: values.email },
+            })
+            return
+          }
+          if (errCode === 'email_not_verified') {
             toast.error(
               'User not verified. Please check your email for verification code.',
             )
@@ -96,7 +94,7 @@ export default function LoginForm() {
             resendVerificationMutation.mutate(
               {
                 email: values.email,
-                profileType: role,
+                profileType: 'patient',
               },
               {
                 onSuccess: () => {
@@ -109,12 +107,11 @@ export default function LoginForm() {
                 },
               },
             )
-          } else if (error.response?.data?.err_code === 'invalid_credentials') {
+            return
+          }
+          if (errCode === 'invalid_credentials') {
             toast.error('Invalid email or password. Please try again.')
-          } else if (error.response?.data?.err_code === 'invalid_actor') {
-            toast.error(
-              "Seems like you're trying to log in with the wrong profile type. Please select the correct role for your account.",
-            )
+            return
           }
 
           toast.error(
@@ -130,22 +127,9 @@ export default function LoginForm() {
       <div className="space-y-2">
         <h2 className="text-3xl font-bold">Login</h2>
         <p className="text-muted-foreground">
-          Select your role to access your account. Doctors, nurses, and other
-          facility staff should choose Health Facility.
+          Enter your email and password. We&apos;ll take you to the right
+          dashboard for your account.
         </p>
-      </div>
-      <div className="mb-4">
-        <label className="block text-sm font-medium mb-2">Login as...</label>
-        <RoleSelection
-          selectedRoles={['patient', 'donor', 'center']}
-          field={{
-            value: role,
-            onChange: (value: string) => setRole(value as 'patient' | 'donor' | 'center'),
-            name: 'role',
-            onBlur: () => {},
-            ref: () => {},
-          }}
-        />
       </div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -186,12 +170,15 @@ export default function LoginForm() {
             )}
           />
 
-          <div className="flex justify-end">
-            <Link
-              className=" text-primary cursor-pointer"
-              to={role === 'center' ? '/forgot-password-center' : '/forgot-password'}
-            >
+          <div className="flex justify-end gap-4">
+            <Link className="text-primary cursor-pointer" to="/forgot-password">
               Forgot Password?
+            </Link>
+            <Link
+              className="text-muted-foreground cursor-pointer text-sm"
+              to="/forgot-password-center"
+            >
+              Facility reset
             </Link>
           </div>
 
@@ -206,6 +193,13 @@ export default function LoginForm() {
             {loginMutation.status === 'pending' && <Spinner />}
             Login
           </Button>
+
+          <p className="text-center text-sm text-muted-foreground">
+            Facility staff with accounts at multiple centers?{' '}
+            <Link to="/staff/login" className="text-primary underline">
+              Choose facility
+            </Link>
+          </p>
         </form>
       </Form>
     </div>

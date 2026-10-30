@@ -237,7 +237,16 @@ function printEoiInvoice(invoice: TEoiInvoice) {
 
 export function CenterKitsPage() {
   const { data: authData } = useQuery(useAuthUser())
-  const canOrder = authData?.data?.user?.profile === 'CENTER'
+  const user = authData?.data?.user
+  const isFacilityAdmin =
+    user?.profile === 'CENTER' || user?.staffRole === 'ADMIN'
+  const isClinicalStaff =
+    user?.profile === 'CENTER_STAFF' &&
+    (user?.staffRole === 'DOCTOR' || user?.staffRole === 'NURSE')
+  const canOrder = isFacilityAdmin || isClinicalStaff
+  const orderScopeLabel = isFacilityAdmin
+    ? 'facility'
+    : 'personal'
   const cancelOrder = useCancelKitOrder()
   const loadInvoice = useKitOrderInvoice()
   const { data: statsData, isLoading: statsLoading } = useQuery(kitStats())
@@ -355,14 +364,18 @@ export function CenterKitsPage() {
                 Kits and Devices
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-white/80">
-                Select products from the catalogue, check out once, and receive
-                an Expression of Interest invoice. Prices are confirmed when
-                ZeroCancer contacts you.
+                {isClinicalStaff
+                  ? 'Place a personal Expression of Interest for kits you need. Facility-wide orders stay with your admin.'
+                  : 'Select products from the catalogue, check out once, and receive an Expression of Interest invoice. Prices are confirmed when ZeroCancer contacts you.'}
               </p>
             </div>
             <div className="rounded-xl bg-white/10 px-4 py-3 text-sm backdrop-blur">
-              <p className="font-medium">No prices at checkout</p>
-              <p className="text-white/75">EOI · For Confirmation</p>
+              <p className="font-medium">
+                {orderScopeLabel === 'personal'
+                  ? 'Personal EOI'
+                  : 'Facility EOI'}
+              </p>
+              <p className="text-white/75">No prices · For Confirmation</p>
             </div>
           </div>
         </div>
@@ -504,8 +517,8 @@ export function CenterKitsPage() {
                 Need kits or devices?
               </CardTitle>
               <CardDescription>
-                Ask your facility admin to place an Expression of Interest
-                order. You can view stock and orders here.
+                Doctors and nurses can submit personal kit requests. Facility
+                admins place facility-wide Expressions of Interest.
               </CardDescription>
             </CardHeader>
           </Card>

@@ -13,10 +13,35 @@ import { Link } from '@tanstack/react-router'
 import { Loader2, Search, UserPlus, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+const ORIGIN_FILTERS = [
+  { value: '', label: 'All origins' },
+  { value: 'FACILITY_INVITE', label: 'Facility invite' },
+  { value: 'STAFF_REFERRAL', label: 'Staff referral' },
+  { value: 'WALK_IN', label: 'Walk-in' },
+  { value: 'ALGORITHM', label: 'Auto-assigned' },
+] as const
+
+const FUNDING_FILTERS = [
+  { value: '', label: 'All funding' },
+  { value: 'SELF_PAY', label: 'Self-pay' },
+  { value: 'ON_WAITLIST', label: 'On waitlist' },
+  { value: 'PENDING_FUNDING', label: 'Pending funding' },
+  { value: 'MATCHED', label: 'Matched / funded' },
+] as const
+
+const ORIGIN_LABEL: Record<string, string> = {
+  FACILITY_INVITE: 'Facility invite',
+  STAFF_REFERRAL: 'Staff referral',
+  WALK_IN: 'Walk-in',
+  ALGORITHM: 'Auto-assigned',
+}
+
 export function CenterPatientsPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [assignmentSource, setAssignmentSource] = useState('')
+  const [funding, setFunding] = useState('')
   const pageSize = 20
 
   useEffect(() => {
@@ -27,11 +52,17 @@ export function CenterPatientsPage() {
     return () => clearTimeout(timer)
   }, [search])
 
+  useEffect(() => {
+    setPage(1)
+  }, [assignmentSource, funding])
+
   const { data, isLoading, isError, refetch, isFetching } = useQuery(
     centerPatientsList({
       page,
       pageSize,
       search: debouncedSearch || undefined,
+      assignmentSource: assignmentSource || undefined,
+      funding: funding || undefined,
     }),
   )
 
@@ -58,24 +89,58 @@ export function CenterPatientsPage() {
       </div>
 
       <Card>
-        <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Assigned patients
-            </CardTitle>
-            <CardDescription>
-              {total} patient{total === 1 ? '' : 's'} at your center
-            </CardDescription>
+        <CardHeader className="gap-4 space-y-4">
+          <div className="sm:flex-row sm:items-center sm:justify-between flex flex-col gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Assigned patients
+              </CardTitle>
+              <CardDescription>
+                {total} patient{total === 1 ? '' : 's'} at your center
+              </CardDescription>
+            </div>
+            <div className="relative w-full sm:max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                placeholder="Search by name or phone..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="relative w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="pl-9"
-              placeholder="Search by name or phone..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <div className="flex flex-wrap gap-2">
+            {ORIGIN_FILTERS.map((f) => (
+              <button
+                key={f.value || 'all-origin'}
+                type="button"
+                onClick={() => setAssignmentSource(f.value)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  assignmentSource === f.value
+                    ? 'border-primary bg-primary text-white'
+                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {FUNDING_FILTERS.map((f) => (
+              <button
+                key={f.value || 'all-funding'}
+                type="button"
+                onClick={() => setFunding(f.value)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  funding === f.value
+                    ? 'border-emerald-600 bg-emerald-600 text-white'
+                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
         </CardHeader>
         <CardContent>
@@ -94,11 +159,11 @@ export function CenterPatientsPage() {
           ) : patients.length === 0 ? (
             <div className="space-y-3 py-12 text-center">
               <p className="text-sm text-muted-foreground">
-                {debouncedSearch
-                  ? 'No patients match your search.'
+                {debouncedSearch || assignmentSource || funding
+                  ? 'No patients match your filters.'
                   : 'No patients assigned to your center yet.'}
               </p>
-              {!debouncedSearch ? (
+              {!debouncedSearch && !assignmentSource && !funding ? (
                 <Button asChild variant="outline">
                   <Link to="/center/register-patient">Register a patient</Link>
                 </Button>
@@ -109,7 +174,7 @@ export function CenterPatientsPage() {
               {isFetching && !isLoading ? (
                 <p className="text-xs text-muted-foreground">Updating…</p>
               ) : null}
-              {patients.map((patient) => (
+              {patients.map((patient: any) => (
                 <div
                   key={patient.id}
                   className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-start sm:justify-between"
@@ -129,6 +194,11 @@ export function CenterPatientsPage() {
                         {[patient.city, patient.state].filter(Boolean).join(', ')}
                       </p>
                     )}
+                    <p className="text-xs font-medium text-indigo-700">
+                      {ORIGIN_LABEL[patient.assignmentSource] ||
+                        patient.assignmentSource ||
+                        'Unknown origin'}
+                    </p>
                   </div>
                   <div className="shrink-0 space-y-1 text-left sm:text-right">
                     <p className="text-sm font-medium text-blue-700">
@@ -144,6 +214,9 @@ export function CenterPatientsPage() {
                       <p className="text-xs text-green-700">
                         {patient.matchedCount} matched / funded
                       </p>
+                    ) : null}
+                    {patient.waitlistCount === 0 ? (
+                      <p className="text-xs text-muted-foreground">Self-pay</p>
                     ) : null}
                     <Button
                       asChild

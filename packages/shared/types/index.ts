@@ -94,6 +94,7 @@ export type TLoginResponse = TDataResponse<{
     profile: "PATIENT" | "DONOR" | "CENTER" | "CENTER_STAFF" | "ADMIN";
     staffId?: string;
     staffRole?: "ADMIN" | "DOCTOR" | "NURSE" | "STAFF";
+    centerName?: string;
   };
 }>;
 
@@ -122,6 +123,8 @@ export type TAuthMeResponse = TDataResponse<{
     staffId?: string;
     staffRole?: "ADMIN" | "DOCTOR" | "NURSE" | "STAFF";
     staffFullName?: string;
+    centerName?: string;
+    referredByStaffId?: string | null;
   };
 }>;
 
@@ -1235,11 +1238,34 @@ export type TCenterStaffMember = {
   status: "ACTIVE" | "SUSPENDED";
   createdAt: string | null;
   patientsRegistered: number;
+  referralsCredited?: number;
+  screeningsCompleted?: number;
+  personalEois?: number;
   isOwner?: boolean;
 };
 
 export type TCenterStaffMembersResponse = TDataResponse<{
   members: TCenterStaffMember[];
+  topPerformers?: Array<{
+    id: string;
+    fullName: string | null;
+    email: string;
+    score: number;
+    patientsRegistered: number;
+    referralsCredited: number;
+    screeningsCompleted: number;
+    personalEois: number;
+  }>;
+}>;
+
+export type TCenterStaffActivityResponse = TDataResponse<{
+  staffId: string;
+  patients: Array<{
+    id: string;
+    fullName: string;
+    email: string;
+    source: "ONBOARDED" | "REFERRAL" | "SCREENED";
+  }>;
 }>;
 
 export type TValidateStaffInviteResponse = TDataResponse<{

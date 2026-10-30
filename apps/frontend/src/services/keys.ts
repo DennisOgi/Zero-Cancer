@@ -98,6 +98,7 @@ export enum QueryKeys {
   kitOrders = 'kitOrders',
   adminKitOrders = 'adminKitOrders',
   centerStaffMembers = 'centerStaffMembers',
+  centerStaffMemberActivity = 'centerStaffMemberActivity',
 }
 
 export enum MutationKeys {
@@ -180,6 +181,8 @@ export enum MutationKeys {
   updateBasePrice = 'updateBasePrice',
   updateRetailPrice = 'updateRetailPrice',
   updateStaffBank = 'updateStaffBank',
+  updateStaffProfile = 'updateStaffProfile',
+  createStaffReferralInvite = 'createStaffReferralInvite',
   staffCashout = 'staffCashout',
   createKitOrder = 'createKitOrder',
   cancelKitOrder = 'cancelKitOrder',

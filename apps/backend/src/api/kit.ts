@@ -236,20 +236,34 @@ kitApp.get(
   }
 );
 
-// GET /api/v1/kit/orders - List this facility's kit purchase / restock requests
+// GET /api/v1/kit/orders - Facility EOIs (admin) or personal EOIs (staff)
 kitApp.get(
   "/orders",
   authMiddleware(["center", "center_staff"]),
   async (c) => {
     const supabase = getSupabaseClient(c);
-    const centerId = c.get("jwtPayload")?.id as string;
+    const payload = c.get("jwtPayload");
+    const centerId = payload?.id as string;
+    const isFacilityAdmin =
+      payload?.profile === "CENTER" || payload?.staffRole === "ADMIN";
+    const staffId = payload?.staffId as string | undefined;
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("RestockRequest")
       .select("*")
       .eq("centerId", centerId)
       .order("requestedAt", { ascending: false })
       .limit(50);
+
+    if (isFacilityAdmin) {
+      query = query.eq("scope", "FACILITY");
+    } else if (staffId) {
+      query = query.eq("scope", "STAFF").eq("requestedByStaffId", staffId);
+    } else {
+      return c.json({ ok: true, data: { orders: [] } });
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("List kit orders failed:", error);
@@ -277,15 +291,16 @@ kitApp.get(
           screeningTypeName: nameById.get(row.screeningTypeId) || "Kit",
           kitProductName: kitProductLabel(row.kitProduct),
         })),
+        scope: isFacilityAdmin ? "FACILITY" : "STAFF",
       },
     });
   }
 );
 
-// POST /api/v1/kit/orders - Request kits for this facility (sales/fulfillment later)
+// POST /api/v1/kit/orders - Facility EOI (admin) or personal EOI (clinical staff)
 kitApp.post(
   "/orders",
-  authMiddleware(["center"]),
+  authMiddleware(["center", "center_staff"]),
   zValidator("json", orderKitsSchema, (result, c) => {
     if (!result.success) {
       return c.json({ ok: false, error: result.error }, 400);
@@ -297,6 +312,26 @@ kitApp.post(
       const payload = c.get("jwtPayload");
       const centerId = payload?.id as string;
       const body = c.req.valid("json");
+      const isFacilityAdmin =
+        payload?.profile === "CENTER" || payload?.staffRole === "ADMIN";
+      const staffId = payload?.staffId as string | undefined;
+      const isClinical =
+        payload?.staffRole === "DOCTOR" || payload?.staffRole === "NURSE";
+
+      // Facility admins place FACILITY EOIs; clinical staff place personal STAFF EOIs
+      const scope = isFacilityAdmin ? "FACILITY" : "STAFF";
+      if (!isFacilityAdmin) {
+        if (!isClinical || !staffId) {
+          return c.json(
+            {
+              ok: false,
+              error:
+                "Only doctors and nurses can submit personal kit requests. Facility admins order for the facility.",
+            },
+            403
+          );
+        }
+      }
 
       const lineItems =
         body.items?.length
@@ -406,6 +441,8 @@ kitApp.post(
         status: "PENDING",
         requestedBy,
         requestedAt,
+        scope,
+        requestedByStaffId: scope === "STAFF" ? staffId : null,
       }));
 
       const { data, error } = await supabase
@@ -459,12 +496,26 @@ kitApp.get(
     const centerId = payload?.id as string;
     const invoiceNumber = c.req.param("invoiceNumber");
 
-    const { data: rows, error } = await supabase
+    const isFacilityAdmin =
+      payload?.profile === "CENTER" || payload?.staffRole === "ADMIN";
+    const staffId = payload?.staffId as string | undefined;
+
+    let invoiceQuery = supabase
       .from("RestockRequest")
       .select("*")
       .eq("centerId", centerId)
       .eq("invoiceNumber", invoiceNumber)
       .order("requestedAt", { ascending: true });
+
+    if (isFacilityAdmin) {
+      invoiceQuery = invoiceQuery.eq("scope", "FACILITY");
+    } else if (staffId) {
+      invoiceQuery = invoiceQuery
+        .eq("scope", "STAFF")
+        .eq("requestedByStaffId", staffId);
+    }
+
+    const { data: rows, error } = await invoiceQuery;
 
     if (error) {
       console.error("Load EOI invoice failed:", error);
@@ -503,16 +554,22 @@ kitApp.get(
   }
 );
 
-// POST /api/v1/kit/orders/:id/cancel - Facility withdraws a pending EOI (all lines in the invoice)
-kitApp.post("/orders/:id/cancel", authMiddleware(["center"]), async (c) => {
+// POST /api/v1/kit/orders/:id/cancel - Withdraw a pending EOI (facility or own personal)
+kitApp.post(
+  "/orders/:id/cancel",
+  authMiddleware(["center", "center_staff"]),
+  async (c) => {
   const supabase = getSupabaseClient(c);
   const payload = c.get("jwtPayload");
   const centerId = payload?.id as string;
   const id = c.req.param("id");
+  const isFacilityAdmin =
+    payload?.profile === "CENTER" || payload?.staffRole === "ADMIN";
+  const staffId = payload?.staffId as string | undefined;
 
   const { data: existing } = await supabase
     .from("RestockRequest")
-    .select("id, invoiceNumber, status")
+    .select("id, invoiceNumber, status, scope, requestedByStaffId")
     .eq("id", id)
     .eq("centerId", centerId)
     .maybeSingle();
@@ -524,6 +581,28 @@ kitApp.post("/orders/:id/cancel", authMiddleware(["center"]), async (c) => {
     return c.json(
       { ok: false, error: "Only pending Expressions of Interest can be cancelled" },
       400
+    );
+  }
+
+  const scope = String(existing.scope || "FACILITY").toUpperCase();
+  if (isFacilityAdmin) {
+    if (scope !== "FACILITY") {
+      return c.json(
+        {
+          ok: false,
+          error: "Facility admins can only cancel facility kit requests.",
+        },
+        403
+      );
+    }
+  } else if (
+    scope !== "STAFF" ||
+    !staffId ||
+    existing.requestedByStaffId !== staffId
+  ) {
+    return c.json(
+      { ok: false, error: "You can only cancel your own personal kit requests." },
+      403
     );
   }
 
@@ -589,29 +668,54 @@ kitApp.get(
     const rows = data || [];
     const typeIds = [...new Set(rows.map((r: any) => r.screeningTypeId))];
     const centerIds = [...new Set(rows.map((r: any) => r.centerId))];
-    const [{ data: types }, { data: centers }] = await Promise.all([
-      typeIds.length
-        ? supabase.from("ScreeningType").select("id, name").in("id", typeIds)
-        : Promise.resolve({ data: [] as any[] }),
-      centerIds.length
-        ? supabase
-            .from("ServiceCenter")
-            .select("id, centerName, state, lga, phone, email")
-            .in("id", centerIds)
-        : Promise.resolve({ data: [] as any[] }),
-    ]);
+    const staffIds = [
+      ...new Set(
+        rows
+          .map((r: any) => r.requestedByStaffId)
+          .filter(Boolean) as string[]
+      ),
+    ];
+    const [{ data: types }, { data: centers }, { data: staffRows }] =
+      await Promise.all([
+        typeIds.length
+          ? supabase.from("ScreeningType").select("id, name").in("id", typeIds)
+          : Promise.resolve({ data: [] as any[] }),
+        centerIds.length
+          ? supabase
+              .from("ServiceCenter")
+              .select("id, centerName, state, lga, phone, email")
+              .in("id", centerIds)
+          : Promise.resolve({ data: [] as any[] }),
+        staffIds.length
+          ? supabase
+              .from("CenterStaff")
+              .select("id, fullName, email")
+              .in("id", staffIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
     const typeById = new Map((types || []).map((t: any) => [t.id, t.name]));
     const centerById = new Map((centers || []).map((ct: any) => [ct.id, ct]));
+    const staffById = new Map(
+      (staffRows || []).map((s: any) => [s.id, s])
+    );
 
     return c.json({
       ok: true,
       data: {
-        orders: rows.map((row: any) => ({
-          ...row,
-          screeningTypeName: typeById.get(row.screeningTypeId) || "Kit",
-          kitProductName: kitProductLabel(row.kitProduct),
-          center: centerById.get(row.centerId) || null,
-        })),
+        orders: rows.map((row: any) => {
+          const staff = row.requestedByStaffId
+            ? staffById.get(row.requestedByStaffId)
+            : null;
+          return {
+            ...row,
+            scope: row.scope || "FACILITY",
+            screeningTypeName: typeById.get(row.screeningTypeId) || "Kit",
+            kitProductName: kitProductLabel(row.kitProduct),
+            center: centerById.get(row.centerId) || null,
+            requesterStaffName:
+              staff?.fullName || staff?.email || null,
+          };
+        }),
       },
     });
   }

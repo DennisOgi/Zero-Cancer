@@ -217,19 +217,46 @@ export function buildDays(
 export async function getCenterAvailability(
   c: any,
   centerId: string,
-  range?: { from?: string; to?: string }
+  range?: { from?: string; to?: string; staffId?: string }
 ): Promise<TCenterAvailability> {
   const today = lagosParts(new Date()).dateKey;
   const from = range?.from || today;
   const to = range?.to || addDays(from, 60);
   const { weekly, exceptions, hasCustomHours } = await loadAvailabilityRows(c, centerId);
   const bookedCounts = await loadBookedCounts(c, centerId, from, to);
+  let days = buildDays(from, to, weekly, exceptions, bookedCounts);
+
+  if (range?.staffId) {
+    const supabase = getSupabaseClient(c);
+    const { data: staffRow } = await supabase
+      .from("CenterStaff")
+      .select("id, centerId")
+      .eq("id", range.staffId)
+      .maybeSingle();
+    // Personal hours only apply when booking that clinician's own facility
+    if (staffRow?.centerId === centerId) {
+      const {
+        getStaffAvailability,
+        intersectAvailabilityDays,
+        loadStaffAvailabilityRows,
+      } = await import("./staff-availability");
+      const staffRows = await loadStaffAvailabilityRows(c, range.staffId);
+      if (staffRows.hasCustomHours) {
+        const staffAvail = await getStaffAvailability(c, range.staffId, {
+          from,
+          to,
+        });
+        days = intersectAvailabilityDays(days, staffAvail.days);
+      }
+    }
+  }
+
   return {
     centerId,
     hasCustomHours,
     weekly,
     exceptions,
-    days: buildDays(from, to, weekly, exceptions, bookedCounts),
+    days,
   };
 }
 
@@ -287,7 +314,8 @@ export async function assertSlotAvailable(
   c: any,
   centerId: string,
   appointmentDateTime: Date,
-  ignoreAppointmentId?: string
+  ignoreAppointmentId?: string,
+  staffId?: string | null
 ) {
   const parts = lagosParts(appointmentDateTime);
   const time = hmFromMinutes(parts.minutes);
@@ -319,6 +347,23 @@ export async function assertSlotAvailable(
       ok: false as const,
       error: `That time is fully booked. Please pick another available slot.`,
     };
+  }
+  if (staffId) {
+    const supabase = getSupabaseClient(c);
+    const { data: staffRow } = await supabase
+      .from("CenterStaff")
+      .select("id, centerId")
+      .eq("id", staffId)
+      .maybeSingle();
+    if (staffRow?.centerId === centerId) {
+      const { assertStaffSlotOpen } = await import("./staff-availability");
+      const staffSlot = await assertStaffSlotOpen(
+        c,
+        staffId,
+        appointmentDateTime
+      );
+      if (!staffSlot.ok) return staffSlot;
+    }
   }
   return { ok: true as const };
 }

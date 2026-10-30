@@ -322,11 +322,16 @@ walletApp.post(
       const { centerId } = c.req.valid('param')
       const { amount, fee } = c.req.valid('json')
       const payload = c.get('jwtPayload')
+      const { isFacilityAdminPayload } = await import('../lib/center-context')
 
-      // Verify access
-      if (payload?.id !== centerId) {
+      // Verify access — facility wallet cashout is admin-only (not clinical staff)
+      if (payload?.id !== centerId || !isFacilityAdminPayload(payload)) {
         return c.json<TErrorResponse>(
-          { ok: false, error: 'Access denied' },
+          {
+            ok: false,
+            error:
+              'Only the facility administrator can cash out the facility wallet.',
+          },
           403
         )
       }

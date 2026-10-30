@@ -374,7 +374,7 @@ centerApp.get(
 // POST /api/center/my-services - Add screening services to the center
 centerApp.post(
   "/my-services",
-  authMiddleware(["center", "center_staff"]),
+  authMiddleware(["center"]),
   async (c) => {
     const db = getDB(c);
     const payload = c.get("jwtPayload");
@@ -450,7 +450,7 @@ centerApp.post(
 // PATCH /api/center/my-services/:screeningTypeId - Update retail price for a service
 centerApp.patch(
   "/my-services/:screeningTypeId",
-  authMiddleware(["center", "center_staff"]),
+  authMiddleware(["center"]),
   async (c) => {
     const db = getDB(c);
     const payload = c.get("jwtPayload");
@@ -553,7 +553,7 @@ centerApp.patch(
 // DELETE /api/center/my-services/:screeningTypeId - Remove a service from the center
 centerApp.delete(
   "/my-services/:screeningTypeId",
-  authMiddleware(["center", "center_staff"]),
+  authMiddleware(["center"]),
   async (c) => {
     const db = getDB(c);
     const payload = c.get("jwtPayload");
@@ -782,7 +782,7 @@ centerApp.get("/staff/members", authMiddleware(["center"]), async (c) => {
 
   const { data: rows, error } = await supabase
     .from("CenterStaff")
-    .select("id, email, fullName, role, status, createdAt")
+    .select("id, email, fullName, role, status, createdAt, referralCode")
     .eq("centerId", centerId)
     .order("createdAt", { ascending: true });
   if (error) {
@@ -804,37 +804,258 @@ centerApp.get("/staff/members", authMiddleware(["center"]), async (c) => {
     (row: any) => String(row.status || "").toUpperCase() !== "REMOVED"
   );
   const ids = members.map((m: any) => m.id);
-  const { data: onboarded } = ids.length
-    ? await supabase
-        .from("PatientProfile")
-        .select("onboardedByStaffId")
-        .in("onboardedByStaffId", ids)
-    : { data: [] };
-  const countByStaff = new Map<string, number>();
-  for (const row of onboarded || []) {
-    const id = (row as any).onboardedByStaffId;
-    countByStaff.set(id, (countByStaff.get(id) || 0) + 1);
+
+  const empty = { data: [] as any[] };
+  const [
+    onboardedRes,
+    referredRes,
+    verificationsRes,
+    uploadsRes,
+    reportsRes,
+    referralsRes,
+    eoisRes,
+  ] = ids.length
+    ? await Promise.all([
+        supabase
+          .from("PatientProfile")
+          .select("userId, onboardedByStaffId")
+          .in("onboardedByStaffId", ids),
+        supabase
+          .from("PatientProfile")
+          .select("userId, referredByStaffId")
+          .in("referredByStaffId", ids),
+        supabase
+          .from("AppointmentVerification")
+          .select("verifiedBy, appointmentId")
+          .in("verifiedBy", ids),
+        supabase
+          .from("ScreeningResult")
+          .select("uploadedBy, appointmentId")
+          .in("uploadedBy", ids),
+        supabase
+          .from("ScreeningReport")
+          .select("signedByStaffId, patientId, appointmentId")
+          .in("signedByStaffId", ids),
+        supabase
+          .from("StaffReferral")
+          .select("staffId, status")
+          .in("staffId", ids)
+          .in("status", ["ACCEPTED", "CONVERTED", "COMPLETED"]),
+        supabase
+          .from("RestockRequest")
+          .select("requestedByStaffId")
+          .eq("scope", "STAFF")
+          .in("requestedByStaffId", ids),
+      ])
+    : [
+        empty,
+        empty,
+        empty,
+        empty,
+        empty,
+        empty,
+        empty,
+      ];
+
+  const bump = (map: Map<string, number>, id?: string | null) => {
+    if (!id) return;
+    map.set(id, (map.get(id) || 0) + 1);
+  };
+
+  const patientAttribution = new Map<string, Set<string>>();
+  const referralProfileCounts = new Map<string, number>();
+  const screeningSet = new Map<string, Set<string>>();
+  const referralCounts = new Map<string, number>();
+  const eoiCounts = new Map<string, number>();
+
+  const markPatient = (staffId?: string | null, userId?: string | null) => {
+    if (!staffId || !userId) return;
+    if (!patientAttribution.has(staffId)) {
+      patientAttribution.set(staffId, new Set());
+    }
+    patientAttribution.get(staffId)!.add(String(userId));
+  };
+  for (const row of onboardedRes.data || []) {
+    markPatient((row as any).onboardedByStaffId, (row as any).userId);
   }
+  for (const row of referredRes.data || []) {
+    markPatient((row as any).referredByStaffId, (row as any).userId);
+    bump(referralProfileCounts, (row as any).referredByStaffId);
+  }
+  for (const row of referralsRes.data || []) {
+    bump(referralCounts, (row as any).staffId);
+  }
+  for (const row of eoisRes.data || []) {
+    bump(eoiCounts, (row as any).requestedByStaffId);
+  }
+
+  // Unique patients/appointments touched by this staff (not raw event spam)
+  const markScreening = (staffId?: string | null, key?: string | null) => {
+    if (!staffId || !key) return;
+    if (!screeningSet.has(staffId)) screeningSet.set(staffId, new Set());
+    screeningSet.get(staffId)!.add(String(key));
+  };
+  for (const row of verificationsRes.data || []) {
+    markScreening(
+      (row as any).verifiedBy,
+      (row as any).appointmentId ? `a:${(row as any).appointmentId}` : null
+    );
+  }
+  for (const row of uploadsRes.data || []) {
+    markScreening(
+      (row as any).uploadedBy,
+      (row as any).appointmentId ? `a:${(row as any).appointmentId}` : null
+    );
+  }
+  for (const row of reportsRes.data || []) {
+    const key = (row as any).patientId
+      ? `p:${(row as any).patientId}`
+      : (row as any).appointmentId
+        ? `a:${(row as any).appointmentId}`
+        : null;
+    markScreening((row as any).signedByStaffId, key);
+  }
+
+  const mapped = members.map((m: any) => {
+    const patientsRegistered = patientAttribution.get(m.id)?.size || 0;
+    const referralsCredited =
+      Math.max(
+        referralCounts.get(m.id) || 0,
+        referralProfileCounts.get(m.id) || 0
+      );
+    const screeningsCompleted = screeningSet.get(m.id)?.size || 0;
+    const personalEois = eoiCounts.get(m.id) || 0;
+    return {
+      id: m.id,
+      email: m.email,
+      fullName: m.fullName || null,
+      role: normalizeStaffRole(m.role),
+      status:
+        String(m.status || "ACTIVE").toUpperCase() === "SUSPENDED"
+          ? ("SUSPENDED" as const)
+          : ("ACTIVE" as const),
+      createdAt: m.createdAt || null,
+      patientsRegistered,
+      referralsCredited,
+      screeningsCompleted,
+      personalEois,
+      isOwner: String(m.email || "").toLowerCase() === ownerEmail,
+    };
+  });
+
+  const topPerformers = [...mapped]
+    .map((m) => ({
+      id: m.id,
+      fullName: m.fullName,
+      email: m.email,
+      patientsRegistered: m.patientsRegistered,
+      referralsCredited: m.referralsCredited,
+      screeningsCompleted: m.screeningsCompleted,
+      personalEois: m.personalEois,
+      score:
+        m.patientsRegistered +
+        m.referralsCredited +
+        m.screeningsCompleted +
+        m.personalEois,
+    }))
+    .filter((m) => m.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
 
   return c.json<TCenterStaffMembersResponse>({
     ok: true,
     data: {
-      members: members.map((m: any) => ({
-        id: m.id,
-        email: m.email,
-        fullName: m.fullName || null,
-        role: normalizeStaffRole(m.role),
-        status:
-          String(m.status || "ACTIVE").toUpperCase() === "SUSPENDED"
-            ? "SUSPENDED"
-            : "ACTIVE",
-        createdAt: m.createdAt || null,
-        patientsRegistered: countByStaff.get(m.id) || 0,
-        isOwner: String(m.email || "").toLowerCase() === ownerEmail,
-      })),
+      members: mapped,
+      topPerformers,
     },
   });
 });
+
+// GET /api/center/staff/members/:staffId/activity — patients screened / referred
+centerApp.get(
+  "/staff/members/:staffId/activity",
+  authMiddleware(["center"]),
+  async (c) => {
+    const supabase = getSupabaseClient(c);
+    const centerId = c.get("jwtPayload")?.id as string;
+    const staffId = c.req.param("staffId");
+
+    const { data: member } = await supabase
+      .from("CenterStaff")
+      .select("id, centerId")
+      .eq("id", staffId)
+      .maybeSingle();
+    if (!member || member.centerId !== centerId) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Staff member not found" },
+        404
+      );
+    }
+
+    const [{ data: onboarded }, { data: referred }, { data: verified }] =
+      await Promise.all([
+        supabase
+          .from("PatientProfile")
+          .select("userId")
+          .eq("onboardedByStaffId", staffId),
+        supabase
+          .from("PatientProfile")
+          .select("userId")
+          .eq("referredByStaffId", staffId),
+        supabase
+          .from("AppointmentVerification")
+          .select("appointmentId")
+          .eq("verifiedBy", staffId)
+          .limit(200),
+      ]);
+
+    const appointmentIds = (verified || [])
+      .map((row: any) => row.appointmentId as string)
+      .filter(Boolean);
+    const { data: appts } = appointmentIds.length
+      ? await supabase
+          .from("Appointment")
+          .select("id, patientId")
+          .in("id", appointmentIds)
+      : { data: [] };
+
+    const byId = new Map<
+      string,
+      { id: string; source: "ONBOARDED" | "REFERRAL" | "SCREENED" }
+    >();
+    for (const row of onboarded || []) {
+      byId.set(row.userId, { id: row.userId, source: "ONBOARDED" });
+    }
+    for (const row of referred || []) {
+      if (!byId.has(row.userId)) {
+        byId.set(row.userId, { id: row.userId, source: "REFERRAL" });
+      }
+    }
+    for (const row of appts || []) {
+      const patientId = (row as any).patientId as string;
+      if (patientId && !byId.has(patientId)) {
+        byId.set(patientId, { id: patientId, source: "SCREENED" });
+      }
+    }
+
+    const ids = [...byId.keys()];
+    const { data: users } = ids.length
+      ? await supabase.from("User").select("id, fullName, email").in("id", ids)
+      : { data: [] };
+
+    const patients = (users || []).map((u: any) => ({
+      id: u.id,
+      fullName: u.fullName || "Patient",
+      email: u.email || "",
+      source: byId.get(u.id)?.source || ("ONBOARDED" as const),
+    }));
+
+    return c.json({
+      ok: true,
+      data: { staffId, patients },
+    });
+  }
+);
 
 async function loadOwnStaffMember(c: any, staffId: string) {
   const supabase = getSupabaseClient(c);
@@ -1021,6 +1242,7 @@ centerApp.post(
         token,
         centerName: center?.centerName || "a ZeroCancer health facility",
         role: normalizeStaffRole(invite.role || "DOCTOR"),
+        fullName: invite.fullName || null,
       });
     } catch (error) {
       console.error("Staff invite resend email failed:", error);
@@ -1035,23 +1257,26 @@ centerApp.post(
 
 async function sendStaffInviteEmail(
   c: any,
-  opts: { email: string; token: string; centerName: string; role: string }
+  opts: {
+    email: string;
+    token: string;
+    centerName: string;
+    role: string;
+    fullName?: string | null;
+  }
 ) {
-  const roleLabel =
-    opts.role === "ADMIN"
-      ? "hospital admin"
-      : opts.role === "DOCTOR"
-        ? "doctor"
-        : opts.role === "NURSE"
-          ? "nurse"
-          : "staff member";
+  const { staffRoleLabel } = await import("@zerocancer/shared");
+  const roleLabel = staffRoleLabel(opts.role).toLowerCase();
+  const greeting = opts.fullName?.trim()
+    ? `Hi ${opts.fullName.trim().split(/\s+/)[0]}, `
+    : "";
   const inviteUrl = `${
     env<{ FRONTEND_URL: string }>(c).FRONTEND_URL
   }/staff/create-new-password?token=${opts.token}`;
   await sendEmail(c, {
     to: opts.email,
     subject: `You're invited to join ${opts.centerName} on ZeroCancer`,
-    html: `<p>You have been invited to join <strong>${opts.centerName}</strong> as a ${roleLabel}. <a href="${inviteUrl}">Click here to set your password and join.</a> This link expires in 7 days.</p>`,
+    html: `<p>${greeting}You have been invited to join <strong>${opts.centerName}</strong> as a ${roleLabel}. <a href="${inviteUrl}">Click here to set your password and join.</a> This link expires in 7 days.</p>`,
   });
 }
 
@@ -1122,6 +1347,7 @@ centerApp.post(
           token,
           centerName,
           role: staffRole,
+          fullName: fullName || null,
         });
       } catch (error) {
         console.error("Staff invite email failed:", error);
@@ -1160,7 +1386,7 @@ centerApp.post(
   }),
   async (c) => {
     const db = getDB(c);
-    const { token, password } = c.req.valid("json");
+    const { token, password, fullName } = c.req.valid("json");
 
     // Find invite
     const invite = await db.centerStaffInvite.findUnique({ where: { token } });
@@ -1176,6 +1402,8 @@ centerApp.post(
     }
     // Hash password
     const passwordHash = await hashPassword(password!);
+    const staffFullName =
+      (fullName || "").trim() || invite.fullName || null;
 
     const supabase = getSupabaseClient(c);
     const { data: previous } = await supabase
@@ -1191,7 +1419,7 @@ centerApp.post(
           data: {
             passwordHash,
             role: normalizeStaffRole(invite.role || "DOCTOR"),
-            fullName: invite.fullName || previous.fullName || null,
+            fullName: staffFullName || previous.fullName || null,
             status: "ACTIVE",
           },
         })
@@ -1201,7 +1429,7 @@ centerApp.post(
             email: invite.email!.toLowerCase(),
             passwordHash,
             role: normalizeStaffRole(invite.role || "DOCTOR"),
-            fullName: invite.fullName || null,
+            fullName: staffFullName,
             status: "ACTIVE",
             createdAt: new Date(),
           },

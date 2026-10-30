@@ -12,12 +12,14 @@ export function AppointmentStatusBadge({
 }: AppointmentStatusBadgeProps) {
   const getStatusDisplay = (status: string) => {
     switch (status) {
+      case 'PENDING':
+        return { label: 'Awaiting payment', color: 'bg-amber-500' }
       case 'SCHEDULED':
         return { label: 'Pending', color: 'bg-orange-400' }
       case 'COMPLETED':
         return { label: 'Completed', color: 'bg-green-500' }
       case 'CANCELLED':
-        return { label: 'Missed', color: 'bg-red-500' }
+        return { label: 'Cancelled', color: 'bg-red-500' }
       case 'IN_PROGRESS':
         return { label: 'In Progress', color: 'bg-blue-500' }
       default:

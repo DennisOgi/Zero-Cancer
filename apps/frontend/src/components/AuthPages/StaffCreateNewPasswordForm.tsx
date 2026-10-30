@@ -32,14 +32,16 @@ import {
   createCenterStaffPasswordSchema,
   type TCreateCenterStaffPasswordParams,
 } from '@zerocancer/shared/schemas/centerStaff.schema'
+import { staffRoleLabel } from '@zerocancer/shared'
 import {
   AlertTriangle,
   ArrowRight,
   Building,
   CheckCircle,
   Shield,
+  UserRound,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -106,16 +108,26 @@ export function CreateStaffPassword({ token }: { token: string }) {
     resolver: zodResolver(createPasswordFormSchema),
     defaultValues: {
       token,
+      fullName: '',
       password: '',
       confirmPassword: '',
     },
   })
+
+  // Prefill name from invite when the admin typed one
+  useEffect(() => {
+    const inviteName = invite?.fullName?.trim()
+    if (inviteName && !form.getValues('fullName')) {
+      form.setValue('fullName', inviteName)
+    }
+  }, [invite?.fullName, form])
 
   const onSubmit = async (data: CreatePasswordForm) => {
     try {
       await createPasswordMutation.mutateAsync({
         token: data.token,
         password: data.password,
+        fullName: data.fullName,
       })
 
       setIsSuccess(true)
@@ -263,11 +275,20 @@ export function CreateStaffPassword({ token }: { token: string }) {
 
         {/* Center Information Card */}
         {centerDetails && (
-          <div className="mx-6 mb-4 p-4 bg-blue-50 rounded-lg border">
-            <div className="flex items-center gap-3 mb-3">
+          <div className="mx-6 mb-4 p-4 bg-blue-50 rounded-lg border space-y-3">
+            <div className="flex items-center gap-3">
               <Building className="w-5 h-5 text-blue-600" />
               <div className="text-sm font-medium text-gray-900">
                 Joining {centerDetails.centerName}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 rounded-md bg-white border px-3 py-2">
+              <UserRound className="w-4 h-4 text-blue-600" />
+              <div>
+                <p className="text-xs text-muted-foreground">Your role</p>
+                <p className="text-sm font-semibold text-gray-900">
+                  {staffRoleLabel(centerDetails.role)}
+                </p>
               </div>
             </div>
             <div className="text-sm text-gray-600 space-y-1">
@@ -297,6 +318,24 @@ export function CreateStaffPassword({ token }: { token: string }) {
                     <FormControl>
                       <Input {...field} type="hidden" />
                     </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Your full name</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="e.g. Ada Okonkwo"
+                        autoComplete="name"
+                      />
+                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />

@@ -18,6 +18,10 @@ import { getStaffByReferralCode } from "../lib/staff-referral.service";
 import { getSupabaseClient } from "../lib/supabase";
 import { THonoApp } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
+import {
+  formatClinicalInviterLabel,
+  normalizeStaffRoleValue,
+} from "@zerocancer/shared";
 
 function serializeBoundCenter(center: any) {
   if (!center) return null;
@@ -106,10 +110,12 @@ async function resolveReferralMeta(c: any, code: string) {
 
   const staffHit = await getStaffByReferralCode(c, normalized);
   if (staffHit?.staff) {
+    const role = normalizeStaffRoleValue(staffHit.staff.role);
     const staffName =
       staffHit.staff.fullName ||
       String(staffHit.staff.email || "").split("@")[0] ||
-      "A ZeroCancer nurse";
+      null;
+    const referrerName = formatClinicalInviterLabel(role, staffName);
     const centerId =
       staffHit.staff.centerId ||
       (staffHit.staff as any)?.center?.id ||
@@ -118,7 +124,9 @@ async function resolveReferralMeta(c: any, code: string) {
       type: "nurse" as const,
       code: staffHit.referral?.inviteCode || staffHit.staff.referralCode,
       status: staffHit.referral?.status || "ACTIVE",
-      referrerName: staffName,
+      referrerName,
+      referrerRole: role,
+      referrerFullName: staffName,
       boundCenterId: centerId as string | null,
       screenAnywhere: true,
     };
@@ -196,6 +204,8 @@ referralsApp.get("/lookup/:code", async (c) => {
       code: meta.code,
       status: (meta as any).status,
       referrerName: meta.referrerName,
+      referrerRole: (meta as any).referrerRole || null,
+      referrerFullName: (meta as any).referrerFullName || null,
       agentCode: (meta as any).agentCode,
       screenAnywhere: meta.screenAnywhere,
       boundCenter: boundOffer

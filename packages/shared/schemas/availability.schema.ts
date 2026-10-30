@@ -30,11 +30,15 @@ export const availabilityExceptionSchema = z.object({
 export const getCenterAvailabilityQuerySchema = z.object({
   from: dateKeySchema.optional(),
   to: dateKeySchema.optional(),
+  /** When set (nurse referral booking), intersect facility hours with this staff's schedule */
+  staffId: z.string().uuid().optional(),
 });
 
 export const updateCenterAvailabilitySchema = z.object({
   weekly: z.array(availabilityRuleSchema).min(1).max(7),
   exceptions: z.array(availabilityExceptionSchema).max(366).default([]),
+  /** Facility admin editing another clinician's personal schedule */
+  staffId: z.string().uuid().optional(),
 });
 
 export type TUpdateCenterAvailability = z.infer<

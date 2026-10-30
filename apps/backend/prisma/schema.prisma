@@ -79,6 +79,10 @@ model PatientProfile {
   onboardedByCenterId String?
   onboardedByStaff CenterStaff? @relation("StaffOnboardedPatients", fields: [onboardedByStaffId], references: [id], onDelete: SetNull)
   onboardedByCenter ServiceCenter? @relation("CenterOnboardedPatients", fields: [onboardedByCenterId], references: [id], onDelete: SetNull)
+  /// How the patient was attributed to a facility: FACILITY_INVITE | STAFF_REFERRAL | WALK_IN | ALGORITHM
+  assignmentSource String?
+  referredByStaffId String?
+  referredByStaff CenterStaff? @relation("StaffReferredPatients", fields: [referredByStaffId], references: [id], onDelete: SetNull)
   boardingInviteId String?
   boardingInvite BoardingInvite? @relation("PatientBoardingInvite", fields: [boardingInviteId], references: [id], onDelete: SetNull)
   facilityChoice String?
@@ -226,6 +230,41 @@ model CenterAvailabilityException {
   @@index([centerId, date])
 }
 
+model StaffAvailabilityRule {
+  id                  String   @id @default(uuid())
+  staffId             String
+  weekday             Int
+  isOpen              Boolean  @default(true)
+  startTime           String   @default("09:00")
+  endTime             String   @default("17:00")
+  slotMinutes         Int      @default(60)
+  maxBookingsPerSlot  Int      @default(4)
+  updatedAt           DateTime @updatedAt
+
+  staff CenterStaff @relation("StaffAvailabilityRules", fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, weekday])
+  @@index([staffId])
+}
+
+model StaffAvailabilityException {
+  id                  String   @id @default(uuid())
+  staffId             String
+  date                String
+  type                String
+  startTime           String?
+  endTime             String?
+  slotMinutes         Int?
+  maxBookingsPerSlot  Int?
+  reason              String?
+  createdAt           DateTime @default(now())
+
+  staff CenterStaff @relation("StaffAvailabilityExceptions", fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, date])
+  @@index([staffId, date])
+}
+
 model ScreeningType {
   id                      String   @id @default(uuid())
   name                    String   @unique
@@ -367,6 +406,8 @@ model Appointment {
   createdAt               DateTime @default(now())
   cancellationReason   String?
   cancellationDate     DateTime?
+  rescheduleReason     String?
+  rescheduledAt        DateTime?
   checkInCode             String?   @unique
   checkInCodeExpiresAt    DateTime?
   kitId                   String?   @unique
@@ -669,10 +710,14 @@ model CenterStaff {
   deletedResultFiles ScreeningResultFile[] @relation("StaffDeletedFiles")
   resetTokens CenterStaffResetToken[]
   onboardedPatients PatientProfile[] @relation("StaffOnboardedPatients")
+  referredPatients PatientProfile[] @relation("StaffReferredPatients")
   wallet    StaffWallet?
   commissions StaffCommission[]
   cashouts  StaffCashout[]
   referrals StaffReferral[]
+  availabilityRules StaffAvailabilityRule[] @relation("StaffAvailabilityRules")
+  availabilityExceptions StaffAvailabilityException[] @relation("StaffAvailabilityExceptions")
+  restockRequests RestockRequest[] @relation("StaffRestockRequests")
 
   @@unique([centerId, email])
 }
@@ -1000,6 +1045,9 @@ model RestockRequest {
   reason              String?
   status              String    @default("PENDING") // PENDING, APPROVED, REJECTED, FULFILLED
   requestedBy         String
+  /// FACILITY (default) or STAFF (personal nurse EOI)
+  scope               String    @default("FACILITY")
+  requestedByStaffId  String?
   requestedAt         DateTime  @default(now())
   reviewedBy          String?
   reviewedAt          DateTime?
@@ -1009,12 +1057,14 @@ model RestockRequest {
   center              ServiceCenter @relation("CenterRestockRequests", fields: [centerId], references: [id], onDelete: Cascade)
   screeningType       ScreeningType @relation("RestockScreeningType", fields: [screeningTypeId], references: [id], onDelete: Cascade)
   shipment            KitShipment?  @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+  requestedByStaff    CenterStaff?  @relation("StaffRestockRequests", fields: [requestedByStaffId], references: [id], onDelete: SetNull)
   
   @@index([centerId])
   @@index([status])
   @@index([requestedAt])
   @@index([invoiceNumber])
-  @@map("restock_requests")
+  @@index([scope])
+  @@index([requestedByStaffId])
 }
 
 // ============================================

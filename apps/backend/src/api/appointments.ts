@@ -318,8 +318,6 @@ appointmentApp.post(
 );
 
 // POST /api/appointment/center/:id/reschedule - Reschedule appointment
-// NOTE TO SELF: Make a more robust rescheduling system later
-// This is a simple version that just updates the date/time & resets status
 appointmentApp.post(
   "/center/:id/reschedule",
   zValidator("json", rescheduleCenterAppointmentSchema, (result, c) => {
@@ -345,11 +343,16 @@ appointmentApp.post(
         400
       );
     }
+    const patientForReschedule = await db.patientProfile.findUnique({
+      where: { userId: appointment.patientId },
+      select: { referredByStaffId: true },
+    });
     const slot = await assertSlotAvailable(
       c,
       appointment.centerId!,
       new Date(newDateTime!),
-      appointment.id!
+      appointment.id!,
+      patientForReschedule?.referredByStaffId || null
     );
     if (!slot.ok) {
       return c.json<TErrorResponse>({ ok: false, error: slot.error }, 400);
@@ -359,10 +362,28 @@ appointmentApp.post(
       data: {
         appointmentDateTime: new Date(newDateTime!),
         status: "SCHEDULED",
+        rescheduleReason: reason?.trim() || null,
+        rescheduledAt: new Date(),
       },
     });
-    // Optionally, notify patient
-    // ...
+
+    try {
+      await createNotificationForUsers(c, {
+        type: "APPOINTMENT",
+        title: "Appointment rescheduled",
+        message: reason?.trim()
+          ? `Your screening was moved to a new time. Reason: ${reason.trim()}`
+          : "Your screening was moved to a new time. Check your appointments for details.",
+        userIds: [appointment.patientId!],
+        data: {
+          appointmentId: appointment.id,
+          appointmentDateTime: updated.appointmentDateTime.toISOString(),
+        },
+      });
+    } catch (notifyError) {
+      console.warn("Reschedule patient notify failed:", notifyError);
+    }
+
     return c.json<
       TDataResponse<{
         id: string;
@@ -1102,11 +1123,22 @@ appointmentApp.post(
 
     if (referralCode) {
       try {
-        const { acceptReferralInvite } = await import("../lib/agent.service");
-        await acceptReferralInvite(c, userId, referralCode, {
-          commissionAllowed,
-          preferredCenterId: centerId,
-        });
+        const { getStaffByReferralCode, acceptStaffReferral } = await import(
+          "../lib/staff-referral.service"
+        );
+        const staffHit = await getStaffByReferralCode(c, referralCode);
+        if (staffHit?.staff) {
+          await acceptStaffReferral(c, userId, referralCode, {
+            commissionAllowed,
+            preferredCenterId: centerId,
+          });
+        } else {
+          const { acceptReferralInvite } = await import("../lib/agent.service");
+          await acceptReferralInvite(c, userId, referralCode, {
+            commissionAllowed,
+            preferredCenterId: centerId,
+          });
+        }
       } catch (error: any) {
         return c.json<TErrorResponse>(
           {
@@ -1156,10 +1188,16 @@ appointmentApp.post(
       );
     }
 
+    const patientProfileForSlot = await db.patientProfile.findUnique({
+      where: { userId },
+      select: { referredByStaffId: true },
+    });
     const slot = await assertSlotAvailable(
       c,
       centerId!,
-      new Date(appointmentDateTime!)
+      new Date(appointmentDateTime!),
+      undefined,
+      patientProfileForSlot?.referredByStaffId || null
     );
     if (!slot.ok) {
       return c.json<TErrorResponse>({ ok: false, error: slot.error }, 400);
@@ -1286,6 +1324,24 @@ appointmentApp.post(
       });
     } catch (checkoutError) {
       console.error("Flutterwave initialization failed for booking:", checkoutError);
+      try {
+        await db.appointment.update({
+          where: { id: appointment.id },
+          data: {
+            status: "CANCELLED",
+            cancellationReason: "Payment checkout failed to start",
+            cancellationDate: new Date(),
+          },
+        });
+        if (appointment.transactionId) {
+          await db.transaction.updateMany({
+            where: { id: { in: [appointment.transactionId] } },
+            data: { status: "FAILED" },
+          });
+        }
+      } catch (rollbackError) {
+        console.error("Failed to roll back orphan PENDING booking:", rollbackError);
+      }
       return c.json<TErrorResponse>(
         {
           ok: false,
@@ -1299,6 +1355,24 @@ appointmentApp.post(
     }
 
     if (!checkout?.authorization_url) {
+      try {
+        await db.appointment.update({
+          where: { id: appointment.id },
+          data: {
+            status: "CANCELLED",
+            cancellationReason: "Payment provider did not return a checkout URL",
+            cancellationDate: new Date(),
+          },
+        });
+        if (appointment.transactionId) {
+          await db.transaction.updateMany({
+            where: { id: { in: [appointment.transactionId] } },
+            data: { status: "FAILED" },
+          });
+        }
+      } catch (rollbackError) {
+        console.error("Failed to roll back orphan PENDING booking:", rollbackError);
+      }
       return c.json<TErrorResponse>(
         { ok: false, error: "Payment provider did not return a checkout URL" },
         502

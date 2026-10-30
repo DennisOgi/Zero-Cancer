@@ -58,7 +58,9 @@ export function CenterRegisterPatientPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const authUserQuery = useQuery(useAuthUser())
-  const centerName = authUserQuery.data?.data?.user?.fullName || 'Your screening center'
+  const centerName =
+    authUserQuery.data?.data?.user?.centerName ||
+    'Your screening center'
   const { data: servicesData, isLoading: screeningTypesLoading } = useQuery({
     queryKey: ['centerMyServices'],
     queryFn: getCenterMyServices,

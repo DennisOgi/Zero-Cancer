@@ -53,13 +53,16 @@ export function CenterDashboard() {
   const todayEnd = new Date()
   todayEnd.setHours(23, 59, 59, 999)
 
+  const isFacilityAdmin =
+    user?.profile === 'CENTER' || user?.staffRole === 'ADMIN'
+
   const { data: todaysTransactionsData, isLoading: todaysTransactionsLoading } =
     useQuery({
       ...centerTransactionHistory(centerId!, {
         startDate: todayStart,
         endDate: todayEnd,
       }),
-      enabled: !!centerId,
+      enabled: !!centerId && isFacilityAdmin,
     })
 
   const { data: patientsOverviewData, isLoading: patientsOverviewLoading } =
@@ -98,13 +101,13 @@ export function CenterDashboard() {
     ) ?? 0
 
   const appointmentsForTable = todaysAppointments.slice(0, 5)
-  const centerName = user?.fullName || 'your health facility'
-  const isAdmin = user?.profile === 'CENTER'
+  const centerName = user?.centerName || user?.fullName || 'your health facility'
+  const isAdmin = isFacilityAdmin
 
   const metricsLoading =
     appointmentsLoading ||
     centerLoading ||
-    todaysTransactionsLoading ||
+    (isFacilityAdmin && todaysTransactionsLoading) ||
     patientsOverviewLoading
 
   const stats = [
@@ -129,13 +132,17 @@ export function CenterDashboard() {
       icon: appointmentIcon,
       color: 'bg-purple-100',
     },
-    {
-      title: 'Total Earned Today',
-      value: formatCurrency(totalEarnedToday),
-      description: 'NGN',
-      icon: healthIcon,
-      color: 'bg-green-100',
-    },
+    ...(isFacilityAdmin
+      ? [
+          {
+            title: 'Total Earned Today',
+            value: formatCurrency(totalEarnedToday),
+            description: 'NGN',
+            icon: healthIcon,
+            color: 'bg-green-100',
+          },
+        ]
+      : []),
     {
       title: 'Result Upload Compliance',
       value: `${Math.round(appointmentCompletionRate)}%`,

@@ -77,7 +77,8 @@ export default function CenterReportsPage() {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
 
   const { data: authData } = useQuery(useAuthUser())
-  const centerName = authData?.data?.user?.fullName || 'your screening center'
+  const centerName =
+    authData?.data?.user?.centerName || 'your screening center'
 
   const { data: taxonomyData, isLoading: taxonomyLoading, isError: taxonomyError } = useQuery({
     queryKey: ['reportTaxonomy'],

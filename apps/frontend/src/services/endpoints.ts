@@ -27,8 +27,8 @@ export const checkProfiles = () => '/api/register/check-profiles'
 export const uploadPatientPhoto = () => '/api/register/patient-photo'
 
 // AUTHENTICATION
-export const loginUser = (actor: t.TActors) =>
-  `/api/auth/login${buildQuery({ actor })}`
+export const loginUser = (actor?: t.TActors) =>
+  `/api/auth/login${actor ? buildQuery({ actor }) : ''}`
 export const logoutUser = () => '/api/auth/logout'
 export const authUser = () => '/api/auth/me'
 export const refreshToken = (retry?: boolean) =>
@@ -231,11 +231,19 @@ export const getCenters = (params: {
 export const getCenterById = (id: string) => `/api/center/${id}`
 export const getPublicCenterAvailability = (
   id: string,
-  params?: { from?: string; to?: string },
+  params?: { from?: string; to?: string; staffId?: string },
 ) => `/api/center/${id}/availability${buildQuery(params || {})}`
 export const getCenterAvailability = (params?: { from?: string; to?: string }) =>
   `/api/center/availability${buildQuery(params || {})}`
 export const updateCenterAvailability = () => '/api/center/availability'
+export const getStaffAvailability = (params?: {
+  from?: string
+  to?: string
+  staffId?: string
+}) => `/api/center/staff-availability${buildQuery(params || {})}`
+export const updateStaffAvailability = () => '/api/center/staff-availability'
+export const getTeamStaffSchedules = () =>
+  '/api/center/staff-availability/team'
 export const getCenterProfile = () => '/api/center/profile'
 export const updateCenterProfile = () => '/api/center/profile'
 export const getCenterMyServices = () => '/api/center/my-services'
@@ -249,11 +257,13 @@ export const getCenterAppointments = (params: {
   page?: number
   pageSize?: number
   screeningType?: string
+  status?: 'PENDING' | 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
 }) =>
   `/api/appointment/center${buildQuery({
     page: params.page ?? 1,
     pageSize: params.pageSize ?? 20,
     screeningType: params.screeningType ?? undefined,
+    status: params.status ?? undefined,
   })}`
 
 export const getCenterAppointmentById = (id: string) =>
@@ -309,11 +319,15 @@ export const centerPatientsList = (params: {
   page?: number
   pageSize?: number
   search?: string
+  assignmentSource?: string
+  funding?: string
 }) =>
   `/api/center/patients${buildQuery({
     page: params.page ?? 1,
     pageSize: params.pageSize ?? 20,
     search: params.search || undefined,
+    assignmentSource: params.assignmentSource || undefined,
+    funding: params.funding || undefined,
   })}`
 export const centerEnrollmentRequests = (status = 'PENDING') =>
   `/api/center/patients/enrollment-requests${buildQuery({ status })}`
@@ -481,6 +495,8 @@ export const centerStaffLogin = () => '/api/center/staff/login'
 export const staffMembers = () => '/api/center/staff/members'
 export const staffMember = (staffId: string) =>
   `/api/center/staff/members/${staffId}`
+export const staffMemberActivity = (staffId: string) =>
+  `/api/center/staff/members/${staffId}/activity`
 export const cancelStaffInvite = (token: string) =>
   `/api/center/staff/invite/${token}`
 export const resendStaffInvite = (token: string) =>
@@ -489,6 +505,9 @@ export const validateStaffInvite = (token: string) =>
   `/api/center/staff/invite/validate/${token}`
 export const getStaffEarnings = () => '/api/center/staff-earnings/me'
 export const updateStaffBank = () => '/api/center/staff-earnings/me/bank'
+export const updateStaffProfile = () => '/api/center/staff-earnings/me/profile'
+export const createStaffReferralInvite = () =>
+  '/api/center/staff-earnings/invites'
 export const staffCashout = () => '/api/center/staff-earnings/cashout'
 
 // Kits (inventory + facility orders)

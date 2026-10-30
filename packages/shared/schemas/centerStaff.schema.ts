@@ -3,6 +3,7 @@ import { z } from "zod";
 export const createCenterStaffPasswordSchema = z.object({
   token: z.string().min(10),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  fullName: z.string().trim().min(2, "Enter your full name").max(120),
 });
 
 export const centerStaffForgotPasswordSchema = z.object({

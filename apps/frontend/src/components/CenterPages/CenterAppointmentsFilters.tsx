@@ -15,10 +15,11 @@ export default function CenterAppointmentsFilters({ status, onStatusChange, sear
       <Tabs value={status} onValueChange={onStatusChange}>
         <TabsList>
           <TabsTrigger value="ALL">All</TabsTrigger>
-          <TabsTrigger value="SCHEDULED">Scheduled</TabsTrigger>
+          <TabsTrigger value="SCHEDULED">Pending</TabsTrigger>
+          <TabsTrigger value="PENDING">Awaiting payment</TabsTrigger>
           <TabsTrigger value="IN_PROGRESS">In Progress</TabsTrigger>
           <TabsTrigger value="COMPLETED">Completed</TabsTrigger>
-          <TabsTrigger value="CANCELED">Cancelled</TabsTrigger>
+          <TabsTrigger value="CANCELLED">Cancelled</TabsTrigger>
         </TabsList>
       </Tabs>
       <div className="relative w-full max-w-sm">

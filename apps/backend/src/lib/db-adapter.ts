@@ -491,26 +491,28 @@ export const getDB = (c: Context) => {
           const dob = data.patientProfile.create.dateOfBirth;
           const dobString = dob instanceof Date ? dob.toISOString() : new Date(dob).toISOString();
           
+          const create = data.patientProfile.create;
           const { data: profile, error: profileError } = await supabase
             .from('PatientProfile')
             .insert({
               userId: user.id,
-              gender: data.patientProfile.create.gender,
+              gender: create.gender,
               dateOfBirth: dobString,
-              city: data.patientProfile.create.city,
-              state: data.patientProfile.create.state,
-              associationId: data.patientProfile.create.associationId || null,
-              groupId: data.patientProfile.create.groupId || null,
-              photoUrl: data.patientProfile.create.photoUrl || null,
-              assignedCenterId: data.patientProfile.create.assignedCenterId || null,
-              onboardedByStaffId: data.patientProfile.create.onboardedByStaffId || null,
-              onboardedByCenterId: data.patientProfile.create.onboardedByCenterId || null,
-              mustChangePassword:
-                data.patientProfile.create.mustChangePassword === true,
-              emailVerified: data.patientProfile.create.emailVerified
-                ? data.patientProfile.create.emailVerified instanceof Date
-                  ? data.patientProfile.create.emailVerified.toISOString()
-                  : data.patientProfile.create.emailVerified
+              city: create.city,
+              state: create.state,
+              associationId: create.associationId || null,
+              groupId: create.groupId || null,
+              photoUrl: create.photoUrl || null,
+              assignedCenterId: create.assignedCenterId || null,
+              onboardedByStaffId: create.onboardedByStaffId || null,
+              onboardedByCenterId: create.onboardedByCenterId || null,
+              assignmentSource: create.assignmentSource || null,
+              referredByStaffId: create.referredByStaffId || null,
+              mustChangePassword: create.mustChangePassword === true,
+              emailVerified: create.emailVerified
+                ? create.emailVerified instanceof Date
+                  ? create.emailVerified.toISOString()
+                  : create.emailVerified
                 : new Date().toISOString(),
             })
             .select()
@@ -560,27 +562,29 @@ export const getDB = (c: Context) => {
         if (data.patientProfile?.create) {
           const dob = data.patientProfile.create.dateOfBirth;
           const dobString = dob instanceof Date ? dob.toISOString() : new Date(dob).toISOString();
+          const create = data.patientProfile.create;
           
           const { data: profile, error: profileError } = await supabase
             .from('PatientProfile')
             .insert({
               userId: user.id,
-              gender: data.patientProfile.create.gender,
+              gender: create.gender,
               dateOfBirth: dobString,
-              city: data.patientProfile.create.city,
-              state: data.patientProfile.create.state,
-              associationId: data.patientProfile.create.associationId || null,
-              groupId: data.patientProfile.create.groupId || null,
-              photoUrl: data.patientProfile.create.photoUrl || null,
-              assignedCenterId: data.patientProfile.create.assignedCenterId || null,
-              onboardedByStaffId: data.patientProfile.create.onboardedByStaffId || null,
-              onboardedByCenterId: data.patientProfile.create.onboardedByCenterId || null,
-              mustChangePassword:
-                data.patientProfile.create.mustChangePassword === true,
-              emailVerified: data.patientProfile.create.emailVerified
-                ? data.patientProfile.create.emailVerified instanceof Date
-                  ? data.patientProfile.create.emailVerified.toISOString()
-                  : data.patientProfile.create.emailVerified
+              city: create.city,
+              state: create.state,
+              associationId: create.associationId || null,
+              groupId: create.groupId || null,
+              photoUrl: create.photoUrl || null,
+              assignedCenterId: create.assignedCenterId || null,
+              onboardedByStaffId: create.onboardedByStaffId || null,
+              onboardedByCenterId: create.onboardedByCenterId || null,
+              assignmentSource: create.assignmentSource || null,
+              referredByStaffId: create.referredByStaffId || null,
+              mustChangePassword: create.mustChangePassword === true,
+              emailVerified: create.emailVerified
+                ? create.emailVerified instanceof Date
+                  ? create.emailVerified.toISOString()
+                  : create.emailVerified
                 : null,
             })
             .select()
@@ -1857,6 +1861,15 @@ export const getDB = (c: Context) => {
             data.cancellationDate instanceof Date
               ? data.cancellationDate.toISOString()
               : data.cancellationDate;
+        }
+        if (data.rescheduleReason !== undefined) {
+          updates.rescheduleReason = data.rescheduleReason;
+        }
+        if (data.rescheduledAt !== undefined) {
+          updates.rescheduledAt =
+            data.rescheduledAt instanceof Date
+              ? data.rescheduledAt.toISOString()
+              : data.rescheduledAt;
         }
         if (data.appointmentDateTime !== undefined) {
           updates.appointmentDateTime =

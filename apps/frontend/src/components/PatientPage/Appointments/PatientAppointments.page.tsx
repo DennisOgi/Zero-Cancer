@@ -49,25 +49,26 @@ export function PatientAppointmentsPage() {
     )
   }
 
-  const appointments = (appointmentsData?.data?.appointments || []).filter(
-    (appt) => appt.status !== 'PENDING',
-  )
+  const allAppointments = appointmentsData?.data?.appointments || []
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const pastAppointments = appointments.filter(
+  const awaitingPaymentAppointments = allAppointments.filter(
+    (appt) => appt.status === 'PENDING',
+  )
+  const pastAppointments = allAppointments.filter(
     (appt) => appt.status === 'COMPLETED',
   )
-  const upcomingAppointments = appointments.filter(
+  const upcomingAppointments = allAppointments.filter(
     (appt) =>
       appt.status === 'SCHEDULED' &&
       new Date(appt.appointmentDateTime) >= today,
   )
-  const ongoingAppointments = appointments.filter(
+  const ongoingAppointments = allAppointments.filter(
     (appt) => appt.status === 'IN_PROGRESS',
   )
-  const cancelledAppointments = appointments.filter(
+  const cancelledAppointments = allAppointments.filter(
     (appt) => appt.status === 'CANCELLED',
   )
 
@@ -116,8 +117,16 @@ export function PatientAppointmentsPage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="upcoming" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 sm:max-w-lg">
+      <Tabs
+        defaultValue={
+          awaitingPaymentAppointments.length > 0 ? 'awaiting' : 'upcoming'
+        }
+        className="w-full"
+      >
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 sm:max-w-3xl h-auto gap-1">
+          <TabsTrigger value="awaiting">
+            Awaiting payment ({awaitingPaymentAppointments.length})
+          </TabsTrigger>
           <TabsTrigger value="ongoing">
             Ongoing ({ongoingAppointments.length})
           </TabsTrigger>
@@ -131,6 +140,27 @@ export function PatientAppointmentsPage() {
             Cancelled ({cancelledAppointments.length})
           </TabsTrigger>
         </TabsList>
+        <TabsContent value="awaiting">
+          {awaitingPaymentAppointments.length > 0 ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                These bookings are held until payment completes. Cancel if you
+                no longer need the slot, or open the booking to continue payment
+                if your bank page closed early.
+              </p>
+              <PatientAppointmentsList
+                appointments={awaitingPaymentAppointments}
+                onCancel={handleCancelAppointment}
+                cancellingId={cancellingId}
+              />
+            </div>
+          ) : (
+            <PatientAppointmentsEmptyState
+              title="No awaiting payment"
+              description="Unpaid bookings will appear here until you complete checkout or cancel them."
+            />
+          )}
+        </TabsContent>
         <TabsContent value="upcoming">
           {upcomingAppointments.length > 0 ? (
             <PatientAppointmentsList

@@ -47,6 +47,7 @@ import { useAuthUser } from '@/services/providers/auth.provider'
 import {
   centerById,
   staffInvites,
+  staffMemberActivity,
   staffMembers,
   useCancelStaffInvite,
   useInviteStaff,
@@ -69,6 +70,7 @@ import {
   Ban,
   CheckCircle2,
   Copy,
+  ListOrdered,
   Mail,
   MoreHorizontal,
   Plus,
@@ -100,6 +102,9 @@ type Row =
       role: StaffRole
       status: 'Active' | 'Suspended'
       patientsRegistered: number
+      referralsCredited: number
+      screeningsCompleted: number
+      personalEois: number
       joined: string
       isOwner?: boolean
     }
@@ -111,17 +116,35 @@ type Row =
       role: StaffRole
       status: 'Invited' | 'Expired'
       patientsRegistered: null
+      referralsCredited: null
+      screeningsCompleted: null
+      personalEois: null
       joined: string
     }
 
 const errorMessage = (error: any, fallback: string) =>
   error?.response?.data?.error || fallback
 
+const SOURCE_LABEL: Record<string, string> = {
+  ONBOARDED: 'Registered / walk-in',
+  REFERRAL: 'Staff referral',
+  SCREENED: 'Screened',
+}
+
 export function CenterStaffPage() {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
   const [filter, setFilter] = useState('All Staff')
   const [searchTerm, setSearchTerm] = useState('')
   const [pendingRemoval, setPendingRemoval] = useState<Row | null>(null)
+  const [activityStaff, setActivityStaff] = useState<{
+    id: string
+    name: string
+  } | null>(null)
+  const [renameStaff, setRenameStaff] = useState<{
+    id: string
+    name: string
+  } | null>(null)
+  const [renameDraft, setRenameDraft] = useState('')
   const [sentInvites, setSentInvites] = useState<
     Array<{ email: string; token: string }>
   >([])
@@ -143,6 +166,10 @@ export function CenterStaffPage() {
     ...staffInvites(),
     enabled: !!centerId,
   })
+  const { data: activityData, isLoading: activityLoading } = useQuery({
+    ...staffMemberActivity(activityStaff?.id || ''),
+    enabled: !!activityStaff?.id,
+  })
 
   const inviteStaffMutation = useInviteStaff()
   const updateMember = useUpdateStaffMember()
@@ -154,6 +181,8 @@ export function CenterStaffPage() {
   const members = membersData?.data?.members || []
   const invites = invitesData?.data?.invites || []
 
+  const topPerformers = membersData?.data?.topPerformers || []
+
   const rows = useMemo<Row[]>(
     () => [
       ...members.map((m) => ({
@@ -164,6 +193,9 @@ export function CenterStaffPage() {
         role: normalizeStaffRoleValue(m.role),
         status: m.status === 'SUSPENDED' ? ('Suspended' as const) : ('Active' as const),
         patientsRegistered: m.patientsRegistered,
+        referralsCredited: m.referralsCredited || 0,
+        screeningsCompleted: m.screeningsCompleted || 0,
+        personalEois: m.personalEois || 0,
         joined: m.createdAt ? new Date(m.createdAt).toLocaleDateString() : '—',
         isOwner: m.isOwner,
       })),
@@ -180,6 +212,9 @@ export function CenterStaffPage() {
             ? ('Expired' as const)
             : ('Invited' as const),
         patientsRegistered: null,
+        referralsCredited: null,
+        screeningsCompleted: null,
+        personalEois: null,
         joined: invite.expiresAt
           ? `Link expires ${new Date(invite.expiresAt).toLocaleDateString()}`
           : '—',
@@ -376,6 +411,37 @@ export function CenterStaffPage() {
         ))}
       </div>
 
+      {topPerformers.length > 0 ? (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div>
+              <p className="font-semibold">Top performing staff</p>
+              <p className="text-sm text-muted-foreground">
+                Based on referrals, screenings, registrations, and personal kit
+                requests (activity counts only).
+              </p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {topPerformers.map((p, index) => (
+                <div
+                  key={p.id}
+                  className="rounded-lg border bg-slate-50 px-3 py-2 text-sm"
+                >
+                  <p className="font-medium">
+                    #{index + 1} {p.fullName || p.email.split('@')[0]}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {p.referralsCredited} referrals · {p.screeningsCompleted}{' '}
+                    screenings · {p.patientsRegistered} patients ·{' '}
+                    {p.personalEois} personal EOIs
+                  </p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <CenterStaffFilters
         filter={filter}
         onFilterChange={setFilter}
@@ -390,7 +456,10 @@ export function CenterStaffPage() {
               <TableHead>Name</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead className="text-right">Patients registered</TableHead>
+              <TableHead className="text-right">Patients</TableHead>
+              <TableHead className="text-right">Referrals</TableHead>
+              <TableHead className="text-right">Screenings</TableHead>
+              <TableHead className="text-right">Personal EOIs</TableHead>
               <TableHead>Joined</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Action</TableHead>
@@ -399,14 +468,14 @@ export function CenterStaffPage() {
           <TableBody>
             {loading && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={10} className="text-center py-8">
                   Loading staff...
                 </TableCell>
               </TableRow>
             )}
             {!loading && filteredRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-10">
+                <TableCell colSpan={10} className="text-center py-10">
                   <p className="font-medium">No staff here yet</p>
                   <p className="text-sm text-muted-foreground">
                     Invite doctors and nurses so they can register and screen patients.
@@ -436,6 +505,15 @@ export function CenterStaffPage() {
                   <TableCell className="text-right">
                     {row.patientsRegistered ?? '—'}
                   </TableCell>
+                  <TableCell className="text-right">
+                    {row.referralsCredited ?? '—'}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {row.screeningsCompleted ?? '—'}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {row.personalEois ?? '—'}
+                  </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {row.joined}
                   </TableCell>
@@ -447,33 +525,80 @@ export function CenterStaffPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {locked ? null : (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0" aria-label="Actions">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-52">
-                          {row.kind === 'member' ? (
-                            <>
+                    {row.kind === 'member' ? (
+                      <div className="inline-flex items-center gap-1 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2"
+                          onClick={() =>
+                            setActivityStaff({ id: row.id, name: row.name })
+                          }
+                        >
+                          Activity
+                        </Button>
+                        {!locked ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                aria-label="Actions"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setActivityStaff({
+                                    id: row.id,
+                                    name: row.name,
+                                  })
+                                }
+                              >
+                                <ListOrdered className="mr-2 h-4 w-4" />
+                                View patients / activity
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setRenameStaff({
+                                    id: row.id,
+                                    name: row.name,
+                                  })
+                                  setRenameDraft(
+                                    row.name.includes('@') ? '' : row.name,
+                                  )
+                                }}
+                              >
+                                <UserCog className="mr-2 h-4 w-4" />
+                                Edit display name
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuLabel>Change role</DropdownMenuLabel>
                               {STAFF_INVITE_ROLE_ORDER.filter(
                                 (r) => r !== row.role,
                               ).map((r) => (
-                                  <DropdownMenuItem key={r} onClick={() => changeRole(row, r)}>
-                                    <UserCog className="mr-2 h-4 w-4" />
-                                    Make {roleLabel[r].toLowerCase()}
-                                  </DropdownMenuItem>
-                                ))}
+                                <DropdownMenuItem
+                                  key={r}
+                                  onClick={() => changeRole(row, r)}
+                                >
+                                  <UserCog className="mr-2 h-4 w-4" />
+                                  Make {roleLabel[r].toLowerCase()}
+                                </DropdownMenuItem>
+                              ))}
                               <DropdownMenuSeparator />
                               {row.status === 'Active' ? (
-                                <DropdownMenuItem onClick={() => setStatus(row, 'SUSPENDED')}>
+                                <DropdownMenuItem
+                                  onClick={() => setStatus(row, 'SUSPENDED')}
+                                >
                                   <Ban className="mr-2 h-4 w-4" />
                                   Suspend access
                                 </DropdownMenuItem>
                               ) : (
-                                <DropdownMenuItem onClick={() => setStatus(row, 'ACTIVE')}>
+                                <DropdownMenuItem
+                                  onClick={() => setStatus(row, 'ACTIVE')}
+                                >
                                   <CheckCircle2 className="mr-2 h-4 w-4" />
                                   Reactivate
                                 </DropdownMenuItem>
@@ -485,30 +610,41 @@ export function CenterStaffPage() {
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Remove from facility
                               </DropdownMenuItem>
-                            </>
-                          ) : (
-                            <>
-                              <DropdownMenuItem onClick={() => resend(row)}>
-                                <Mail className="mr-2 h-4 w-4" />
-                                Resend invite
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                disabled={row.status === 'Expired'}
-                                onClick={() => copyInviteLink(row.id)}
-                              >
-                                <Copy className="mr-2 h-4 w-4" />
-                                Copy invite link
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => setPendingRemoval(row)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Cancel invite
-                              </DropdownMenuItem>
-                            </>
-                          )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            aria-label="Actions"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52">
+                          <DropdownMenuItem onClick={() => resend(row)}>
+                            <Mail className="mr-2 h-4 w-4" />
+                            Resend invite
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            disabled={row.status === 'Expired'}
+                            onClick={() => copyInviteLink(row.id)}
+                          >
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copy invite link
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => setPendingRemoval(row)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Cancel invite
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
@@ -519,6 +655,105 @@ export function CenterStaffPage() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog
+        open={!!activityStaff}
+        onOpenChange={(open) => !open && setActivityStaff(null)}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {activityStaff?.name || 'Staff'} — patients
+            </DialogTitle>
+            <DialogDescription>
+              Patients this staff member registered, referred, or screened.
+            </DialogDescription>
+          </DialogHeader>
+          {activityLoading ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Loading activity…
+            </p>
+          ) : (activityData?.data?.patients || []).length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No patient activity yet for this staff member.
+            </p>
+          ) : (
+            <div className="max-h-80 space-y-2 overflow-y-auto">
+              {(activityData?.data?.patients || []).map((patient) => (
+                <div
+                  key={patient.id}
+                  className="flex items-start justify-between gap-3 rounded-lg border px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {patient.fullName}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {patient.email}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="shrink-0 text-xs">
+                    {SOURCE_LABEL[patient.source] || patient.source}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setActivityStaff(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!renameStaff}
+        onOpenChange={(open) => !open && setRenameStaff(null)}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Edit display name</DialogTitle>
+            <DialogDescription>
+              Shown on referral invites and the staff list for{' '}
+              {renameStaff?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={renameDraft}
+            onChange={(e) => setRenameDraft(e.target.value)}
+            placeholder="e.g. Ada Okonkwo"
+            autoComplete="name"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameStaff(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={updateMember.isPending || renameDraft.trim().length < 2}
+              onClick={() => {
+                if (!renameStaff) return
+                const fullName = renameDraft.trim()
+                updateMember.mutate(
+                  { staffId: renameStaff.id, fullName },
+                  {
+                    onSuccess: () => {
+                      toast.success('Name updated')
+                      setRenameStaff(null)
+                    },
+                    onError: (error) =>
+                      toast.error(
+                        errorMessage(error, 'Could not update name'),
+                      ),
+                  },
+                )
+              }}
+            >
+              {updateMember.isPending ? 'Saving…' : 'Save name'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={!!pendingRemoval}

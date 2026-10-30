@@ -247,8 +247,11 @@ export function PatientSignupPage({
         </p>
         {facilityName && !facilityDismissed && !facilityLookupError && facilityUsable ? (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
-            <p className="font-medium">
-              {facilityName} from where you were referred
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800/80">
+              Health facility invite
+            </p>
+            <p className="mt-1 font-medium">
+              {facilityName} invited you to register
             </p>
             <p className="mt-0.5 text-emerald-900/80">
               {facility?.lga && facility?.state
@@ -268,8 +271,11 @@ export function PatientSignupPage({
         ) : null}
         {facilityName && !facilityDismissed && !facilityLookupError && !facilityUsable ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            <p className="font-medium">
-              {facilityName} from where you were referred
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-800/80">
+              Health facility invite
+            </p>
+            <p className="mt-1 font-medium">
+              {facilityName} invited you to register
             </p>
             <p className="mt-0.5 text-amber-900/80">
               This facility is not accepting new registrations through this
@@ -335,7 +341,18 @@ export function PatientSignupPage({
         ) : null}
         {code ? (
           <div className="rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm text-pink-900">
-            <p className="font-medium">Referred by {referrerLabel}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-pink-800/80">
+              {lookup?.type === 'nurse'
+                ? lookup?.referrerRole === 'DOCTOR'
+                  ? 'Doctor invite'
+                  : lookup?.referrerRole === 'NURSE'
+                    ? 'Nurse invite'
+                    : 'Health worker invite'
+                : 'Referral invite'}
+            </p>
+            <p className="mt-1 font-medium">
+              {referrerLabel} invited you to get screened
+            </p>
             <p className="mt-0.5 text-pink-800/80">
               {screenAnywhere
                 ? `You can screen at any ZeroCancer health facility, including one near you. You can still choose whether ${referrerLabel} earns a commission.`
@@ -343,6 +360,11 @@ export function PatientSignupPage({
                   ? `You'll be assigned to ${boundCenter.centerName} for screening. You can still choose whether ${referrerLabel} earns a commission.`
                   : 'We will attach this invite to your account. When you book, you can choose whether they earn a commission.'}
             </p>
+            {boundCenter?.centerName && screenAnywhere ? (
+              <p className="mt-1 text-pink-900/90">
+                Their facility is {boundCenter.centerName}.
+              </p>
+            ) : null}
           </div>
         ) : null}
       </div>

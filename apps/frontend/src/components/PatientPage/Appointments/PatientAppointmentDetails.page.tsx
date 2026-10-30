@@ -73,8 +73,29 @@ export function PatientAppointmentDetailsPage({
     )
   }
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return 'Awaiting payment'
+      case 'SCHEDULED':
+        return 'Confirmed'
+      case 'IN_PROGRESS':
+        return 'In progress'
+      case 'COMPLETED':
+        return 'Completed'
+      case 'CANCELLED':
+        return 'Cancelled'
+      case 'NO_SHOW':
+        return 'Missed'
+      default:
+        return status.replace(/_/g, ' ')
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'PENDING':
+        return 'bg-amber-100 text-amber-900'
       case 'SCHEDULED':
         return 'bg-blue-100 text-blue-800'
       case 'IN_PROGRESS':
@@ -149,7 +170,7 @@ export function PatientAppointmentDetailsPage({
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <Badge className={getStatusColor(appointment.status)}>
-              {appointment.status.replace('_', ' ')}
+              {getStatusLabel(appointment.status)}
             </Badge>
             {appointment.isDonation && (
               <Badge variant="secondary">Donation-Based</Badge>

@@ -52,7 +52,7 @@ export async function getStaffByReferralCode(c: any, code: string) {
   if (invite) {
     const { data: staff } = await supabase
       .from("CenterStaff")
-      .select("id, referralCode, fullName, email, status, centerId")
+      .select("id, referralCode, fullName, email, status, centerId, role")
       .eq("id", invite.staffId)
       .maybeSingle();
     return staff ? { staff, referral: invite } : null;
@@ -60,7 +60,7 @@ export async function getStaffByReferralCode(c: any, code: string) {
 
   const { data: staff } = await supabase
     .from("CenterStaff")
-    .select("id, referralCode, fullName, email, status, centerId")
+    .select("id, referralCode, fullName, email, status, centerId, role")
     .eq("referralCode", normalized)
     .maybeSingle();
   if (!staff) return null;
@@ -71,12 +71,12 @@ export async function acceptStaffReferral(
   c: any,
   userId: string,
   code: string,
-  opts?: { commissionAllowed?: boolean }
+  opts?: { commissionAllowed?: boolean; preferredCenterId?: string | null }
 ) {
   const supabase = getSupabaseClient(c);
   const peeked = await getStaffByReferralCode(c, code);
   if (!peeked?.staff) {
-    throw new Error("Invalid nurse referral code");
+    throw new Error("Invalid staff referral code");
   }
   if (peeked.staff.status && peeked.staff.status !== "ACTIVE") {
     throw new Error("This referral is no longer active");
@@ -87,7 +87,27 @@ export async function acceptStaffReferral(
     .select("*")
     .eq("referredUserId", userId)
     .maybeSingle();
-  if (existing) return existing;
+  if (existing) {
+    // Still refresh attribution / preferred facility if provided
+    const { data: profile } = await supabase
+      .from("PatientProfile")
+      .select("assignedCenterId")
+      .eq("userId", userId)
+      .maybeSingle();
+    await supabase
+      .from("PatientProfile")
+      .update({
+        referredByStaffId: peeked.staff.id,
+        assignmentSource: "STAFF_REFERRAL",
+        assignedCenterId:
+          opts?.preferredCenterId ||
+          profile?.assignedCenterId ||
+          peeked.staff.centerId,
+        onboardedByCenterId: peeked.staff.centerId,
+      })
+      .eq("userId", userId);
+    return existing;
+  }
 
   let referral = peeked.referral;
   if (referral && referral.referredUserId && referral.referredUserId !== userId) {
@@ -106,8 +126,9 @@ export async function acceptStaffReferral(
     createdAt: referral?.createdAt || new Date().toISOString(),
   };
 
+  let data: any;
   if (referral) {
-    const { data, error } = await supabase
+    const updated = await supabase
       .from("StaffReferral")
       .update({
         referredUserId: userId,
@@ -119,16 +140,37 @@ export async function acceptStaffReferral(
       .eq("id", referral.id)
       .select("*")
       .single();
-    if (error) throw error;
-    return data;
+    if (updated.error) throw updated.error;
+    data = updated.data;
+  } else {
+    const inserted = await supabase
+      .from("StaffReferral")
+      .insert(row)
+      .select("*")
+      .single();
+    if (inserted.error) throw inserted.error;
+    data = inserted.data;
   }
 
-  const { data, error } = await supabase
-    .from("StaffReferral")
-    .insert(row)
-    .select("*")
-    .single();
-  if (error) throw error;
+  // Persist attribution; keep patient's chosen facility when provided
+  const { data: profile } = await supabase
+    .from("PatientProfile")
+    .select("assignedCenterId")
+    .eq("userId", userId)
+    .maybeSingle();
+  await supabase
+    .from("PatientProfile")
+    .update({
+      referredByStaffId: peeked.staff.id,
+      assignmentSource: "STAFF_REFERRAL",
+      assignedCenterId:
+        opts?.preferredCenterId ||
+        profile?.assignedCenterId ||
+        peeked.staff.centerId,
+      onboardedByCenterId: peeked.staff.centerId,
+    })
+    .eq("userId", userId);
+
   return data;
 }
 

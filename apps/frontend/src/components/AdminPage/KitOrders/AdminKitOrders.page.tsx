@@ -70,6 +70,8 @@ type OrderGroup = {
   requestedAt: string
   requestedBy: string
   status: string
+  scope: string
+  requesterStaffName: string | null
   lines: TAdminKitOrder[]
   facilityNote: string | null
   reviewNotes: string[]
@@ -112,6 +114,8 @@ function groupOrders(orders: TAdminKitOrder[]): OrderGroup[] {
         requestedAt: order.requestedAt,
         requestedBy: order.requestedBy,
         status: order.status,
+        scope: (order as any).scope || 'FACILITY',
+        requesterStaffName: (order as any).requesterStaffName || null,
         lines: [order],
         facilityNote: note,
         reviewNotes: order.reviewNotes ? [order.reviewNotes] : [],
@@ -284,6 +288,18 @@ export function AdminKitOrdersPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <CardTitle className="text-lg">
                         {group.center?.centerName || 'Unknown facility'}
+                        {group.scope === 'STAFF' ? (
+                          <span className="ml-2 rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-indigo-700">
+                            Personal
+                            {group.requesterStaffName
+                              ? ` · ${group.requesterStaffName}`
+                              : ''}
+                          </span>
+                        ) : (
+                          <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
+                            Facility
+                          </span>
+                        )}
                       </CardTitle>
                       <Badge
                         className={`border-transparent ${

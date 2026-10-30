@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import { formatStaffReferralShareMessage } from "@zerocancer/shared";
 import type { TErrorResponse } from "@zerocancer/shared/types";
 import { Hono } from "hono";
 import { env } from "hono/adapter";
@@ -41,11 +42,16 @@ const cashoutSchema = z.object({
   amount: z.number().positive(),
 });
 
-const inviteSchema = z.object({
-  invitePhone: z.string().min(7).optional(),
-  inviteEmail: z.string().email().optional(),
-  inviteName: z.string().min(2).optional(),
-});
+const inviteSchema = z
+  .object({
+    invitePhone: z.string().min(7).optional(),
+    inviteEmail: z.string().email().optional(),
+    inviteName: z.string().min(2).optional(),
+  })
+  .refine(
+    (v) => Boolean(v.invitePhone || v.inviteEmail || v.inviteName),
+    { message: "Provide a name, phone, or email for the invite" }
+  );
 
 const MIN_CASHOUT_NGN = 100;
 
@@ -87,7 +93,7 @@ staffEarningsApp.get("/me", async (c) => {
       ? staffShareUrl(FRONTEND_URL, referralCode)
       : null;
 
-    const [{ data: commissions }, { data: cashouts }, { data: referrals }] =
+    const [{ data: commissions }, { data: cashouts }, { data: referrals }, { data: centerRow }] =
       await Promise.all([
         supabase
           .from("StaffCommission")
@@ -109,6 +115,11 @@ staffEarningsApp.get("/me", async (c) => {
           .eq("staffId", resolved.staffId)
           .order("createdAt", { ascending: false })
           .limit(50),
+        supabase
+          .from("ServiceCenter")
+          .select("centerName")
+          .eq("id", resolved.centerId)
+          .maybeSingle(),
       ]);
 
     const referredIds = [
@@ -144,9 +155,16 @@ staffEarningsApp.get("/me", async (c) => {
         },
         wallet,
         shareUrl,
-        shareMessage: referralCode
-          ? `Join me on ZeroCancer for cervical cancer screening — you can screen at any participating center. Use my code ${referralCode}: ${shareUrl}`
-          : null,
+        shareMessage:
+          referralCode && shareUrl
+            ? formatStaffReferralShareMessage({
+                role: resolved.staffRole || resolved.staff?.role,
+                fullName: resolved.staff?.fullName || staff?.fullName,
+                referralCode,
+                shareUrl,
+                centerName: centerRow?.centerName || null,
+              })
+            : null,
         referrals: (referrals || []).map((row: any) => ({
           id: row.id,
           inviteCode: row.inviteCode,
@@ -197,17 +215,72 @@ staffEarningsApp.post(
         body
       );
       const shareUrl = staffShareUrl(FRONTEND_URL, invite.inviteCode);
+      const { data: centerRow } = await supabase
+        .from("ServiceCenter")
+        .select("centerName")
+        .eq("id", resolved.centerId)
+        .maybeSingle();
       return c.json({
         ok: true,
         data: {
           ...invite,
           shareUrl,
-          shareMessage: `Join me on ZeroCancer for cervical cancer screening — you can screen at any participating center. Use my code ${invite.inviteCode}: ${shareUrl}`,
+          shareMessage: formatStaffReferralShareMessage({
+            role: resolved.staffRole || resolved.staff?.role,
+            fullName: resolved.staff?.fullName,
+            referralCode: invite.inviteCode,
+            shareUrl,
+            centerName: centerRow?.centerName || null,
+          }),
         },
       });
     } catch (error: any) {
       return c.json<TErrorResponse>(
         { ok: false, error: error?.message || "Could not create invite" },
+        400
+      );
+    }
+  }
+);
+
+const profileSchema = z.object({
+  fullName: z.string().trim().min(2).max(120),
+});
+
+staffEarningsApp.patch(
+  "/me/profile",
+  zValidator("json", profileSchema, (result, c) => {
+    if (!result.success) {
+      return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
+    }
+  }),
+  async (c) => {
+    try {
+      const db = getDB(c);
+      const resolved = await resolveCenterStaff(c, db);
+      if (!resolved.staffId) {
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            error: "Only facility staff can update a personal display name.",
+          },
+          403
+        );
+      }
+
+      const supabase = getSupabaseClient(c);
+      const body = c.req.valid("json");
+      const { data, error: updateError } = await supabase
+        .from("CenterStaff")
+        .update({ fullName: body.fullName })
+        .eq("id", resolved.staffId)
+        .select("id, email, fullName, role, status")
+        .single();
+      if (updateError) throw updateError;
+      return c.json({ ok: true, data });
+    } catch (err: any) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: err?.message || "Failed to update profile" },
         400
       );
     }

@@ -12,6 +12,7 @@ import { Label } from '@/components/shared/ui/label'
 import { formatCurrency } from '@/lib/utils'
 import {
   staffEarnings,
+  useCreateStaffReferralInvite,
   useStaffCashout,
   useUpdateStaffBank,
 } from '@/services/providers/center.provider'
@@ -35,7 +36,7 @@ function commissionTitle(sourceType?: string, note?: string) {
       : 'Your invite — screened at any center'
   }
   if (sourceType === 'PATIENT_REFERRAL_SCREEN') {
-    return 'Hospital upline — a woman you registered referred someone here'
+    return 'Facility upline — a woman you registered referred someone here'
   }
   return note || 'Referral commission'
 }
@@ -44,7 +45,13 @@ export function CenterEarningsPage() {
   const { data, isLoading, isError, refetch } = useQuery(staffEarnings())
   const updateBank = useUpdateStaffBank()
   const cashout = useStaffCashout()
+  const createInvite = useCreateStaffReferralInvite()
   const [cashoutAmount, setCashoutAmount] = useState('')
+  const [inviteForm, setInviteForm] = useState({
+    inviteName: '',
+    invitePhone: '',
+    inviteEmail: '',
+  })
   const [bank, setBank] = useState({
     bankName: '',
     bankCode: '',
@@ -145,11 +152,11 @@ export function CenterEarningsPage() {
           Private to you as a doctor or nurse — the facility administrator
           cannot see this wallet.
           Share your code with anyone, including people who live outside this
-          hospital&apos;s area. You earn {screenPay} when they complete
+          facility&apos;s area. You earn {screenPay} when they complete
           screening at any ZeroCancer center, or {homePay} for a home screening.
         </p>
         <p className="text-muted-foreground mt-2 text-sm">
-          You also earn {uplinePay} when a woman you registered at this hospital
+          You also earn {uplinePay} when a woman you registered at this facility
           refers someone who screens here.
         </p>
       </div>
@@ -193,14 +200,29 @@ export function CenterEarningsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Share2 className="h-4 w-4" />
-            Invite anyone, any center
+            Your personal invite
           </CardTitle>
           <CardDescription>
-            People you invite are not tied to this hospital. They can screen
-            wherever is closest to them, and you still earn.
+            Patients see you as a doctor or nurse by name (not the facility
+            invite). They can screen at any participating center, and you still
+            earn.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {staff?.fullName ? (
+            <p className="text-sm text-muted-foreground">
+              Patients see you as{' '}
+              <span className="font-medium text-foreground">
+                {staff.fullName}
+              </span>
+              .
+            </p>
+          ) : (
+            <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+              Add your name from the banner above so invite links show you as a
+              doctor or nurse, not a generic staff member.
+            </p>
+          )}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <code className="rounded-md bg-pink-50 px-2.5 py-1 text-lg font-bold tracking-wide text-pink-800">
               {staff?.referralCode || '—'}
@@ -218,7 +240,7 @@ export function CenterEarningsPage() {
               size="sm"
               variant="outline"
               onClick={() =>
-                onCopy(payload?.shareMessage || payload?.shareUrl, 'Link copied')
+                onCopy(payload?.shareMessage || payload?.shareUrl, 'Message copied')
               }
               disabled={!payload?.shareUrl}
             >
@@ -226,11 +248,90 @@ export function CenterEarningsPage() {
               Copy share message
             </Button>
           </div>
-          {payload?.shareUrl ? (
+          {payload?.shareMessage ? (
+            <p className="rounded-md border bg-pink-50 px-3 py-2 text-sm text-pink-950">
+              {payload.shareMessage}
+            </p>
+          ) : payload?.shareUrl ? (
             <p className="break-all text-xs text-muted-foreground">
               {payload.shareUrl}
             </p>
           ) : null}
+          <div className="space-y-3 border-t pt-4">
+            <p className="text-sm font-medium">Create a named invite</p>
+            <p className="text-xs text-muted-foreground">
+              Optional — track someone you invited by name/phone. They still use
+              your share link or code.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Input
+                placeholder="Name"
+                value={inviteForm.inviteName}
+                onChange={(e) =>
+                  setInviteForm({ ...inviteForm, inviteName: e.target.value })
+                }
+              />
+              <Input
+                placeholder="Phone"
+                value={inviteForm.invitePhone}
+                onChange={(e) =>
+                  setInviteForm({ ...inviteForm, invitePhone: e.target.value })
+                }
+              />
+              <Input
+                placeholder="Email (optional)"
+                type="email"
+                value={inviteForm.inviteEmail}
+                onChange={(e) =>
+                  setInviteForm({ ...inviteForm, inviteEmail: e.target.value })
+                }
+              />
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={
+                createInvite.isPending ||
+                (!inviteForm.inviteName.trim() &&
+                  !inviteForm.invitePhone.trim() &&
+                  !inviteForm.inviteEmail.trim())
+              }
+              onClick={async () => {
+                try {
+                  const res: any = await createInvite.mutateAsync({
+                    inviteName: inviteForm.inviteName.trim() || undefined,
+                    invitePhone: inviteForm.invitePhone.trim() || undefined,
+                    inviteEmail: inviteForm.inviteEmail.trim() || undefined,
+                  })
+                  const message =
+                    res?.data?.shareMessage || res?.data?.shareUrl
+                  if (message) {
+                    try {
+                      await navigator.clipboard.writeText(message)
+                      toast.success('Invite created — share message copied')
+                    } catch {
+                      toast.success('Invite created')
+                    }
+                  } else {
+                    toast.success('Invite created')
+                  }
+                  setInviteForm({
+                    inviteName: '',
+                    invitePhone: '',
+                    inviteEmail: '',
+                  })
+                } catch (error: any) {
+                  toast.error(
+                    error?.response?.data?.error || 'Could not create invite',
+                  )
+                }
+              }}
+            >
+              {createInvite.isPending ? 'Creating…' : 'Create invite'}
+            </Button>
+          </div>
+
           {referrals.length > 0 ? (
             <div className="space-y-2 border-t pt-4">
               <p className="text-sm font-medium">People you invited</p>
@@ -356,7 +457,7 @@ export function CenterEarningsPage() {
             <CardTitle>Recent commissions</CardTitle>
             <CardDescription>
               Direct invites pay after screening at any center. Upline rewards
-              pay only when the screening is at this hospital.
+              pay only when the screening is at this facility.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">

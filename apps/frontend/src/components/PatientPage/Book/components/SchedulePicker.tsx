@@ -4,6 +4,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/shared/ui/card'
+import { useAuthUser } from '@/services/providers/auth.provider'
 import { publicCenterAvailability } from '@/services/providers/center.provider'
 import { useQuery } from '@tanstack/react-query'
 import * as React from 'react'
@@ -41,13 +42,21 @@ export function SchedulePicker({
   onTimeChange,
   timeSlots,
 }: SchedulePickerProps) {
+  const authUserQuery = useQuery(useAuthUser())
+  const referredByStaffId =
+    (authUserQuery.data?.data?.user as any)?.referredByStaffId || undefined
+
   const from = toDateKey(new Date())
   const toDate = new Date()
   toDate.setDate(toDate.getDate() + 60)
   const to = toDateKey(toDate)
 
   const { data, isLoading } = useQuery({
-    ...publicCenterAvailability(centerId || '', { from, to }),
+    ...publicCenterAvailability(centerId || '', {
+      from,
+      to,
+      staffId: referredByStaffId,
+    }),
     enabled: Boolean(centerId),
   })
 
@@ -73,6 +82,8 @@ export function SchedulePicker({
           label: `${labelTime(slot.time)} · ${slot.remaining} left`,
         }))
     }
+    // When booking against a facility calendar, never invent open hours
+    if (centerId) return []
     return (
       timeSlots ||
       Array.from({ length: 9 }, (_, i) => {
@@ -81,7 +92,7 @@ export function SchedulePicker({
         return { value, label: labelTime(value) }
       })
     )
-  }, [selectedDay, timeSlots])
+  }, [centerId, selectedDay, timeSlots])
 
   React.useEffect(() => {
     if (date && allowedDates.size && !allowedDates.has(date.slice(0, 10))) {

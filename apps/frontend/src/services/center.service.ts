@@ -128,10 +128,30 @@ export const getCenterById = async (
 
 export const getPublicCenterAvailability = async (
   id: string,
-  params?: { from?: string; to?: string },
+  params?: { from?: string; to?: string; staffId?: string },
 ): Promise<TGetCenterAvailabilityResponse> => {
   const res = await request.get(endpoints.getPublicCenterAvailability(id, params))
   return res as TGetCenterAvailabilityResponse
+}
+
+export const getStaffAvailability = async (params?: {
+  from?: string
+  to?: string
+  staffId?: string
+}) => {
+  return request.get(endpoints.getStaffAvailability(params)) as Promise<any>
+}
+
+export const updateStaffAvailability = async (body: {
+  weekly: TGetCenterAvailabilityResponse['data']['weekly']
+  exceptions: TGetCenterAvailabilityResponse['data']['exceptions']
+  staffId?: string
+}) => {
+  return request.put(endpoints.updateStaffAvailability(), body) as Promise<any>
+}
+
+export const getTeamStaffSchedules = async () => {
+  return request.get(endpoints.getTeamStaffSchedules()) as Promise<any>
 }
 
 export const getCenterAvailability = async (params?: {
@@ -213,6 +233,21 @@ export const inviteStaff = async (
 export const getStaffMembers = async (): Promise<TCenterStaffMembersResponse> => {
   const res = await request.get(endpoints.staffMembers())
   return res as TCenterStaffMembersResponse
+}
+
+export const getStaffMemberActivity = async (staffId: string) => {
+  return request.get(endpoints.staffMemberActivity(staffId)) as Promise<{
+    ok: boolean
+    data: {
+      staffId: string
+      patients: Array<{
+        id: string
+        fullName: string
+        email: string
+        source: 'ONBOARDED' | 'REFERRAL' | 'SCREENED'
+      }>
+    }
+  }>
 }
 
 export const updateStaffMember = async ({
@@ -396,6 +431,8 @@ export const getCenterPatients = async (params: {
   page?: number
   pageSize?: number
   search?: string
+  assignmentSource?: string
+  funding?: string
 }): Promise<TCenterPatientsList> => {
   const res = await request.get(endpoints.centerPatientsList(params))
   return res as TCenterPatientsList

@@ -20,6 +20,7 @@ import {
   removeCenterMyService,
   updateCenterMyServicePrice,
 } from '@/services/center.service'
+import { useAuthUser } from '@/services/providers/auth.provider'
 import { useAllScreeningTypes } from '@/services/providers/screeningType.provider'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react'
@@ -31,6 +32,10 @@ export function CenterServicesPage() {
   const [selectedToAdd, setSelectedToAdd] = useState<string[]>([])
   const [editingTypeId, setEditingTypeId] = useState<string | null>(null)
   const [draftPrice, setDraftPrice] = useState('')
+  const authUserQuery = useQuery(useAuthUser())
+  const user = authUserQuery.data?.data?.user
+  const canManageServices =
+    user?.profile === 'CENTER' || user?.staffRole === 'ADMIN'
 
   const { data: servicesData, isLoading } = useQuery({
     queryKey: ['centerMyServices'],
@@ -147,9 +152,9 @@ export function CenterServicesPage() {
       <div>
         <h1 className="text-2xl font-bold">Services Offered</h1>
         <p className="text-muted-foreground">
-          Manage vaccination, screening, and treatment services patients can
-          find and book at your center. Set the patient-facing price for each
-          service — this is what referrals and bookings will charge.
+          {canManageServices
+            ? 'Manage vaccination, screening, and treatment services patients can find and book at your facility. Set the patient-facing price for each service — this is what referrals and bookings will charge.'
+            : 'Services patients can book at this facility. Only the facility administrator can add, remove, or change prices.'}
         </p>
       </div>
 
@@ -200,7 +205,7 @@ export function CenterServicesPage() {
                             Platform base: ₦
                             {Number(service.agreedPrice || 0).toLocaleString()}
                           </p>
-                          {isEditing ? (
+                          {canManageServices && isEditing ? (
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                               <span className="text-sm text-muted-foreground">
                                 ₦
@@ -249,41 +254,43 @@ export function CenterServicesPage() {
                             </p>
                           )}
                         </div>
-                        <div className="flex shrink-0 gap-2">
-                          {!isEditing ? (
+                        {canManageServices ? (
+                          <div className="flex shrink-0 gap-2">
+                            {!isEditing ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  startEdit(
+                                    service.screeningTypeId,
+                                    service.price || 0,
+                                  )
+                                }
+                              >
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit price
+                              </Button>
+                            ) : null}
                             <Button
                               variant="outline"
                               size="sm"
+                              disabled={removeMutation.isPending}
                               onClick={() =>
-                                startEdit(
-                                  service.screeningTypeId,
-                                  service.price || 0,
-                                )
+                                removeMutation.mutate(service.screeningTypeId)
                               }
                             >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit price
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Remove
                             </Button>
-                          ) : null}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={removeMutation.isPending}
-                            onClick={() =>
-                              removeMutation.mutate(service.screeningTypeId)
-                            }
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Remove
-                          </Button>
-                        </div>
+                          </div>
+                        ) : null}
                       </div>
                     )
                   })}
                 </div>
               )}
 
-              {available.length > 0 && (
+              {canManageServices && available.length > 0 && (
                 <div className="space-y-3 border-t pt-4">
                   <p className="text-sm font-medium">
                     Add {getServiceTypeLabel(category).toLowerCase()} services
@@ -311,17 +318,19 @@ export function CenterServicesPage() {
         )
       })}
 
-      <Button
-        disabled={selectedToAdd.length === 0 || addMutation.isPending}
-        onClick={() => addMutation.mutate(selectedToAdd)}
-      >
-        {addMutation.isPending ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <Plus className="mr-2 h-4 w-4" />
-        )}
-        Add selected services
-      </Button>
+      {canManageServices ? (
+        <Button
+          disabled={selectedToAdd.length === 0 || addMutation.isPending}
+          onClick={() => addMutation.mutate(selectedToAdd)}
+        >
+          {addMutation.isPending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Plus className="mr-2 h-4 w-4" />
+          )}
+          Add selected services
+        </Button>
+      ) : null}
     </div>
   )
 }

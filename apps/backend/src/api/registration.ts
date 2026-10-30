@@ -218,7 +218,9 @@ async function applyReferralCode(
     );
     const staffHit = await getStaffByReferralCode(c, referralCode);
     if (staffHit?.staff) {
-      await acceptStaffReferral(c, userId, referralCode);
+      await acceptStaffReferral(c, userId, referralCode, {
+        preferredCenterId: preferredCenterId || undefined,
+      });
       return;
     }
     const { acceptReferralInvite } = await import("../lib/agent.service");
@@ -226,6 +228,7 @@ async function applyReferralCode(
       preferredCenterId: preferredCenterId || undefined,
     });
   } catch (error) {
+    // Account already created — don't abort signup; surface for ops
     console.warn("[PATIENT_REG] Referral code not applied:", error);
   }
 }

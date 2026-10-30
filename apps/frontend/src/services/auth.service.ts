@@ -20,10 +20,10 @@ import type {
 } from '@zerocancer/shared/types'
 import type { z } from 'zod'
 
-// Login service
+// Login service — actor optional (auto-detect account type)
 export const loginUser = async (
   params: z.infer<typeof loginSchema>,
-  actor: TActors,
+  actor?: TActors,
 ): Promise<TLoginResponse> => {
   return await request.post(endpoints.loginUser(actor), params)
 }

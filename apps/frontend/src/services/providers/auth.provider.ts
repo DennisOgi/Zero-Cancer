@@ -22,7 +22,7 @@ export const useLogin = () => {
       actor,
     }: {
       params: z.infer<typeof loginSchema>
-      actor: TActors
+      actor?: TActors
     }) => authService.loginUser(params, actor),
     onSettled: (data) => {
       if (data?.data?.token) {

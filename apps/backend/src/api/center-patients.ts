@@ -150,6 +150,7 @@ centerPatientsApp.post(
                 onboardedByStaffId: staffId,
                 onboardedByCenterId: centerId,
                 assignedCenterId: centerId,
+                assignmentSource: "WALK_IN",
               },
             },
           },
@@ -180,6 +181,7 @@ centerPatientsApp.post(
               onboardedByStaffId: staffId || undefined,
               onboardedByCenterId: centerId,
               assignedCenterId: centerId,
+              assignmentSource: "WALK_IN",
             },
           })
           .catch(() => undefined);
@@ -226,6 +228,20 @@ centerPatientsApp.post(
   }
 );
 
+const ASSIGNMENT_SOURCES = [
+  "FACILITY_INVITE",
+  "STAFF_REFERRAL",
+  "WALK_IN",
+  "ALGORITHM",
+] as const;
+
+const FUNDING_FILTERS = [
+  "SELF_PAY",
+  "ON_WAITLIST",
+  "PENDING_FUNDING",
+  "MATCHED",
+] as const;
+
 // GET /api/center/patients — paginated list of patients assigned to this center
 centerPatientsApp.get(
   "/",
@@ -235,18 +251,29 @@ centerPatientsApp.get(
       page: z.coerce.number().int().min(1).default(1),
       pageSize: z.coerce.number().int().min(1).max(100).default(20),
       search: z.string().optional(),
+      assignmentSource: z.enum(ASSIGNMENT_SOURCES).optional(),
+      funding: z.enum(FUNDING_FILTERS).optional(),
     })
   ),
   async (c) => {
     try {
       const centerId = c.get("jwtPayload")?.id as string;
-      const { page, pageSize, search } = c.req.valid("query");
+      const { page, pageSize, search, assignmentSource, funding } =
+        c.req.valid("query");
       const supabase = getSupabaseClient(c);
 
-      const { data: assignedRows, error: assignedError } = await supabase
+      let profileQuery = supabase
         .from("PatientProfile")
-        .select("userId, city, state")
+        .select(
+          "userId, city, state, assignmentSource, referredByStaffId, onboardedByStaffId, onboardedByCenterId"
+        )
         .eq("assignedCenterId", centerId);
+
+      if (assignmentSource) {
+        profileQuery = profileQuery.eq("assignmentSource", assignmentSource);
+      }
+
+      const { data: assignedRows, error: assignedError } = await profileQuery;
 
       if (assignedError) throw assignedError;
 
@@ -302,12 +329,18 @@ centerPatientsApp.get(
 
       if (waitlistError) throw waitlistError;
 
-      const patients = matchedUsers
+      let patients = matchedUsers
         .map((user) => {
           const profile = profileByUserId.get(user.id as string);
           const patientWaitlists = (waitlists || []).filter(
             (row) => row.patientId === user.id
           );
+          const pendingCount = patientWaitlists.filter(
+            (row) => row.status === "PENDING"
+          ).length;
+          const matchedCount = patientWaitlists.filter(
+            (row) => row.status === "MATCHED"
+          ).length;
           return {
             id: user.id as string,
             fullName: (user.fullName as string) || "Patient",
@@ -315,14 +348,26 @@ centerPatientsApp.get(
             phone: (user.phone as string) || "",
             state: (profile?.state as string | null) || null,
             city: (profile?.city as string | null) || null,
+            assignmentSource:
+              (profile?.assignmentSource as string | null) || "ALGORITHM",
+            referredByStaffId:
+              (profile?.referredByStaffId as string | null) || null,
             waitlistCount: patientWaitlists.length,
-            pendingCount: patientWaitlists.filter((row) => row.status === "PENDING")
-              .length,
-            matchedCount: patientWaitlists.filter((row) => row.status === "MATCHED")
-              .length,
+            pendingCount,
+            matchedCount,
           };
         })
         .sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+      if (funding === "SELF_PAY") {
+        patients = patients.filter((p) => p.waitlistCount === 0);
+      } else if (funding === "ON_WAITLIST") {
+        patients = patients.filter((p) => p.waitlistCount > 0);
+      } else if (funding === "PENDING_FUNDING") {
+        patients = patients.filter((p) => p.pendingCount > 0);
+      } else if (funding === "MATCHED") {
+        patients = patients.filter((p) => p.matchedCount > 0);
+      }
 
       const total = patients.length;
       const start = (page - 1) * pageSize;

@@ -59,6 +59,18 @@ export const updateStaffBank = async (data: {
   return request.patch(endpoints.updateStaffBank(), data)
 }
 
+export const updateStaffProfile = async (data: { fullName: string }) => {
+  return request.patch(endpoints.updateStaffProfile(), data)
+}
+
+export const createStaffReferralInvite = async (data: {
+  invitePhone?: string
+  inviteEmail?: string
+  inviteName?: string
+}) => {
+  return request.post(endpoints.createStaffReferralInvite(), data)
+}
+
 export const staffCashout = async (amount: number) => {
   return request.post(endpoints.staffCashout(), { amount })
 }
