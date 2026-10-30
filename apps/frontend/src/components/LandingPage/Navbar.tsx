@@ -1,9 +1,22 @@
 import logo from '@/assets/images/logo.svg'
-import { useAuthUser } from '@/services/providers/auth.provider'
+import { useAuthUser, useLogout } from '@/services/providers/auth.provider'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
-import { ChevronDown, Globe } from 'lucide-react'
+import { ChevronDown, Globe, LogOut } from 'lucide-react'
+
+const navBtnBase =
+  'inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-semibold transition-all'
+
+function initialsFromName(name?: string | null) {
+  const parts = String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (!parts.length) return 'ZC'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+}
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -11,9 +24,11 @@ export default function Navbar() {
   const [activeCta, setActiveCta] = useState<'donate' | 'screening'>('donate')
   const countryDropdownRef = useRef<HTMLDivElement>(null)
   const { data: authData } = useQuery(useAuthUser())
+  const { mutate: logout, isPending: isLoggingOut } = useLogout()
 
-  const isAuthenticated = !!authData?.data?.user
-  const userProfile = authData?.data?.user?.profile?.toLowerCase()
+  const user = authData?.data?.user
+  const isAuthenticated = !!user
+  const userProfile = user?.profile?.toLowerCase()
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -57,7 +72,20 @@ export default function Navbar() {
     }
   }
 
+  const getProfileLink = () => {
+    switch (userProfile) {
+      case 'patient':
+        return '/patient/profile'
+      case 'center':
+      case 'center_staff':
+        return '/center/profile'
+      default:
+        return getDashboardLink()
+    }
+  }
+
   const dashboardLink = getDashboardLink()
+  const profileLink = getProfileLink()
 
   const scrollToSection = (sectionId: string, e: React.MouseEvent) => {
     e.preventDefault()
@@ -97,89 +125,166 @@ export default function Navbar() {
     { name: 'Rwanda 🇷🇼', active: false },
   ]
 
-  return (
-    <div className="bg-primary py-4 wrapper flex justify-between items-center relative z-50">
-      <div className="flex items-center gap-12 text-white">
-        <Link to="/">
-          <img src={logo} alt="ZeroCancer Logo" className="w-24 cursor-pointer hover:opacity-90 transition-opacity" />
-        </Link>
-        <div className="hidden md:flex items-center gap-8 text-white">
-          <Link to="/learn" className="hover:text-secondary transition-colors">How it Works</Link>
-          <Link to="/blog" className="hover:text-secondary transition-colors">Blog</Link>
-          <Link to="/events" className="hover:text-secondary transition-colors">Events</Link>
-          <Link to="/about" className="hover:text-secondary transition-colors">About</Link>
-          <a href="#" className="hover:text-secondary transition-colors">Contact Us</a>
-          
-          {/* Country Selection Dropdown */}
-          <div className="relative" ref={countryDropdownRef}>
-            <button
-              onClick={() => setIsCountryOpen(!isCountryOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/40 transition-all text-sm font-medium cursor-pointer"
-            >
-              <Globe size={14} className="text-secondary" />
-              <span>Nigeria 🇳🇬</span>
-              <ChevronDown size={14} className={`transition-transform duration-200 ${isCountryOpen ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {isCountryOpen && (
-              <div className="absolute top-full left-0 mt-2 w-56 rounded-xl bg-white border border-neutral-100 shadow-xl py-2 text-neutral-800 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
-                <div className="px-3 py-1.5 text-xs font-semibold text-neutral-400 border-b border-neutral-50 mb-1">
-                  Target Countries
-                </div>
-                {countries.map((c) => (
-                  <div
-                    key={c.name}
-                    className={`px-4 py-2 text-sm flex items-center justify-between ${
-                      c.active
-                        ? 'bg-neutral-50 font-semibold text-primary cursor-pointer hover:bg-neutral-100'
-                        : 'text-neutral-400 cursor-not-allowed opacity-80'
-                    }`}
-                  >
-                    <span>{c.name}</span>
-                    {!c.active && (
-                      <span className="text-[10px] bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full border border-neutral-200">
-                        Soon
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+  const avatar = (
+    <span className="inline-flex h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-white/40 bg-white/15 text-xs font-bold text-white ring-offset-2 transition hover:border-white">
+      {user?.photoUrl ? (
+        <img
+          src={user.photoUrl}
+          alt={user.fullName || 'Profile'}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span className="flex h-full w-full items-center justify-center">
+          {initialsFromName(user?.fullName)}
+        </span>
+      )}
+    </span>
+  )
+
+  const countryPicker = (
+    <div className="relative" ref={countryDropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsCountryOpen(!isCountryOpen)}
+        className={`${navBtnBase} border border-white/20 bg-white/5 text-white hover:border-white/40 hover:bg-white/10`}
+      >
+        <Globe size={14} className="text-secondary" />
+        <span>Nigeria 🇳🇬</span>
+        <ChevronDown
+          size={14}
+          className={`transition-transform duration-200 ${isCountryOpen ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {isCountryOpen && (
+        <div className="absolute top-full right-0 mt-2 w-56 rounded-xl border border-neutral-100 bg-white py-2 text-neutral-800 shadow-xl z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="mb-1 border-b border-neutral-50 px-3 py-1.5 text-xs font-semibold text-neutral-400">
+            Target Countries
           </div>
+          {countries.map((c) => (
+            <div
+              key={c.name}
+              className={`flex items-center justify-between px-4 py-2 text-sm ${
+                c.active
+                  ? 'cursor-pointer bg-neutral-50 font-semibold text-primary hover:bg-neutral-100'
+                  : 'cursor-not-allowed text-neutral-400 opacity-80'
+              }`}
+            >
+              <span>{c.name}</span>
+              {!c.active && (
+                <span className="rounded-full border border-neutral-200 bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-500">
+                  Soon
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+
+  return (
+    <div className="wrapper relative z-50 flex items-center justify-between gap-4 bg-primary py-4">
+      <div className="flex min-w-0 items-center gap-8 text-white lg:gap-12">
+        <Link to="/" className="shrink-0">
+          <img
+            src={logo}
+            alt="ZeroCancer Logo"
+            className="w-24 cursor-pointer transition-opacity hover:opacity-90"
+          />
+        </Link>
+        <div className="hidden items-center gap-6 whitespace-nowrap text-sm md:flex lg:gap-8">
+          <Link to="/learn" className="transition-colors hover:text-secondary">
+            How it Works
+          </Link>
+          <Link to="/blog" className="transition-colors hover:text-secondary">
+            Blog
+          </Link>
+          <Link to="/events" className="transition-colors hover:text-secondary">
+            Events
+          </Link>
+          <Link to="/about" className="transition-colors hover:text-secondary">
+            About
+          </Link>
+          <a href="#" className="transition-colors hover:text-secondary">
+            Contact Us
+          </a>
         </div>
       </div>
-      <div className="hidden md:flex items-center gap-6">
+
+      <div className="hidden items-center gap-3 md:flex">
+        {countryPicker}
         <a
           key={activeCta}
           href={activeCtaConfig.href}
           onClick={(e) => scrollToSection(activeCtaConfig.sectionId, e)}
-          className={`px-6 py-2.5 rounded-lg font-semibold cursor-pointer shadow-md hover:-translate-y-0.5 transition-all text-sm ${activeCtaConfig.className}`}
+          className={`${navBtnBase} shadow-md hover:-translate-y-0.5 ${activeCtaConfig.className}`}
         >
           {activeCtaConfig.label}
         </a>
-        {isAuthenticated && dashboardLink ? (
-          <Link to={dashboardLink} preload="render">
-            <button className="bg-white text-primary hover:bg-neutral-50 px-6 py-2.5 rounded-lg font-semibold cursor-pointer border border-neutral-200 transition-all text-sm">
-              Dashboard
+        {isAuthenticated ? (
+          <>
+            {profileLink ? (
+              <Link
+                to={profileLink}
+                preload="render"
+                title={user?.fullName || 'Profile'}
+                className="shrink-0"
+              >
+                {avatar}
+              </Link>
+            ) : (
+              avatar
+            )}
+            {dashboardLink ? (
+              <Link to={dashboardLink} preload="render">
+                <button
+                  type="button"
+                  className={`${navBtnBase} border border-neutral-200 bg-white text-primary hover:bg-neutral-50`}
+                >
+                  Dashboard
+                </button>
+              </Link>
+            ) : null}
+            <button
+              type="button"
+              disabled={isLoggingOut}
+              onClick={() => logout()}
+              className={`${navBtnBase} border border-white/40 text-white hover:border-white hover:bg-white/10 disabled:opacity-60`}
+            >
+              <LogOut size={14} />
+              Log out
             </button>
-          </Link>
+          </>
         ) : (
           <>
             <Link to="/login" preload="render">
-              <button className="border border-white/40 font-semibold px-6 py-2.5 rounded-lg text-white hover:bg-white/10 hover:border-white transition-all cursor-pointer text-sm">
+              <button
+                type="button"
+                className={`${navBtnBase} border border-white/40 text-white hover:border-white hover:bg-white/10`}
+              >
                 Login
               </button>
             </Link>
             <Link to="/sign-up">
-              <button className="bg-white text-primary hover:bg-neutral-50 px-6 py-2.5 rounded-lg font-semibold cursor-pointer border border-neutral-200 transition-all text-sm">
+              <button
+                type="button"
+                className={`${navBtnBase} border border-neutral-200 bg-white text-primary hover:bg-neutral-50`}
+              >
                 Sign Up
               </button>
             </Link>
           </>
         )}
       </div>
+
       <div className="md:hidden">
-        <button onClick={() => setIsOpen(!isOpen)} className="text-white">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="text-white"
+          aria-label={isOpen ? 'Close menu' : 'Open menu'}
+        >
           {isOpen ? (
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -213,15 +318,14 @@ export default function Navbar() {
           )}
         </button>
       </div>
+
       {isOpen && (
-        <div
-          className={`fixed inset-0 bg-primary bg-opacity-95 z-50 flex flex-col items-center justify-center transition-transform duration-300 ease-in-out ${
-            isOpen ? 'translate-x-0' : 'translate-x-full'
-          }`}
-        >
+        <div className="fixed inset-0 z-50 flex translate-x-0 flex-col items-center justify-center bg-primary bg-opacity-95 transition-transform duration-300 ease-in-out">
           <button
+            type="button"
             onClick={() => setIsOpen(false)}
             className="absolute top-4 right-4 text-white"
+            aria-label="Close menu"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -238,7 +342,21 @@ export default function Navbar() {
               />
             </svg>
           </button>
-          <div className="flex flex-col items-center gap-6 text-white text-xl">
+          <div className="flex flex-col items-center gap-6 text-xl text-white">
+            {isAuthenticated ? (
+              <div className="flex flex-col items-center gap-3">
+                {profileLink ? (
+                  <Link to={profileLink} onClick={() => setIsOpen(false)}>
+                    {avatar}
+                  </Link>
+                ) : (
+                  avatar
+                )}
+                <p className="text-base font-medium">
+                  {user?.fullName || user?.email}
+                </p>
+              </div>
+            ) : null}
             <Link to="/learn" onClick={() => setIsOpen(false)}>
               How it Works
             </Link>
@@ -283,25 +401,58 @@ export default function Navbar() {
               key={activeCta}
               href={activeCtaConfig.href}
               onClick={(e) => scrollToSection(activeCtaConfig.sectionId, e)}
-              className={`text-center w-48 py-2.5 rounded-lg font-semibold shadow-md text-base transition-all ${activeCtaConfig.className}`}
+              className={`${navBtnBase} w-48 shadow-md ${activeCtaConfig.className}`}
             >
               {activeCtaConfig.label}
             </a>
-            {isAuthenticated && dashboardLink ? (
-              <Link to={dashboardLink} onClick={() => setIsOpen(false)}>
-                <button className="bg-white text-primary px-8 py-2 rounded-lg font-semibold w-48 text-base">
-                  Dashboard
+            {isAuthenticated ? (
+              <div className="flex flex-col gap-3">
+                {dashboardLink ? (
+                  <Link to={dashboardLink} onClick={() => setIsOpen(false)}>
+                    <button
+                      type="button"
+                      className={`${navBtnBase} w-48 bg-white text-primary`}
+                    >
+                      Dashboard
+                    </button>
+                  </Link>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={isLoggingOut}
+                  onClick={() => {
+                    setIsOpen(false)
+                    logout()
+                  }}
+                  className={`${navBtnBase} w-48 border-2 border-white text-white disabled:opacity-60`}
+                >
+                  <LogOut size={16} />
+                  Log out
                 </button>
-              </Link>
+              </div>
             ) : (
               <div className="flex flex-col gap-3">
-                <Link to="/login" preload="render" onClick={() => setIsOpen(false)}>
-                  <button className="border-2 border-white font-semibold px-8 py-2 rounded-lg text-white w-48 text-base">
+                <Link
+                  to="/login"
+                  preload="render"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <button
+                    type="button"
+                    className={`${navBtnBase} w-48 border-2 border-white text-white`}
+                  >
                     Login
                   </button>
                 </Link>
-                <Link to="/sign-up" preload="render" onClick={() => setIsOpen(false)}>
-                  <button className="bg-white text-primary px-8 py-2 rounded-lg font-semibold w-48 text-base">
+                <Link
+                  to="/sign-up"
+                  preload="render"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <button
+                    type="button"
+                    className={`${navBtnBase} w-48 bg-white text-primary`}
+                  >
                     Sign Up
                   </button>
                 </Link>
