@@ -155,26 +155,8 @@ export function buildBoardingInviteWhatsAppMessage(params: {
   type: 'SCREEN' | 'CELEBRANT'
   joinUrl: string
 }) {
-  if (params.type === 'CELEBRANT') {
-    return [
-      `${params.inviterName} invited you to sponsor cancer screening on ZeroCancer.`,
-      '',
-      'You can fund women already waiting, or create a waiting list for your birthday, wedding, or church outreach.',
-      '',
-      params.joinUrl,
-      '',
-      '— ZeroCancer',
-    ].join('\n')
-  }
-  return [
-    `${params.inviterName} invited you to get screened on ZeroCancer.`,
-    '',
-    'Watch a short intro, create your account, and join a nearby health facility.',
-    '',
-    params.joinUrl,
-    '',
-    '— ZeroCancer',
-  ].join('\n')
+  const name = params.inviterName.trim() || 'Someone'
+  return `${name} invites you to join Zerocancer Africa to help WHO eliminate cervical cancer from the world by 2030.\n\n${params.joinUrl}`
 }
 
 export function buildWaitingListWhatsAppMessage(params: {

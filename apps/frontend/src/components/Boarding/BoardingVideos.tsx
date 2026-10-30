@@ -15,13 +15,13 @@ function StepMedia({ step }: { step: BoardingVideoStep }) {
         muted
         defaultMuted
         playsInline
-        className="h-full w-full object-cover"
+        className="absolute inset-0 h-full w-full object-cover"
         onError={() => setFailed(true)}
       />
     )
   }
   return (
-    <div className="flex h-full flex-col justify-end bg-gradient-to-br from-rose-700 via-fuchsia-700 to-indigo-800 p-6 text-white">
+    <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-br from-rose-700 via-fuchsia-700 to-indigo-800 p-6 text-white">
       <p className="text-xs uppercase tracking-[0.2em] text-white/70">{step.kicker}</p>
       <p className="mt-2 max-w-md text-2xl font-semibold leading-snug">{step.title}</p>
       {step.facts?.map((fact) => (
@@ -69,7 +69,7 @@ export function BoardingVideoPlayer({
         ))}
       </div>
       <div className="overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl">
-        <div className="aspect-video">
+        <div className="relative aspect-video">
           <StepMedia step={step} />
         </div>
       </div>
@@ -110,7 +110,7 @@ export function BoardingVideoLibrary() {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="overflow-hidden rounded-2xl bg-black shadow-lg">
-        <div className="aspect-video">
+        <div className="relative aspect-video">
           <StepMedia step={current} />
         </div>
       </div>

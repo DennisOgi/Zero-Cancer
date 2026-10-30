@@ -473,11 +473,13 @@ export function PatientAgentPage() {
               className="bg-pink-600 hover:bg-pink-700 text-white"
             >
               <a
-                href={`https://wa.me/?text=${encodeURIComponent(
-                  boundCenter
-                    ? `Join me at ${boundCenter.centerName} for cervical cancer screening. Use my code ${agent.referralCode}: ${displayShareUrl}`
-                    : `Join me on ZeroCancer for cervical cancer screening. Use my code ${agent.referralCode}: ${displayShareUrl}`,
-                )}`}
+                href={`https://wa.me/?text=${
+                  payload?.whatsappText ||
+                  encodeURIComponent(
+                    payload?.shareMessage ||
+                      `Someone invites you to join Zerocancer Africa to help WHO eliminate cervical cancer from the world by 2030.\n\n${displayShareUrl}`,
+                  )
+                }`}
                 target="_blank"
                 rel="noreferrer"
               >

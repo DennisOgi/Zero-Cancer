@@ -71,6 +71,17 @@ export function formatClinicalInviterLabel(
   return firstName || "a health facility staff member"
 }
 
+/** Canonical invite / WhatsApp share line; only the sender name changes. */
+export function formatJoinInviteShareMessage(opts: {
+  senderName: string
+  shareUrl?: string | null
+}) {
+  const name = String(opts.senderName || "").trim() || "Someone"
+  const line = `${name} invites you to join Zerocancer Africa to help WHO eliminate cervical cancer from the world by 2030.`
+  const url = String(opts.shareUrl || "").trim()
+  return url ? `${line}\n\n${url}` : line
+}
+
 /** WhatsApp / copy-paste share line for a staff patient referral link. */
 export function formatStaffReferralShareMessage(opts: {
   role?: string | null
@@ -79,12 +90,13 @@ export function formatStaffReferralShareMessage(opts: {
   shareUrl: string
   centerName?: string | null
 }) {
-  const who = formatClinicalInviterLabel(opts.role, opts.fullName)
-  const facility = opts.centerName?.trim()
-  const where = facility
-    ? ` You can screen at ${facility} or any participating ZeroCancer center.`
-    : " You can screen at any participating ZeroCancer center."
-  return `Hi! ${who} invited you to get cervical cancer screening on ZeroCancer.${where} Use code ${opts.referralCode}: ${opts.shareUrl}`
+  const who =
+    String(opts.fullName || "").trim() ||
+    formatClinicalInviterLabel(opts.role, opts.fullName)
+  return formatJoinInviteShareMessage({
+    senderName: who,
+    shareUrl: opts.shareUrl,
+  })
 }
 
 /** WhatsApp / copy-paste share line for a facility /c/{id} invite. */
@@ -92,6 +104,8 @@ export function formatFacilityInviteShareMessage(opts: {
   centerName: string
   shareUrl: string
 }) {
-  const name = opts.centerName.trim() || "Our health facility"
-  return `Hi! ${name} invited you to register for cervical cancer screening on ZeroCancer. Create your patient account with this link: ${opts.shareUrl}`
+  return formatJoinInviteShareMessage({
+    senderName: opts.centerName.trim() || "Our health facility",
+    shareUrl: opts.shareUrl,
+  })
 }

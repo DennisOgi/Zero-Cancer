@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import { formatJoinInviteShareMessage } from "@zerocancer/shared";
 import type { TErrorResponse } from "@zerocancer/shared/types";
 import { Hono } from "hono";
 import { env } from "hono/adapter";
@@ -101,27 +102,38 @@ agentsApp.get("/me", async (c) => {
 
   const wallet = await ensureAgentWallet(supabase, agent.id);
   const boundCenter = await getReferrerBoundCenter(c, agent.id);
+  const shareUrl = agentShareUrl(FRONTEND_URL, agent.referralCode);
 
-  const [{ data: referrals }, { data: commissions }, { count: screenedCount }] =
-    await Promise.all([
-      supabase
-        .from("Referral")
-        .select("*")
-        .eq("referrerAgentId", agent.id)
-        .order("createdAt", { ascending: false })
-        .limit(50),
-      supabase
-        .from("Commission")
-        .select("*")
-        .eq("agentId", agent.id)
-        .order("createdAt", { ascending: false })
-        .limit(50),
-      supabase
-        .from("Referral")
-        .select("id", { count: "exact", head: true })
-        .eq("referrerAgentId", agent.id)
-        .eq("status", "SCREENED"),
-    ]);
+  const [
+    { data: referrals },
+    { data: commissions },
+    { count: screenedCount },
+    { data: user },
+  ] = await Promise.all([
+    supabase
+      .from("Referral")
+      .select("*")
+      .eq("referrerAgentId", agent.id)
+      .order("createdAt", { ascending: false })
+      .limit(50),
+    supabase
+      .from("Commission")
+      .select("*")
+      .eq("agentId", agent.id)
+      .order("createdAt", { ascending: false })
+      .limit(50),
+    supabase
+      .from("Referral")
+      .select("id", { count: "exact", head: true })
+      .eq("referrerAgentId", agent.id)
+      .eq("status", "SCREENED"),
+    supabase.from("User").select("fullName").eq("id", userId).maybeSingle(),
+  ]);
+
+  const shareMessage = formatJoinInviteShareMessage({
+    senderName: user?.fullName || "A friend",
+    shareUrl,
+  });
 
   return c.json({
     ok: true,
@@ -135,7 +147,8 @@ agentsApp.get("/me", async (c) => {
         screenedCount: screenedCount || 0,
         availableBalance: wallet.balance,
       },
-      shareUrl: agentShareUrl(FRONTEND_URL, agent.referralCode),
+      shareUrl,
+      shareMessage,
       boundCenter: boundCenter
         ? {
             id: boundCenter.id,
@@ -145,11 +158,7 @@ agentsApp.get("/me", async (c) => {
             lga: boundCenter.lga,
           }
         : null,
-      whatsappText: encodeURIComponent(
-        boundCenter
-          ? `Join me at ${boundCenter.centerName} for cervical cancer screening. Use my code ${agent.referralCode}: ${agentShareUrl(FRONTEND_URL, agent.referralCode)}`
-          : `Join me on ZeroCancer for cervical cancer screening. Use my code ${agent.referralCode}: ${agentShareUrl(FRONTEND_URL, agent.referralCode)}`
-      ),
+      whatsappText: encodeURIComponent(shareMessage),
       config: {
         screenCommissionFlat: config.screenCommissionFlat,
         homeScreenCommissionFlat: config.homeScreenCommissionFlat,
