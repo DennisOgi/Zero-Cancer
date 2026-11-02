@@ -126,3 +126,28 @@ export async function connectPatientAfterBooking(
     console.error("Failed to notify patient of booking:", error);
   }
 }
+
+/**
+ * A cancelled donation-funded appointment hands its allocation back to the
+ * patient, so they can book another center with the same funding.
+ */
+export async function releaseDonationAllocation(c: any, appointmentId: string) {
+  const supabase = getSupabaseClient(c);
+  const { data: allocations, error } = await supabase
+    .from("DonationAllocation")
+    .update({ appointmentId: null, claimedAt: null })
+    .eq("appointmentId", appointmentId)
+    .select("waitlistId");
+  if (error) throw error;
+
+  const waitlistIds = (allocations || [])
+    .map((allocation: { waitlistId: string | null }) => allocation.waitlistId)
+    .filter(Boolean);
+  if (waitlistIds.length) {
+    await supabase
+      .from("Waitlist")
+      .update({ status: "MATCHED", claimedAt: null })
+      .in("id", waitlistIds)
+      .eq("status", "CLAIMED");
+  }
+}

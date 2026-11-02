@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { httpsUrlSchema } from "./result.schema";
 
 export const reportCategorySchema = z.enum([
   "CERVICAL_CANCER",
@@ -45,11 +46,11 @@ export const createScreeningReportSchema = z
   });
 
 export const sendScreeningReportSchema = z.object({
-  pdfUrl: z.string().url().optional(),
+  pdfUrl: httpsUrlSchema.optional(),
 });
 
 export const saveScreeningReportPdfSchema = z.object({
-  pdfUrl: z.string().url(),
+  pdfUrl: httpsUrlSchema,
   pdfCloudinaryId: z.string().optional(),
 });
 

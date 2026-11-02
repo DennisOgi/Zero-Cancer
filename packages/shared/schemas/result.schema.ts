@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+/**
+ * A URL that is safe to put in a link or iframe shown to patients:
+ * https only, which rules out javascript: and data: URLs.
+ */
+export const httpsUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => value.startsWith("https://"), {
+    message: "URL must start with https://",
+  });
+
 // Upload results schema
 export const uploadResultsSchema = z.object({
   files: z.array(
@@ -9,7 +20,7 @@ export const uploadResultsSchema = z.object({
       filePath: z.string(),
       fileType: z.string(),
       fileSize: z.number(),
-      url: z.string().url(),
+      url: httpsUrlSchema,
       cloudinaryId: z.string(),
     })
   ),

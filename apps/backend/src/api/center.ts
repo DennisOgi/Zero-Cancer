@@ -46,6 +46,8 @@ import {
 import type { ServiceTypeKey } from "../lib/service-type-utils";
 import { getSupabaseClient } from "../lib/supabase";
 import {
+  DEACTIVATED_FACILITY_STATUSES,
+  getFacilityStatus,
   normalizeStaffRole,
   staffJwtProfile,
 } from "../lib/center-context";
@@ -226,7 +228,15 @@ centerApp.get("/", async (c) => {
           { email: { contains: search, mode: "insensitive" } },
         ];
       }
-      if (status) where.status = status;
+      // This is the public directory: only admin-approved facilities are listed,
+      // whatever status a caller asks for. Admins use /admin/centers.
+      if (status && status !== "ACTIVE") {
+        return c.json({
+          ok: true,
+          data: { page, pageSize, total: 0, totalPages: 0, centers: [] },
+        });
+      }
+      where.status = "ACTIVE";
       if (state) where.state = state;
       if (lga) where.lga = lga;
 
@@ -1581,6 +1591,19 @@ centerApp.post(
           ok: false,
           error:
             "Your account has been suspended by your health facility. Contact your facility admin.",
+        },
+        403
+      );
+    }
+    if (
+      DEACTIVATED_FACILITY_STATUSES.includes(
+        (await getFacilityStatus(c, staff.centerId!)) || ""
+      )
+    ) {
+      return c.json<TErrorResponse>(
+        {
+          ok: false,
+          error: "This health facility has been deactivated. Contact Zero Cancer support.",
         },
         403
       );

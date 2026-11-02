@@ -19,11 +19,13 @@ import { getSupabaseClient } from "../lib/supabase";
 import { isLikelyValidWhatsappNumber, normalizeWhatsappNumber } from "../lib/phone";
 import { THonoApp, TEnvs } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
+import { requireActiveFacility } from "../lib/center-context";
 import { WhatsAppService } from "../lib/whatsapp";
 
 export const screeningReportsApp = new Hono<THonoApp>();
 
 screeningReportsApp.use("*", authMiddleware(["center", "center_staff"]));
+screeningReportsApp.use("*", requireActiveFacility);
 
 async function getCenterId(c: any) {
   return c.get("jwtPayload")?.id as string;

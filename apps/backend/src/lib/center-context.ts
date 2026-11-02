@@ -1,10 +1,12 @@
 import type { Context } from "hono";
+import { createMiddleware } from "hono/factory";
 import {
   isClinicalStaffRole,
   normalizeStaffRoleValue,
   type TStaffRole,
 } from "@zerocancer/shared";
-import type { AuthPayload } from "./types";
+import { getSupabaseClient } from "./supabase";
+import type { AuthPayload, THonoApp } from "./types";
 
 export type StaffRole = TStaffRole;
 
@@ -68,6 +70,38 @@ export function getCenterContext(c: Context) {
     isHospitalAdmin: payload.profile === "CENTER",
   };
 }
+
+/** A facility an admin has switched off; it must not sign in at all. */
+export const DEACTIVATED_FACILITY_STATUSES = ["INACTIVE", "SUSPENDED"];
+
+export async function getFacilityStatus(c: Context, centerId: string) {
+  const { data } = await getSupabaseClient(c)
+    .from("ServiceCenter")
+    .select("status")
+    .eq("id", centerId)
+    .maybeSingle();
+  return String(data?.status || "").toUpperCase() || null;
+}
+
+/**
+ * Patient data (search, registration, appointments, reports) is only open to
+ * facilities an admin has approved. Pending facilities can still sign in to
+ * finish their profile and services.
+ */
+export const requireActiveFacility = createMiddleware<THonoApp>(async (c, next) => {
+  const centerId = c.get("jwtPayload")?.id;
+  if (!centerId || (await getFacilityStatus(c, centerId)) !== "ACTIVE") {
+    return c.json(
+      {
+        ok: false,
+        err_code: "facility_not_active",
+        error: "Your health facility must be approved by Zero Cancer before you can manage patients.",
+      },
+      403
+    );
+  }
+  return next();
+});
 
 export async function resolveCenterStaff(c: Context, db: any) {
   const ctx = getCenterContext(c);

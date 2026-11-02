@@ -38,7 +38,12 @@ import { sendEmail } from "../lib/email";
 import { normalizeEmail } from "../lib/email-normalize";
 import { assignPatientToCenter, findRecommendedCenters } from "../lib/patient-center-utils";
 import { isAllowedPatientPhotoUrl } from "../lib/cloudinary-signed-upload";
-import { normalizeStaffRole, staffJwtProfile } from "../lib/center-context";
+import {
+  DEACTIVATED_FACILITY_STATUSES,
+  getFacilityStatus,
+  normalizeStaffRole,
+  staffJwtProfile,
+} from "../lib/center-context";
 import { TEnvs, THonoApp } from "../lib/types";
 import { getUserWithProfiles } from "../lib/utils";
 import { z } from "zod";
@@ -276,6 +281,22 @@ authApp.post(
             }
           }
         }
+      }
+
+      if (
+        (authProfile === "CENTER" || authProfile === "CENTER_STAFF") &&
+        id &&
+        DEACTIVATED_FACILITY_STATUSES.includes((await getFacilityStatus(c, id)) || "")
+      ) {
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            err_code: "facility_deactivated",
+            error:
+              "This health facility has been deactivated. Contact Zero Cancer support.",
+          },
+          403
+        );
       }
 
       if (!user || !passwordHash || !authProfile || !id) {
@@ -743,8 +764,10 @@ async function accountStillExists(
     case "ADMIN":
       return Boolean(await db.admins.findUnique({ where: { id } }));
     case "CENTER":
-    case "CENTER_STAFF":
-      return Boolean(await db.serviceCenter.findUnique({ where: { id } }));
+    case "CENTER_STAFF": {
+      const status = await getFacilityStatus(c, id);
+      return Boolean(status) && !DEACTIVATED_FACILITY_STATUSES.includes(status!);
+    }
     default:
       return Boolean(await db.user.findUnique({ where: { id } }));
   }

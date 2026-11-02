@@ -129,6 +129,20 @@ async function enrichDonationCampaign(
   return result;
 }
 
+/** Centers that list the given screening type among their services. */
+async function getCenterIdsOfferingScreening(supabase: SupabaseClient, screeningTypeId: string) {
+  const { data, error } = await supabase
+    .from('ServiceCenterScreeningType')
+    .select('centerId')
+    .eq('screeningTypeId', screeningTypeId);
+  if (error) throw error;
+  return [...new Set((data || []).map((row: { centerId: string }) => row.centerId))];
+}
+
+function intersectIds(current: string[] | undefined, next: string[]) {
+  return current === undefined ? next : current.filter((id) => next.includes(id));
+}
+
 async function getCenterIdsForServiceType(
   supabase: SupabaseClient,
   serviceTypeKey: ServiceTypeKey,
@@ -274,6 +288,7 @@ function allocationQuery(
   options?: { count: 'exact'; head: true },
 ) {
   let query = supabase.from('DonationAllocation').select(columns, options);
+  if (where?.appointmentId) query = query.eq('appointmentId', where.appointmentId);
   if (where?.patientId) query = query.eq('patientId', where.patientId);
   if (where?.campaignId) query = query.eq('campaignId', where.campaignId);
   if (where?.claimedAt === null) query = query.is('claimedAt', null);
@@ -468,6 +483,12 @@ export const getDB = (c: Context) => {
             where._serviceTypeKey as ServiceTypeKey,
           );
         }
+        if (where?.services?.some?.id) {
+          matchingCenterIds = intersectIds(
+            matchingCenterIds,
+            await getCenterIdsOfferingScreening(supabase, where.services.some.id),
+          );
+        }
 
         if (matchingCenterIds !== undefined && matchingCenterIds.length === 0) {
           return [];
@@ -560,6 +581,12 @@ export const getDB = (c: Context) => {
           matchingCenterIds = await getCenterIdsForServiceType(
             supabase,
             where._serviceTypeKey as ServiceTypeKey,
+          );
+        }
+        if (where?.services?.some?.id) {
+          matchingCenterIds = intersectIds(
+            matchingCenterIds,
+            await getCenterIdsOfferingScreening(supabase, where.services.some.id),
           );
         }
 
@@ -1217,8 +1244,9 @@ export const getDB = (c: Context) => {
         return data;
       },
 
-      findFirst: async ({ where }: { where: { centerId?: string; email?: string } }) => {
+      findFirst: async ({ where }: { where: { id?: string; centerId?: string; email?: string } }) => {
         let query = supabase.from("CenterStaff").select("*");
+        if (where?.id) query = query.eq("id", where.id);
         if (where?.centerId) query = query.eq("centerId", where.centerId);
         if (where?.email) {
           query = query.ilike("email", where.email.trim().replace(/[\\%_]/g, "\\$&"));
@@ -2161,11 +2189,14 @@ export const getDB = (c: Context) => {
       findFirst: async ({ where, select }: any = {}) => {
         if (!where?.id) return null;
 
-        const { data, error } = await supabase
+        let query = supabase
           .from("Appointment")
           .select(select ? Object.keys(select).join(",") : "*")
-          .eq("id", where.id)
-          .maybeSingle();
+          .eq("id", where.id);
+        // Ownership filters must be applied, or callers leak other users' appointments.
+        if (where.patientId) query = query.eq("patientId", where.patientId);
+        if (where.centerId) query = query.eq("centerId", where.centerId);
+        const { data, error } = await query.maybeSingle();
 
         if (error && error.code !== "PGRST116") throw error;
         return data || null;
@@ -2921,7 +2952,7 @@ export const getDB = (c: Context) => {
           where,
           `*,
           patient:User!DonationAllocation_patientId_fkey(id, fullName, email, patientProfile:PatientProfile!PatientProfile_userId_fkey(state, city)),
-          campaign:DonationCampaign(id, title, donor:User!DonationCampaign_donorId_fkey(id, fullName)),
+          campaign:DonationCampaign(id, title, donorId, donor:User!DonationCampaign_donorId_fkey(id, fullName)),
           waitlist:${waitlistJoin}(id, status, joinedAt, screening:ScreeningType(name))`,
         ).order("id", { ascending: false });
         if (take) query = query.range(skip, skip + take - 1);

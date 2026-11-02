@@ -64,6 +64,8 @@ function CenterReportPreviewPage() {
           <iframe
             ref={previewRef}
             title="Report preview"
+            // Report HTML never needs scripts; same-origin keeps print() working.
+            sandbox="allow-same-origin allow-modals"
             srcDoc={html}
             className="min-h-[800px] w-full rounded-xl border-0 bg-white"
           />

@@ -41,11 +41,15 @@ import { getDB } from "../lib/db";
 import { getSupabaseClient } from "../lib/supabase";
 import { THonoApp } from "../lib/types";
 import { authMiddleware } from "../middleware/auth.middleware";
+import { getFacilityStatus, requireActiveFacility } from "../lib/center-context";
 // import { centerAppointmentApp } from "./center.appointment";
 // import { patientAppointmentApp } from "./patient.appointment";
 import { initializeFlutterwavePayment } from "../lib/flutterwave";
 import { assertSlotAvailable } from "../lib/center-availability";
-import { connectPatientAfterBooking } from "../lib/confirm-booking";
+import {
+  connectPatientAfterBooking,
+  releaseDonationAllocation,
+} from "../lib/confirm-booking";
 import { createNotificationForUsers, generateHexId } from "../lib/utils";
 
 export const appointmentApp = new Hono<THonoApp>();
@@ -57,7 +61,7 @@ export const appointmentApp = new Hono<THonoApp>();
 // GET /api/appointment/:id/results
 appointmentApp.get(
   "/:id/results",
-  authMiddleware(["patient", "center", "admin"]),
+  authMiddleware(["patient", "center", "center_staff", "admin"]),
   zValidator("param", getAppointmentResultsSchema, (result, c) => {
     if (!result.success)
       return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
@@ -167,6 +171,7 @@ appointmentApp.get(
 
 // Middleware to ensure user is authenticated
 appointmentApp.use("/center/*", authMiddleware(["center", "center_staff"]));
+appointmentApp.use("/center/*", requireActiveFacility);
 
 // GET /api/appointment/center - List appointments (paginated, filterable)
 appointmentApp.get(
@@ -299,6 +304,12 @@ appointmentApp.post(
         400
       );
     }
+    if (appointment.status === "COMPLETED") {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Completed appointments cannot be cancelled." },
+        400
+      );
+    }
     await db.appointment.update({
       where: { id },
       data: {
@@ -307,6 +318,9 @@ appointmentApp.post(
         cancellationDate: new Date(),
       },
     });
+    if (appointment.isDonation) {
+      await releaseDonationAllocation(c, id!);
+    }
     // Optionally, notify patient
     // ...
     return c.json<TCancelCenterAppointmentResponse>({
@@ -1186,6 +1200,12 @@ appointmentApp.post(
         400
       );
     }
+    if ((await getFacilityStatus(c, centerId!)) !== "ACTIVE") {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "This center is not currently accepting bookings" },
+        400
+      );
+    }
 
     const patientProfileForSlot = await db.patientProfile.findUnique({
       where: { userId },
@@ -1566,6 +1586,59 @@ appointmentApp.post(
       return c.json<TErrorResponse>(
         { ok: false, error: "Invalid or already assigned allocation" },
         400
+      );
+    }
+
+    // Same checks as self-pay booking: the center must offer this screening
+    // and the slot must be open.
+    const offering = await db.serviceCenterScreeningType.findUnique({
+      where: {
+        centerId_screeningTypeId: {
+          centerId: centerId!,
+          screeningTypeId: allocation.waitlist.screeningTypeId!,
+        },
+      },
+    });
+    if (!offering) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Screening type not available at this center" },
+        400
+      );
+    }
+    if ((await getFacilityStatus(c, centerId!)) !== "ACTIVE") {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "This center is not currently accepting bookings" },
+        400
+      );
+    }
+    const patientProfileForSlot = await db.patientProfile.findUnique({
+      where: { userId },
+      select: { referredByStaffId: true },
+    });
+    const slot = await assertSlotAvailable(
+      c,
+      centerId!,
+      new Date(appointmentDateTime!),
+      undefined,
+      patientProfileForSlot?.referredByStaffId || null
+    );
+    if (!slot.ok) {
+      return c.json<TErrorResponse>({ ok: false, error: slot.error }, 400);
+    }
+
+    // Claim the allocation atomically so a double submit cannot book twice.
+    const supabase = getSupabaseClient(c);
+    const { data: claimed } = await supabase
+      .from("DonationAllocation")
+      .update({ claimedAt: new Date().toISOString() })
+      .eq("id", allocationId!)
+      .is("appointmentId", null)
+      .is("claimedAt", null)
+      .select("id");
+    if (!claimed?.length) {
+      return c.json<TErrorResponse>(
+        { ok: false, error: "Invalid or already assigned allocation" },
+        409
       );
     }
 
@@ -2251,6 +2324,9 @@ appointmentApp.post(
         cancellationDate: new Date(),
       },
     });
+    if (appointment.isDonation) {
+      await releaseDonationAllocation(c, id!);
+    }
 
     return c.json<TCancelCenterAppointmentResponse>({
       ok: true,
