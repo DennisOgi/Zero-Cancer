@@ -17,10 +17,19 @@ export default defineConfig({
   //   environment: 'jsdom',
   // },
   resolve: {
-    alias: {
-      '@': resolve(__dirname, './src'),
-      '@zerocancer/shared': resolve(__dirname, '../../packages/shared'),
-    },
+    alias: [
+      { find: '@', replacement: resolve(__dirname, './src') },
+      // The bare import must hit the TypeScript source: the package's `main`
+      // points at a gitignored dist/ build that fresh checkouts don't have.
+      {
+        find: /^@zerocancer\/shared$/,
+        replacement: resolve(__dirname, '../../packages/shared/index.ts'),
+      },
+      {
+        find: '@zerocancer/shared',
+        replacement: resolve(__dirname, '../../packages/shared'),
+      },
+    ],
   },
   build: {
     commonjsOptions: {

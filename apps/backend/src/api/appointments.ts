@@ -47,7 +47,6 @@ import { initializeFlutterwavePayment } from "../lib/flutterwave";
 import { assertSlotAvailable } from "../lib/center-availability";
 import { connectPatientAfterBooking } from "../lib/confirm-booking";
 import { createNotificationForUsers, generateHexId } from "../lib/utils";
-// import { createNotificationForUsers } from "../lib/waitlistMatchingAlg";
 
 export const appointmentApp = new Hono<THonoApp>();
 
@@ -138,11 +137,11 @@ appointmentApp.get(
       data: {
         id: result.id,
         notes: result.notes,
-        uploadedAt: result.uploadedAt.toISOString(),
+        uploadedAt: new Date(result.uploadedAt).toISOString(),
         appointment: {
           id: result.appointment.id,
           appointmentDateTime:
-            result.appointment.appointmentDateTime.toISOString(),
+            new Date(result.appointment.appointmentDateTime).toISOString(),
           screeningType: result.appointment.screeningType,
           center: result.appointment.center,
         },
@@ -153,7 +152,7 @@ appointmentApp.get(
           fileType: file.fileType,
           fileSize: file.fileSize,
           cloudinaryUrl: file.cloudinaryUrl,
-          uploadedAt: file.uploadedAt.toISOString(),
+          uploadedAt: new Date(file.uploadedAt).toISOString(),
           isDeleted: file.isDeleted,
         })),
         folders: groupFilesByFolder(result.files),
@@ -209,8 +208,8 @@ appointmentApp.get(
     // Transform the appointments to match the expected type
     const transformedAppointments = appointments.map((appointment) => ({
       ...appointment,
-      appointmentDateTime: appointment.appointmentDateTime.toISOString(),
-      createdAt: appointment.createdAt.toISOString(),
+      appointmentDateTime: new Date(appointment.appointmentDateTime).toISOString(),
+      createdAt: new Date(appointment.createdAt).toISOString(),
       cancellationDate: appointment.cancellationDate?.toISOString() || null,
       checkInCodeExpiresAt:
         appointment.checkInCodeExpiresAt?.toISOString() || null,
@@ -260,8 +259,8 @@ appointmentApp.get(
     // Transform the appointment to match the expected type
     const transformedAppointment = {
       ...appointment,
-      appointmentDateTime: appointment.appointmentDateTime.toISOString(),
-      createdAt: appointment.createdAt.toISOString(),
+      appointmentDateTime: new Date(appointment.appointmentDateTime).toISOString(),
+      createdAt: new Date(appointment.createdAt).toISOString(),
       cancellationDate: appointment.cancellationDate?.toISOString() || null,
       checkInCodeExpiresAt:
         appointment.checkInCodeExpiresAt?.toISOString() || null,
@@ -377,7 +376,7 @@ appointmentApp.post(
         userIds: [appointment.patientId!],
         data: {
           appointmentId: appointment.id,
-          appointmentDateTime: updated.appointmentDateTime.toISOString(),
+          appointmentDateTime: new Date(updated.appointmentDateTime).toISOString(),
         },
       });
     } catch (notifyError) {
@@ -393,7 +392,7 @@ appointmentApp.post(
       ok: true,
       data: {
         id: updated.id!,
-        appointmentDateTime: updated.appointmentDateTime.toISOString(),
+        appointmentDateTime: new Date(updated.appointmentDateTime).toISOString(),
       },
     });
   }
@@ -1224,6 +1223,20 @@ appointmentApp.post(
         .eq("status", "READY")
         .maybeSingle();
       if (plan && Number(plan.savedAmount) >= Number(retailPrice)) {
+        // Claim the plan atomically so two concurrent bookings cannot both spend it.
+        const { data: claimed } = await supabase
+          .from("SavingsPlan")
+          .update({ status: "USED", updatedAt: new Date().toISOString() })
+          .eq("id", savingsPlanId)
+          .eq("patientId", userId)
+          .eq("status", "READY")
+          .select("id");
+        if (!claimed?.length) {
+          return c.json<TErrorResponse>(
+            { ok: false, error: "This savings plan has already been used." },
+            409
+          );
+        }
         coveredBySavings = true;
       }
     }
@@ -1385,7 +1398,7 @@ appointmentApp.post(
       patientId: appointment.patientId!,
       centerId: appointment.centerId!,
       screeningTypeId: appointment.screeningTypeId!,
-      appointmentDateTime: appointment.appointmentDateTime.toISOString(),
+      appointmentDateTime: new Date(appointment.appointmentDateTime).toISOString(),
       isDonation: appointment.isDonation!,
       status: appointment.status!,
       transactionId:
@@ -1423,7 +1436,7 @@ appointmentApp.post(
             paymentChannel: appointment.transaction.paymentChannel!,
             createdAt:
               appointment.transaction.createdAt instanceof Date
-                ? appointment.transaction.createdAt.toISOString()
+                ? new Date(appointment.transaction.createdAt).toISOString()
                 : String(appointment.transaction.createdAt),
           }
         : undefined,
@@ -1604,7 +1617,7 @@ appointmentApp.post(
       patientId: appointment.patientId!,
       centerId: appointment.centerId!,
       screeningTypeId: appointment.screeningTypeId!,
-      appointmentDateTime: appointment.appointmentDateTime.toISOString(),
+      appointmentDateTime: new Date(appointment.appointmentDateTime).toISOString(),
       isDonation: appointment.isDonation!,
       status: appointment.status!,
       transactionId:
@@ -1640,7 +1653,7 @@ appointmentApp.post(
             amount: appointment.transaction.amount!,
             paymentReference: appointment.transaction.paymentReference!,
             paymentChannel: appointment.transaction.paymentChannel!,
-            createdAt: appointment.transaction.createdAt.toISOString(),
+            createdAt: new Date(appointment.transaction.createdAt).toISOString(),
           }
         : undefined,
       result: appointment.result ? { id: appointment.result.id! } : undefined, // Add more fields if needed
@@ -1700,7 +1713,7 @@ appointmentApp.get(
       patientId: a.patientId!,
       centerId: a.centerId!,
       screeningTypeId: a.screeningTypeId!,
-      appointmentDateTime: a.appointmentDateTime.toISOString(),
+      appointmentDateTime: new Date(a.appointmentDateTime).toISOString(),
       isDonation: a.isDonation!,
       status: a.status!,
       transactionId: a.transactionId === null ? undefined : a.transactionId,
@@ -1729,7 +1742,7 @@ appointmentApp.get(
             amount: a.transaction.amount!,
             paymentReference: a.transaction.paymentReference!,
             paymentChannel: a.transaction.paymentChannel!,
-            createdAt: a.transaction.createdAt.toISOString(),
+            createdAt: new Date(a.transaction.createdAt).toISOString(),
           }
         : undefined,
       result: a.result ? { id: a.result.id! } : undefined, // Add more fields if needed
@@ -1809,7 +1822,7 @@ appointmentApp.get(
 //     const processedResults = results.map((result) => ({
 //       id: result.id,
 //       notes: result.notes,
-//       uploadedAt: result.uploadedAt.toISOString(),
+//       uploadedAt: new Date(result.uploadedAt).toISOString(),
 //       appointment: {
 //         id: result.appointment.id,
 //         appointmentDate: result.appointment.appointmentDate.toISOString(),
@@ -1824,7 +1837,7 @@ appointmentApp.get(
 //         fileType: file.fileType,
 //         fileSize: file.fileSize,
 //         url: file.cloudinaryUrl,
-//         uploadedAt: file.uploadedAt.toISOString(),
+//         uploadedAt: new Date(file.uploadedAt).toISOString(),
 //         isDeleted: file.isDeleted,
 //       })),
 //       folders: groupFilesByFolder(result.files),
@@ -1903,11 +1916,11 @@ appointmentApp.get(
       data: {
         id: result.id,
         notes: result.notes,
-        uploadedAt: result.uploadedAt.toISOString(),
+        uploadedAt: new Date(result.uploadedAt).toISOString(),
         appointment: {
           id: result.appointment.id,
           appointmentDateTime:
-            result.appointment.appointmentDateTime.toISOString(),
+            new Date(result.appointment.appointmentDateTime).toISOString(),
           screeningType: result.appointment.screeningType,
           center: result.appointment.center,
         },
@@ -1918,7 +1931,7 @@ appointmentApp.get(
           fileType: file.fileType,
           fileSize: file.fileSize,
           cloudinaryUrl: file.cloudinaryUrl,
-          uploadedAt: file.uploadedAt.toISOString(),
+          uploadedAt: new Date(file.uploadedAt).toISOString(),
           isDeleted: file.isDeleted,
         })),
         folders: groupFilesByFolder(result.files),
@@ -1971,7 +1984,7 @@ appointmentApp.get(
 //         screeningType: { id: a.screeningType.id!, name: a.screeningType.name! },
 //         patientId: a.patientId!,
 //       })),
-//       createdAt: r.createdAt ? r.createdAt.toISOString() : undefined,
+//       createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : undefined,
 //     }));
 //     return c.json<TGetPatientReceiptsResponse>({
 //       ok: true,
@@ -2017,11 +2030,11 @@ appointmentApp.get("/patient/receipts/:id", async (c) => {
     id: receipt.id!,
     appointments: receipt.appointments.map((a) => ({
       id: a.id!,
-      appointmentDateTime: a.appointmentDateTime.toISOString(),
+      appointmentDateTime: new Date(a.appointmentDateTime).toISOString(),
       screeningType: { id: a.screeningType.id!, name: a.screeningType.name! },
       patientId: a.patientId!,
     })),
-    createdAt: receipt.createdAt ? receipt.createdAt.toISOString() : undefined,
+    createdAt: receipt.createdAt ? new Date(receipt.createdAt).toISOString() : undefined,
   };
   return c.json<TGetPatientReceiptResponse>({ ok: true, data: safeReceipt });
 });
@@ -2097,7 +2110,7 @@ appointmentApp.get("/patient/:id", async (c) => {
     patientId: appointment.patientId!,
     centerId: appointment.centerId!,
     screeningTypeId: appointment.screeningTypeId!,
-    appointmentDateTime: appointment.appointmentDateTime.toISOString(),
+    appointmentDateTime: new Date(appointment.appointmentDateTime).toISOString(),
     isDonation: appointment.isDonation!,
     status: appointment.status!,
     transactionId:
@@ -2117,7 +2130,7 @@ appointmentApp.get("/patient/:id", async (c) => {
     cancellationDate: appointment.cancellationDate
       ? appointment.cancellationDate.toISOString()
       : undefined,
-    createdAt: appointment.createdAt.toISOString(),
+    createdAt: new Date(appointment.createdAt).toISOString(),
     center: appointment.center
       ? {
           id: appointment.center.id!,
@@ -2147,7 +2160,7 @@ appointmentApp.get("/patient/:id", async (c) => {
           amount: appointment.transaction.amount!,
           paymentReference: appointment.transaction.paymentReference!,
           paymentChannel: appointment.transaction.paymentChannel!,
-          createdAt: appointment.transaction.createdAt.toISOString(),
+          createdAt: new Date(appointment.transaction.createdAt).toISOString(),
         }
       : undefined,
     result: appointment.result
@@ -2157,13 +2170,13 @@ appointmentApp.get("/patient/:id", async (c) => {
             appointment.result.notes === null
               ? undefined
               : appointment.result.notes,
-          uploadedAt: appointment.result.uploadedAt.toISOString(),
+          uploadedAt: new Date(appointment.result.uploadedAt).toISOString(),
           files: appointment.result.files.map((file) => ({
             id: file.id!,
             fileName: file.fileName!,
             fileType: file.fileType!,
             cloudinaryUrl: file.cloudinaryUrl!,
-            uploadedAt: file.uploadedAt.toISOString(),
+            uploadedAt: new Date(file.uploadedAt).toISOString(),
           })),
         }
       : undefined,

@@ -30,7 +30,12 @@ import { Hono } from "hono";
 import { env } from "hono/adapter";
 import { setCookie } from "hono/cookie";
 import { sign, verify } from "hono/jwt";
-import { ACCESS_TOKEN_TTL_SEC, REFRESH_TOKEN_TTL_SEC } from "../lib/auth-ttl";
+import {
+  ACCESS_TOKEN_TTL_SEC,
+  isRefreshTokenPayload,
+  REFRESH_TOKEN_TTL_SEC,
+  REFRESH_TOKEN_TYPE,
+} from "../lib/auth-ttl";
 import { getCenterAvailability } from "../lib/center-availability";
 import { getDB } from "../lib/db";
 import { sendEmail } from "../lib/email";
@@ -287,7 +292,7 @@ centerApp.get("/", async (c) => {
             status: center.status?.toString?.() ?? String(center.status ?? ""),
             createdAt:
               center.createdAt instanceof Date
-                ? center.createdAt.toISOString()
+                ? new Date(center.createdAt).toISOString()
                 : center.createdAt,
             services,
             staff: center.staff,
@@ -641,6 +646,7 @@ centerApp.get(
         );
         const profile = String(payload?.profile || "").toUpperCase();
         if (
+          !isRefreshTokenPayload(payload) &&
           (profile === "CENTER" || profile === "CENTER_STAFF") &&
           payload?.id === id
         ) {
@@ -711,7 +717,7 @@ centerApp.get(
       status: center.status?.toString?.() || String(center.status),
       createdAt:
         center.createdAt instanceof Date
-          ? center.createdAt.toISOString()
+          ? new Date(center.createdAt).toISOString()
           : center.createdAt,
       services,
       staff: includeStaff
@@ -1594,7 +1600,7 @@ centerApp.post(
       JWT_TOKEN_SECRET
     );
     const refreshToken = await sign(
-      { ...payload, exp: Math.floor(Date.now() / 1000) + REFRESH_TOKEN_TTL_SEC },
+      { ...REFRESH_TOKEN_TYPE, ...payload, exp: Math.floor(Date.now() / 1000) + REFRESH_TOKEN_TTL_SEC },
       JWT_TOKEN_SECRET
     );
 

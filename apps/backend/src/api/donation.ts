@@ -48,10 +48,6 @@ import {
   createNotificationForUsers,
   formatCampaignForResponse,
 } from "../lib/utils";
-// import {
-//   createNotificationForUsers,
-//   formatCampaignForResponse,
-// } from "../lib/waitlistMatchingAlg";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { z } from "zod";
 
@@ -1228,6 +1224,7 @@ donationApp.get("/verify-payment/:reference", async (c) => {
       await processSuccessfulCharge(c, {
         reference: paymentData.reference,
         amountNaira: paymentData.amountNaira,
+        currency: paymentData.currency,
         metadata: paymentData.metadata,
       });
     }

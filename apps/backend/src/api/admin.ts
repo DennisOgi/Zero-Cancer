@@ -18,6 +18,7 @@ import { Hono } from "hono";
 import { env } from "hono/adapter";
 import { setCookie } from "hono/cookie";
 import { sign } from "hono/jwt";
+import { REFRESH_TOKEN_TYPE } from "../lib/auth-ttl";
 import { getDB } from "../lib/db";
 import { sendEmail } from "../lib/email";
 import { TEnvs, THonoApp } from "../lib/types";
@@ -84,7 +85,7 @@ adminApp.post(
       );
 
       const refreshToken = await sign(
-        { ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 }, // 7 days
+        { ...REFRESH_TOKEN_TYPE, ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 }, // 7 days
         JWT_TOKEN_SECRET
       );
 
@@ -1590,18 +1591,18 @@ adminApp.post("/allocations/:id/expire", async (c) => {
     }
 
     // Expire the waitlist and return funds to campaign
-    await db.$transaction([
-      db.waitlist.update({
-        where: { id: allocation.waitlist.id },
-        data: { status: "EXPIRED" },
-      }),
-      db.donationCampaign.update({
+    await db.waitlist.update({
+      where: { id: allocation.waitlist.id },
+      data: { status: "EXPIRED" },
+    });
+    if (allocation.campaignId) {
+      await db.donationCampaign.update({
         where: { id: allocation.campaignId },
         data: {
           availableAmount: { increment: allocation.amountAllocated || 0 },
         },
-      }),
-    ]);
+      });
+    }
 
     // Send notification to patient
     try {

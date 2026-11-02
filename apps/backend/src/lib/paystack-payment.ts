@@ -17,6 +17,7 @@ type PaystackChargeMetadata = {
 export type ProcessChargeSuccessInput = {
   reference: string;
   amountNaira: number;
+  currency?: string;
   metadata?: PaystackChargeMetadata;
 };
 
@@ -54,7 +55,8 @@ export async function processSuccessfulCharge(
     await completeSavingsDepositByReference(
       c,
       reference,
-      undefined
+      undefined,
+      amountNaira
     );
     return { alreadyProcessed: false, paymentType };
   }
@@ -63,14 +65,32 @@ export async function processSuccessfulCharge(
     where: { paymentReference: reference },
   });
 
-  if (existing?.status === "COMPLETED") {
+  if (!existing) {
+    console.error("[PAYMENT] No pending transaction for reference:", reference);
+    return { alreadyProcessed: true, paymentType };
+  }
+  if (existing.status === "COMPLETED") {
+    return { alreadyProcessed: true, paymentType };
+  }
+  if (
+    (input.currency && input.currency.toUpperCase() !== "NGN") ||
+    amountNaira + 0.01 < Number(existing.amount)
+  ) {
+    console.error("[PAYMENT] Paid amount does not match transaction:", {
+      reference,
+      expected: existing.amount,
+      paid: amountNaira,
+      currency: input.currency,
+    });
     return { alreadyProcessed: true, paymentType };
   }
 
-  await db.transaction.updateMany({
-    where: { paymentReference: reference },
-    data: { status: "COMPLETED" },
-  });
+  // Only the request that wins this update may credit funds; the webhook and
+  // the public verify endpoint can race on the same reference.
+  const claimed = await db.transaction.claimForCompletion(reference);
+  if (!claimed) {
+    return { alreadyProcessed: true, paymentType };
+  }
 
   if (paymentType === "anonymous_donation") {
     await addToGeneralDonorPool(amountNaira, c);

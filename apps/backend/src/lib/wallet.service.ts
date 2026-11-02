@@ -19,6 +19,8 @@ import {
 } from './flutterwave';
 import { getSupabaseClient } from './supabase';
 
+const db = getDB;
+
 // ============================================
 // TYPES
 // ============================================

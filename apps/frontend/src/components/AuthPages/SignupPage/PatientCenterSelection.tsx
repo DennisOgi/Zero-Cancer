@@ -185,7 +185,7 @@ export function PatientCenterSelection({
     const existingToken = queryClient.getQueryData<string>([ACCESS_TOKEN_KEY])
     if (!existingToken) {
       toast.error('Your session expired. Please sign in again.')
-      navigate({ to: '/login', search: { actor: 'patient' } })
+      navigate({ to: '/login', search: { role: 'patient' } })
       return
     }
 

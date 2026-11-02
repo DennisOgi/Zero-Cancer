@@ -47,6 +47,7 @@ webhooksApp.post("/flutterwave", async (c) => {
           await processSuccessfulCharge(c, {
             reference: verified.reference,
             amountNaira: verified.amountNaira,
+            currency: verified.currency,
             metadata: verified.metadata,
           });
         }

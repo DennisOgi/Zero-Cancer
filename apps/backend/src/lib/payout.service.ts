@@ -267,10 +267,10 @@ export class PayoutService {
         type: "MANUAL",
         initiatedBy,
         periodStart: new Date(
-          Math.min(...transactions.map((tx) => tx.createdAt.getTime()))
+          Math.min(...transactions.map((tx) => new Date(tx.createdAt).getTime()))
         ),
         periodEnd: new Date(
-          Math.max(...transactions.map((tx) => tx.createdAt.getTime()))
+          Math.max(...transactions.map((tx) => new Date(tx.createdAt).getTime()))
         ),
         reason: reason || "Manual payout for completed appointments",
         payoutItems: {

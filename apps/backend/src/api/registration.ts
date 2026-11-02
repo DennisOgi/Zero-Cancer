@@ -21,7 +21,7 @@ import { env } from "hono/adapter";
 import { setCookie } from "hono/cookie";
 import { HTTPException } from "hono/http-exception";
 import { sign } from "hono/jwt";
-import { ACCESS_TOKEN_TTL_SEC, REFRESH_TOKEN_TTL_SEC } from "../lib/auth-ttl";
+import { ACCESS_TOKEN_TTL_SEC, REFRESH_TOKEN_TTL_SEC, REFRESH_TOKEN_TYPE } from "../lib/auth-ttl";
 import { getDB } from "../lib/db";
 import { uploadBase64ImageToCloudinary, isAllowedPatientPhotoUrl } from "../lib/cloudinary-signed-upload";
 import {
@@ -66,7 +66,7 @@ async function issuePatientAuthTokens(
     JWT_TOKEN_SECRET
   );
   const refreshToken = await sign(
-    { ...payload, exp: Math.floor(Date.now() / 1000) + REFRESH_TOKEN_TTL_SEC },
+    { ...REFRESH_TOKEN_TYPE, ...payload, exp: Math.floor(Date.now() / 1000) + REFRESH_TOKEN_TTL_SEC },
     JWT_TOKEN_SECRET
   );
 
@@ -96,7 +96,7 @@ async function issueDonorAuthTokens(
     JWT_TOKEN_SECRET
   );
   const refreshToken = await sign(
-    { ...payload, exp: Math.floor(Date.now() / 1000) + REFRESH_TOKEN_TTL_SEC },
+    { ...REFRESH_TOKEN_TYPE, ...payload, exp: Math.floor(Date.now() / 1000) + REFRESH_TOKEN_TTL_SEC },
     JWT_TOKEN_SECRET
   );
   setCookie(c, "refreshToken", refreshToken, {

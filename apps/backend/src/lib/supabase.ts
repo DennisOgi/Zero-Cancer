@@ -31,6 +31,12 @@ export const getSupabaseClient = (c: Context) => {
     throw new Error("Supabase configuration missing");
   }
 
+  // The anon key + gate header is a local-development fallback only; production
+  // must use the service role key so it never depends on the gate table.
+  if (env<TEnvs>(c).ENV_MODE === "production") {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY must be set in production");
+  }
+
   const gate = backendGateToken(JWT_TOKEN_SECRET);
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {

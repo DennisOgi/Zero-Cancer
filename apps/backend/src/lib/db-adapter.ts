@@ -173,12 +173,259 @@ async function getCenterIdsForServiceType(
   return [...new Set((links || []).map((link: { centerId: string }) => link.centerId))];
 }
 
+// Strip characters that have meaning inside a PostgREST `or=(...)` filter.
+function ilikeAny(columns: string[], search: string) {
+  const term = search.replace(/[,()*%\\]/g, ' ').trim();
+  return columns.map((column) => `${column}.ilike.%${term}%`).join(',');
+}
+
+function tokenTable(supabase: SupabaseClient, table: string, ownerColumn: string) {
+  return {
+    create: async ({ data }: { data: Record<string, any> }) => {
+      const { data: created, error } = await supabase
+        .from(table)
+        .insert({
+          [ownerColumn]: data[ownerColumn],
+          token: data.token,
+          expiresAt: new Date(data.expiresAt).toISOString(),
+        })
+        .select('*')
+        .single();
+      if (error) throw error;
+      return created;
+    },
+    findUnique: async ({ where }: { where: { token: string } }) => {
+      if (!where?.token) return null;
+      const { data, error } = await supabase
+        .from(table)
+        .select('*')
+        .eq('token', where.token)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      return { ...data, expiresAt: new Date(String(data.expiresAt)) };
+    },
+    delete: async ({ where }: { where: { token: string } }) => {
+      const { error } = await supabase.from(table).delete().eq('token', where.token);
+      if (error) throw error;
+      return { token: where.token };
+    },
+  };
+}
+
+/** Applies the admin user-list filters (id list, search, profile type). */
+function userListQuery(
+  supabase: SupabaseClient,
+  where: any,
+  columns: string,
+  options?: { count: 'exact'; head: true },
+) {
+  // Profile-type filters need an inner join so users without that profile drop out.
+  let select = columns;
+  if (where?.patientProfile?.isNot === null) {
+    select = select.includes('patientProfile:')
+      ? select.replace('PatientProfile_userId_fkey(', 'PatientProfile_userId_fkey!inner(')
+      : `${select}, patientProfile:PatientProfile!PatientProfile_userId_fkey!inner(id)`;
+  }
+  if (where?.donorProfile?.isNot === null) {
+    select = select.includes('donorProfile:')
+      ? select.replace('DonorProfile_userId_fkey(', 'DonorProfile_userId_fkey!inner(')
+      : `${select}, donorProfile:DonorProfile!DonorProfile_userId_fkey!inner(id)`;
+  }
+
+  let query = supabase.from('User').select(select, options);
+  if (where?.id?.in) query = query.in('id', where.id.in.length ? where.id.in : ['00000000-0000-0000-0000-000000000000']);
+  const search = where?.OR?.[0]?.fullName?.contains;
+  if (search) query = query.or(ilikeAny(['fullName', 'email'], search));
+  return query;
+}
+
+async function includeAllocationRelations(
+  supabase: SupabaseClient,
+  allocation: Record<string, any>,
+  include?: { waitlist?: unknown; campaign?: unknown },
+) {
+  const result: Record<string, any> = { ...allocation };
+  if (include?.waitlist) {
+    const { data, error } = await supabase
+      .from('Waitlist')
+      .select('*, screening:ScreeningType(name)')
+      .eq('id', allocation.waitlistId)
+      .maybeSingle();
+    if (error) throw error;
+    result.waitlist = data;
+  }
+  if (include?.campaign && allocation.campaignId) {
+    const { data, error } = await supabase
+      .from('DonationCampaign')
+      .select('*')
+      .eq('id', allocation.campaignId)
+      .maybeSingle();
+    if (error) throw error;
+    result.campaign = data;
+  }
+  return result;
+}
+
+function allocationQuery(
+  supabase: SupabaseClient,
+  where: any,
+  columns: string,
+  options?: { count: 'exact'; head: true },
+) {
+  let query = supabase.from('DonationAllocation').select(columns, options);
+  if (where?.patientId) query = query.eq('patientId', where.patientId);
+  if (where?.campaignId) query = query.eq('campaignId', where.campaignId);
+  if (where?.claimedAt === null) query = query.is('claimedAt', null);
+  if (where?.waitlist?.status) query = query.eq('waitlist.status', where.waitlist.status);
+  return query;
+}
+
+function matchingExecutionQuery(
+  supabase: SupabaseClient,
+  where: any,
+  columns: string,
+  options?: { count: 'exact'; head: true },
+) {
+  let query = supabase.from('matching_executions').select(columns, options);
+  if (where?.status) query = query.eq('status', where.status);
+  if (where?.startedAt?.gte) query = query.gte('startedAt', new Date(where.startedAt.gte).toISOString());
+  if (where?.startedAt?.lte) query = query.lte('startedAt', new Date(where.startedAt.lte).toISOString());
+  return query;
+}
+
+function matchingLogQuery(
+  supabase: SupabaseClient,
+  where: any,
+  columns: string,
+  options?: { count: 'exact'; head: true },
+) {
+  let query = supabase
+    .from('matching_execution_logs')
+    .select(columns, options)
+    .eq('executionId', where.executionId);
+  for (const key of ['level', 'patientId', 'campaignId']) {
+    if (where?.[key]) query = query.eq(key, where[key]);
+  }
+  return query;
+}
+
+const BLOG_POST_COLUMNS = [
+  'title',
+  'slug',
+  'excerpt',
+  'content',
+  'coverImage',
+  'authorId',
+  'published',
+  'publishedAt',
+];
+
+function blogPostRow(data: Record<string, unknown>) {
+  const row: Record<string, unknown> = {};
+  for (const column of BLOG_POST_COLUMNS) {
+    if (data[column] === undefined) continue;
+    const value = data[column];
+    row[column] = value instanceof Date ? value.toISOString() : value;
+  }
+  return row;
+}
+
+/** Returns null when a category filter matches no posts. Wrapped so the builder is not awaited. */
+async function blogPostQuery(
+  supabase: SupabaseClient,
+  where: any,
+  columns: string,
+  options?: { count: 'exact'; head: true },
+) {
+  let query = supabase.from('blog_posts').select(columns, options);
+  if (where?.published !== undefined) query = query.eq('published', where.published);
+
+  const categorySlug = where?.categories?.some?.category?.slug;
+  if (categorySlug) {
+    const { data: category, error } = await supabase
+      .from('blog_categories')
+      .select('id')
+      .eq('slug', categorySlug)
+      .maybeSingle();
+    if (error) throw error;
+    if (!category) return null;
+    const { data: links, error: linksError } = await supabase
+      .from('blog_post_categories')
+      .select('postId')
+      .eq('categoryId', category.id);
+    if (linksError) throw linksError;
+    const postIds = (links || []).map((link: { postId: string }) => link.postId);
+    if (!postIds.length) return null;
+    query = query.in('id', postIds);
+  }
+
+  const search = where?.OR?.[0]?.title?.contains;
+  if (search) query = query.or(ilikeAny(['title', 'excerpt'], search));
+  return { query };
+}
+
+async function enrichBlogPosts(supabase: SupabaseClient, posts: Record<string, any>[]) {
+  if (!posts.length) return [];
+  const postIds = posts.map((post) => post.id);
+  const authorIds = [...new Set(posts.map((post) => post.authorId).filter(Boolean))];
+
+  const [{ data: links, error: linksError }, { data: admins }, { data: users }] =
+    await Promise.all([
+      supabase
+        .from('blog_post_categories')
+        .select('postId, category:blog_categories(id, name, slug, description)')
+        .in('postId', postIds),
+      authorIds.length
+        ? supabase.from('Admins').select('id, fullName, email').in('id', authorIds)
+        : Promise.resolve({ data: [] as any[] }),
+      authorIds.length
+        ? supabase.from('User').select('id, fullName, email').in('id', authorIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+  if (linksError) throw linksError;
+
+  const authors = new Map(
+    [...(users || []), ...(admins || [])].map((author: any) => [author.id, author]),
+  );
+  return posts.map((post) => ({
+    ...post,
+    author: authors.get(post.authorId) || null,
+    categories: (links || [])
+      .filter((link: any) => link.postId === post.id && link.category)
+      .map((link: any) => ({ category: link.category })),
+  }));
+}
+
 export const getDB = (c: Context) => {
   const supabase = getSupabaseClient(c);
   
   return {
     // Admin operations
     admins: {
+      create: async ({ data }: { data: { fullName: string; email: string; passwordHash: string } }) => {
+        const { data: admin, error } = await supabase
+          .from('Admins')
+          .insert({
+            fullName: data.fullName,
+            email: data.email,
+            passwordHash: data.passwordHash,
+          })
+          .select('*')
+          .single();
+        if (error) throw error;
+        return admin;
+      },
+      update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+        const { data: admin, error } = await supabase
+          .from('Admins')
+          .update(data)
+          .eq('id', where.id)
+          .select('*')
+          .single();
+        if (error) throw error;
+        return admin;
+      },
       findUnique: async ({ where }: { where: { email?: string; id?: string } }) => {
         let query = supabase.from('Admins').select('*');
         
@@ -464,14 +711,58 @@ export const getDB = (c: Context) => {
         return selected;
       },
       
-      count: async () => {
-        const { count, error } = await supabase
-          .from('User')
-          .select('*', { count: 'exact', head: true });
+      count: async ({ where }: any = {}) => {
+        const { count, error } = await userListQuery(supabase, where, 'id', {
+          count: 'exact',
+          head: true,
+        });
         if (error) throw error;
         return count || 0;
       },
-      
+
+      findMany: async ({ where, include, skip = 0, take }: any = {}) => {
+        const columns = [
+          'id, fullName, email, phone, createdAt',
+          include?.patientProfile || where?.patientProfile
+            ? 'patientProfile:PatientProfile!PatientProfile_userId_fkey(id, emailVerified, gender, dateOfBirth, city, state)'
+            : null,
+          include?.donorProfile || where?.donorProfile
+            ? 'donorProfile:DonorProfile!DonorProfile_userId_fkey(id, emailVerified, organizationName, country)'
+            : null,
+        ]
+          .filter(Boolean)
+          .join(', ');
+        let query = userListQuery(supabase, where, columns).order('createdAt', { ascending: false });
+        if (take) query = query.range(skip, skip + take - 1);
+        const { data, error } = await query;
+        if (error) throw error;
+        const users = ((data as any[]) || []).map((user) => ({
+          ...user,
+          // PostgREST returns one-to-one embeds as arrays when the FK is not unique.
+          patientProfile: Array.isArray(user.patientProfile) ? user.patientProfile[0] ?? null : user.patientProfile,
+          donorProfile: Array.isArray(user.donorProfile) ? user.donorProfile[0] ?? null : user.donorProfile,
+        }));
+        if (!include?.appointments && !include?.donationCampaigns) return users;
+
+        return Promise.all(
+          users.map(async (user) => {
+            const [{ data: appointments }, { data: donationCampaigns }] = await Promise.all([
+              include?.appointments
+                ? supabase.from('Appointment').select('id, status, createdAt').eq('patientId', user.id).order('createdAt', { ascending: false }).limit(3)
+                : Promise.resolve({ data: undefined }),
+              include?.donationCampaigns
+                ? supabase.from('DonationCampaign').select('id, status, totalAmount').eq('donorId', user.id).order('createdAt', { ascending: false }).limit(3)
+                : Promise.resolve({ data: undefined }),
+            ]);
+            return {
+              ...user,
+              ...(include?.appointments ? { appointments: appointments || [] } : {}),
+              ...(include?.donationCampaigns ? { donationCampaigns: donationCampaigns || [] } : {}),
+            };
+          }),
+        );
+      },
+
       create: async ({ data, include }: any) => {
         const { data: user, error: userError } = await supabase
           .from('User')
@@ -622,9 +913,10 @@ export const getDB = (c: Context) => {
           .select('*')
           .eq('token', where.token)
           .single();
-          
+
         if (error && error.code !== 'PGRST116') throw error;
-        return data;
+        if (!data) return null;
+        return { ...data, expiresAt: new Date(String(data.expiresAt)) };
       },
       
       delete: async ({ where }: any) => {
@@ -678,14 +970,40 @@ export const getDB = (c: Context) => {
           .select('*')
           .eq('userId', where.userId)
           .single();
-          
+
         if (error && error.code !== 'PGRST116') throw error;
         return data;
       },
+
+      update: async ({ where, data }: { where: { userId: string }; data: Record<string, unknown> }) => {
+        const updates = { ...data };
+        if (updates.emailVerified instanceof Date) {
+          updates.emailVerified = updates.emailVerified.toISOString();
+        }
+        const { data: profile, error } = await supabase
+          .from('DonorProfile')
+          .update(updates)
+          .eq('userId', where.userId)
+          .select('*')
+          .single();
+        if (error) throw error;
+        return profile;
+      },
     },
-    
+
     // Screening type operations
     screeningType: {
+      update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+        const { data: updated, error } = await supabase
+          .from('ScreeningType')
+          .update(data)
+          .eq('id', where.id)
+          .select('*')
+          .single();
+        if (error) throw error;
+        return updated;
+      },
+
       findMany: async ({ where, skip, take, orderBy, select }: any = {}) => {
         let query = supabase.from('ScreeningType').select('*');
         
@@ -1346,6 +1664,12 @@ export const getDB = (c: Context) => {
     
     // Waitlist operations
     waitlist: {
+      delete: async ({ where }: { where: { id: string } }) => {
+        const { error } = await supabase.from("Waitlist").delete().eq("id", where.id);
+        if (error) throw error;
+        return { id: where.id };
+      },
+
       findFirst: async ({ where, include }: any = {}) => {
         let query = supabase.from("Waitlist").select("*");
 
@@ -2536,6 +2860,21 @@ export const getDB = (c: Context) => {
     },
 
     donationAllocation: {
+      update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+        const updates: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(data)) {
+          updates[key] = value instanceof Date ? value.toISOString() : value;
+        }
+        const { data: updated, error } = await supabase
+          .from("DonationAllocation")
+          .update(updates)
+          .eq("id", where.id)
+          .select("*")
+          .single();
+        if (error) throw error;
+        return updated;
+      },
+
       findUnique: async ({ where, include }: any = {}) => {
         let query = supabase.from("DonationAllocation").select("*");
 
@@ -2547,7 +2886,7 @@ export const getDB = (c: Context) => {
 
         const { data, error } = await query.limit(1).maybeSingle();
         if (error && error.code !== "PGRST116") throw error;
-        return data;
+        return data ? includeAllocationRelations(supabase, data, include) : null;
       },
 
       findFirst: async ({ where, include }: any = {}) => {
@@ -2561,21 +2900,44 @@ export const getDB = (c: Context) => {
 
         const { data, error } = await query.limit(1).maybeSingle();
         if (error && error.code !== "PGRST116") throw error;
-        return data;
+        return data ? includeAllocationRelations(supabase, data, include) : null;
       },
 
       count: async ({ where }: any = {}) => {
-        let query = supabase
-          .from("DonationAllocation")
-          .select("*", { count: "exact", head: true });
-
-        if (where?.patientId) query = query.eq("patientId", where.patientId);
-        if (where?.campaignId) query = query.eq("campaignId", where.campaignId);
-        if (where?.claimedAt === null) query = query.is("claimedAt", null);
-
-        const { count, error } = await query;
+        const { count, error } = await allocationQuery(
+          supabase,
+          where,
+          where?.waitlist?.status ? "id, waitlist:Waitlist!inner(status)" : "id",
+          { count: "exact", head: true },
+        );
         if (error) throw error;
         return count || 0;
+      },
+
+      findMany: async ({ where, skip = 0, take }: any = {}) => {
+        const waitlistJoin = where?.waitlist?.status ? "Waitlist!inner" : "Waitlist";
+        let query = allocationQuery(
+          supabase,
+          where,
+          `*,
+          patient:User!DonationAllocation_patientId_fkey(id, fullName, email, patientProfile:PatientProfile!PatientProfile_userId_fkey(state, city)),
+          campaign:DonationCampaign(id, title, donor:User!DonationCampaign_donorId_fkey(id, fullName)),
+          waitlist:${waitlistJoin}(id, status, joinedAt, screening:ScreeningType(name))`,
+        ).order("id", { ascending: false });
+        if (take) query = query.range(skip, skip + take - 1);
+        const { data, error } = await query;
+        if (error) throw error;
+        return (data || []).map((allocation: any) => ({
+          ...allocation,
+          patient: allocation.patient
+            ? {
+                ...allocation.patient,
+                patientProfile: Array.isArray(allocation.patient.patientProfile)
+                  ? allocation.patient.patientProfile[0] ?? null
+                  : allocation.patient.patientProfile,
+              }
+            : null,
+        }));
       },
 
       create: async ({ data }: any = {}) => {
@@ -2612,6 +2974,79 @@ export const getDB = (c: Context) => {
     },
 
     transaction: {
+      /**
+       * Atomically flips a non-completed transaction to COMPLETED.
+       * Returns the row only for the single caller that won the update.
+       */
+      aggregate: async ({ where }: any = {}) => {
+        let query = supabase.from("Transaction").select("id, amount");
+        if (where?.status) query = query.eq("status", where.status);
+        if (where?.type) query = query.eq("type", where.type);
+        if (where?.createdAt?.gte) query = query.gte("createdAt", new Date(where.createdAt.gte).toISOString());
+        if (where?.createdAt?.lte) query = query.lte("createdAt", new Date(where.createdAt.lte).toISOString());
+
+        const centerId = where?.appointments?.some?.centerId;
+        if (centerId) {
+          const { data: appointments, error: apptError } = await supabase
+            .from("Appointment")
+            .select("transactionId")
+            .eq("centerId", centerId)
+            .not("transactionId", "is", null);
+          if (apptError) throw apptError;
+          const ids = [...new Set((appointments || []).map((a: { transactionId: string }) => a.transactionId))];
+          if (!ids.length) return { _sum: { amount: 0 }, _avg: { amount: 0 }, _count: 0 };
+          query = query.in("id", ids);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        const amounts = (data || []).map((row: { amount: number }) => Number(row.amount) || 0);
+        const sum = amounts.reduce((total, amount) => total + amount, 0);
+        return {
+          _sum: { amount: sum },
+          _avg: { amount: amounts.length ? sum / amounts.length : 0 },
+          _count: amounts.length,
+        };
+      },
+
+      claimForCompletion: async (paymentReference: string) => {
+        const { data, error } = await supabase
+          .from("Transaction")
+          .update({ status: "COMPLETED" })
+          .eq("paymentReference", paymentReference)
+          .neq("status", "COMPLETED")
+          .select("*");
+        if (error) throw error;
+        return data?.[0] ?? null;
+      },
+
+      findUnique: async ({ where, include }: any) => {
+        const { data, error } = await supabase
+          .from("Transaction")
+          .select("*")
+          .eq("id", where.id)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) return null;
+
+        const result: Record<string, any> = {
+          ...data,
+          createdAt: new Date(String(data.createdAt)),
+        };
+        if (include?.appointments) {
+          const { data: appointments, error: apptError } = await supabase
+            .from("Appointment")
+            .select("id, patientId, appointmentDateTime, screeningType:ScreeningType(id, name)")
+            .eq("transactionId", data.id);
+          if (apptError) throw apptError;
+          result.appointments = (appointments || []).map((a: any) => ({
+            ...a,
+            appointmentDateTime: new Date(String(a.appointmentDateTime)),
+          }));
+        }
+        return result;
+      },
+
       findMany: async ({ where, include, orderBy }: any = {}) => {
         let transactionIds: string[] | null = null;
         const centerId = where?.appointments?.some?.centerId;
@@ -2797,6 +3232,21 @@ export const getDB = (c: Context) => {
     },
 
     payout: {
+      updateMany: async ({ where, data }: { where: { transferReference: string }; data: Record<string, unknown> }) => {
+        if (!where?.transferReference) return { count: 0 };
+        const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+        for (const [key, value] of Object.entries(data)) {
+          updates[key] = value instanceof Date ? value.toISOString() : value;
+        }
+        const { data: rows, error } = await supabase
+          .from("payouts")
+          .update(updates)
+          .eq("transferReference", where.transferReference)
+          .select("id");
+        if (error) throw error;
+        return { count: rows?.length ?? 0 };
+      },
+
       findMany: async ({ where, skip, take, orderBy, include }: any = {}) => {
         let query = supabase.from("payouts").select("*");
         if (where?.centerId) query = query.eq("centerId", where.centerId);
@@ -2906,6 +3356,28 @@ export const getDB = (c: Context) => {
 
     // Center Cashout operations
     centerCashout: {
+      findFirst: async ({ where }: { where: { OR: { paystackReference?: string; id?: string }[] } }) => {
+        const isUuid = (value?: string) =>
+          !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+        const filters = (where?.OR || [])
+          .flatMap((clause) => [
+            clause.paystackReference
+              ? `paystackReference.eq.${clause.paystackReference.replace(/[,()]/g, '')}`
+              : null,
+            isUuid(clause.id) ? `id.eq.${clause.id}` : null,
+          ])
+          .filter(Boolean);
+        if (!filters.length) return null;
+        const { data, error } = await supabase
+          .from('CenterCashout')
+          .select('*')
+          .or(filters.join(','))
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        return data;
+      },
+
       create: async ({ data }: any) => {
         const { data: cashout, error } = await supabase
           .from('CenterCashout')
@@ -3311,6 +3783,45 @@ export const getDB = (c: Context) => {
     },
 
     screeningResultFile: {
+      /** Finds a file only if its result's appointment belongs to the given center. */
+      findFirst: async ({ where }: any) => {
+        const { data: file, error } = await supabase
+          .from("ScreeningResultFile")
+          .select("*")
+          .eq("id", where.id)
+          .eq("isDeleted", Boolean(where.isDeleted))
+          .maybeSingle();
+        if (error) throw error;
+        if (!file) return null;
+
+        const { data: result, error: resultError } = await supabase
+          .from("ScreeningResult")
+          .select("*, appointment:Appointment(id, status, patientId, centerId)")
+          .eq("id", file.resultId)
+          .maybeSingle();
+        if (resultError) throw resultError;
+        const centerId = where.result?.appointment?.centerId;
+        if (!result?.appointment || (centerId && result.appointment.centerId !== centerId)) {
+          return null;
+        }
+        return { ...file, result };
+      },
+
+      update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+        const updates: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(data)) {
+          updates[key] = value instanceof Date ? value.toISOString() : value;
+        }
+        const { data: updated, error } = await supabase
+          .from("ScreeningResultFile")
+          .update(updates)
+          .eq("id", where.id)
+          .select("*")
+          .single();
+        if (error) throw error;
+        return updated;
+      },
+
       createMany: async ({ data }: { data: Record<string, unknown>[] }) => {
         if (!data.length) return { count: 0 };
 
@@ -3550,6 +4061,223 @@ export const getDB = (c: Context) => {
             ? new Date(String(request.respondedAt))
             : null,
         };
+      },
+    },
+
+    passwordResetToken: tokenTable(supabase, "PasswordResetToken", "userId"),
+    adminResetToken: tokenTable(supabase, "AdminResetToken", "adminId"),
+
+    association: {
+      findMany: async ({ where, skip = 0, take = 20, orderBy }: any = {}) => {
+        let query = supabase.from("Association").select("*");
+        const search = where?.OR?.[0]?.name?.contains;
+        if (search) query = query.or(ilikeAny(["name", "description"], search));
+        query = query.order(orderBy?.name ? "name" : "createdAt", {
+          ascending: orderBy?.name !== "desc",
+        });
+        const { data, error } = await query.range(skip, skip + take - 1);
+        if (error) throw error;
+        return data || [];
+      },
+      count: async ({ where }: any = {}) => {
+        let query = supabase.from("Association").select("*", { count: "exact", head: true });
+        const search = where?.OR?.[0]?.name?.contains;
+        if (search) query = query.or(ilikeAny(["name", "description"], search));
+        const { count, error } = await query;
+        if (error) throw error;
+        return count || 0;
+      },
+      create: async ({ data }: { data: { name: string; description?: string | null } }) => {
+        const { data: created, error } = await supabase
+          .from("Association")
+          .insert({ name: data.name, description: data.description ?? null })
+          .select("*")
+          .single();
+        if (error) throw error;
+        return created;
+      },
+    },
+
+    storeProduct: {
+      findMany: async ({ where, skip = 0, take = 20 }: any = {}) => {
+        let query = supabase.from("StoreProduct").select("*");
+        const search = where?.OR?.[0]?.name?.contains;
+        if (search) query = query.or(ilikeAny(["name", "description"], search));
+        const { data, error } = await query
+          .order("createdAt", { ascending: false })
+          .range(skip, skip + take - 1);
+        if (error) throw error;
+        return data || [];
+      },
+      count: async ({ where }: any = {}) => {
+        let query = supabase.from("StoreProduct").select("*", { count: "exact", head: true });
+        const search = where?.OR?.[0]?.name?.contains;
+        if (search) query = query.or(ilikeAny(["name", "description"], search));
+        const { count, error } = await query;
+        if (error) throw error;
+        return count || 0;
+      },
+      findUnique: async ({ where }: { where: { id: string } }) => {
+        const { data, error } = await supabase
+          .from("StoreProduct")
+          .select("*")
+          .eq("id", where.id)
+          .maybeSingle();
+        if (error) throw error;
+        return data;
+      },
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        const { data: created, error } = await supabase
+          .from("StoreProduct")
+          .insert(data)
+          .select("*")
+          .single();
+        if (error) throw error;
+        return created;
+      },
+      update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+        const { data: updated, error } = await supabase
+          .from("StoreProduct")
+          .update(data)
+          .eq("id", where.id)
+          .select("*")
+          .single();
+        if (error) throw error;
+        return updated;
+      },
+    },
+
+    matchingExecution: {
+      findMany: async ({ where, skip = 0, take = 20, include }: any = {}) => {
+        const columns = include?.screeningTypeResults
+          ? "*, screeningTypeResults:matching_screening_type_results(id, screeningTypeName, patientsProcessed, matchesCreated, fundsAllocated, processingTimeMs)"
+          : "*";
+        const { data, error } = await matchingExecutionQuery(supabase, where, columns)
+          .order("startedAt", { ascending: false })
+          .range(skip, skip + take - 1);
+        if (error) throw error;
+        return data || [];
+      },
+      count: async ({ where }: any = {}) => {
+        const { count, error } = await matchingExecutionQuery(supabase, where, "id", {
+          count: "exact",
+          head: true,
+        });
+        if (error) throw error;
+        return count || 0;
+      },
+      findUnique: async ({ where }: { where: { id: string } }) => {
+        const { data, error } = await supabase
+          .from("matching_executions")
+          .select("*, screeningTypeResults:matching_screening_type_results(*)")
+          .eq("id", where.id)
+          .order("processingStarted", {
+            ascending: true,
+            referencedTable: "matching_screening_type_results",
+          })
+          .maybeSingle();
+        if (error) throw error;
+        return data;
+      },
+    },
+
+    matchingExecutionLog: {
+      findMany: async ({ where, skip = 0, take = 50 }: any = {}) => {
+        const { data, error } = await matchingLogQuery(supabase, where, "*")
+          .order("timestamp", { ascending: true })
+          .range(skip, skip + take - 1);
+        if (error) throw error;
+        return data || [];
+      },
+      count: async ({ where }: any = {}) => {
+        const { count, error } = await matchingLogQuery(supabase, where, "id", {
+          count: "exact",
+          head: true,
+        });
+        if (error) throw error;
+        return count || 0;
+      },
+    },
+
+    blogCategory: {
+      findMany: async () => {
+        const { data, error } = await supabase
+          .from("blog_categories")
+          .select("*")
+          .order("name", { ascending: true });
+        if (error) throw error;
+        return data || [];
+      },
+    },
+
+    blogPostCategory: {
+      createMany: async ({ data }: { data: { postId: string; categoryId: string }[] }) => {
+        if (!data.length) return { count: 0 };
+        const { error } = await supabase.from("blog_post_categories").insert(data);
+        if (error) throw error;
+        return { count: data.length };
+      },
+      deleteMany: async ({ where }: { where: { postId: string } }) => {
+        const { error } = await supabase
+          .from("blog_post_categories")
+          .delete()
+          .eq("postId", where.postId);
+        if (error) throw error;
+        return { count: 0 };
+      },
+    },
+
+    blogPost: {
+      findMany: async ({ where, skip = 0, take = 20, orderBy, include }: any = {}) => {
+        const built = await blogPostQuery(supabase, where, "*");
+        if (!built) return [];
+        const { data, error } = await built.query
+          .order(orderBy?.publishedAt ? "publishedAt" : "createdAt", { ascending: false })
+          .range(skip, skip + take - 1);
+        if (error) throw error;
+        return include ? enrichBlogPosts(supabase, data || []) : data || [];
+      },
+      count: async ({ where }: any = {}) => {
+        const built = await blogPostQuery(supabase, where, "*", { count: "exact", head: true });
+        if (!built) return 0;
+        const { count, error } = await built.query;
+        if (error) throw error;
+        return count || 0;
+      },
+      findUnique: async ({ where, include }: any) => {
+        let query = supabase.from("blog_posts").select("*");
+        if (where.id) query = query.eq("id", where.id);
+        else if (where.slug) query = query.eq("slug", where.slug);
+        else return null;
+        const { data, error } = await query.maybeSingle();
+        if (error) throw error;
+        if (!data) return null;
+        return include ? (await enrichBlogPosts(supabase, [data]))[0] : data;
+      },
+      create: async ({ data }: any) => {
+        const { data: created, error } = await supabase
+          .from("blog_posts")
+          .insert(blogPostRow(data))
+          .select("*")
+          .single();
+        if (error) throw error;
+        return created;
+      },
+      update: async ({ where, data, include }: any) => {
+        const { data: updated, error } = await supabase
+          .from("blog_posts")
+          .update({ ...blogPostRow(data), updatedAt: new Date().toISOString() })
+          .eq("id", where.id)
+          .select("*")
+          .single();
+        if (error) throw error;
+        return include ? (await enrichBlogPosts(supabase, [updated]))[0] : updated;
+      },
+      delete: async ({ where }: { where: { id: string } }) => {
+        await supabase.from("blog_post_categories").delete().eq("postId", where.id);
+        const { error } = await supabase.from("blog_posts").delete().eq("id", where.id);
+        if (error) throw error;
+        return { id: where.id };
       },
     },
 
