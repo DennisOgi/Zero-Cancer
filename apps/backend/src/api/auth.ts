@@ -470,6 +470,7 @@ authApp.get(
             staffRole: isFacilityAdmin && !staffRole ? "ADMIN" : staffRole,
             staffFullName: staffName,
             centerName: center.centerName!,
+            centerStatus: center.status ?? undefined,
           },
         },
       });

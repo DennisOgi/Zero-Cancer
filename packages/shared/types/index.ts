@@ -124,6 +124,8 @@ export type TAuthMeResponse = TDataResponse<{
     staffRole?: "ADMIN" | "DOCTOR" | "NURSE" | "STAFF";
     staffFullName?: string;
     centerName?: string;
+    /** Facility approval status (CENTER / CENTER_STAFF only), e.g. PENDING or ACTIVE. */
+    centerStatus?: string;
     referredByStaffId?: string | null;
   };
 }>;
