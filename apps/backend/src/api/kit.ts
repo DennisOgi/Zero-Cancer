@@ -419,6 +419,28 @@ kitApp.post(
         .maybeSingle();
 
       const requestedAt = new Date().toISOString();
+
+      // A preview is a draft for the buyer to review: nothing is saved and it
+      // has no invoice number until the buyer confirms.
+      if (body.preview) {
+        return c.json({
+          ok: true,
+          data: {
+            preview: true,
+            invoice: {
+              ...buildEoiInvoice({
+                invoiceNumber: "DRAFT",
+                issuedAt: requestedAt,
+                lines: lineItems,
+                buyer: centerBuyerFromRow(center, payload?.email),
+              }),
+              title: "Expression of Interest — Draft",
+              footerNote: "Not submitted yet. Confirm to send this Expression of Interest.",
+            },
+          },
+        });
+      }
+
       const requestedBy = payload?.email || payload?.staffId || centerId;
       const invoiceNumber = `EOI-${Date.now().toString(36).toUpperCase()}`;
       const lineSummary = lineItems

@@ -157,6 +157,8 @@ export const createKitOrder = async (data: {
   quantity?: number
   urgency?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
   notes?: string
+  /** Build a draft invoice for review without submitting the order. */
+  preview?: boolean
 }) => {
   return request.post(endpoints.createKitOrder(), data)
 }

@@ -211,7 +211,13 @@ export function PatientCenterSelection({
             <CardTitle className="text-base text-blue-900">Current center</CardTitle>
           </CardHeader>
           <CardContent>
-            <CenterCard center={assignedCenter} />
+            {/* The recommended list has the current center's services and distance. */}
+            <CenterCard
+              center={
+                recommendedCenters.find((center) => center.id === assignedCenter.id) ??
+                assignedCenter
+              }
+            />
           </CardContent>
         </Card>
       ) : null}
@@ -290,7 +296,7 @@ function CenterCard({
               ? 'In your LGA'
               : center.distanceTier === 'same_state'
                 ? 'In your state'
-                : 'Nearest available center'}
+                : 'Outside your state'}
           </span>
         </div>
       </CardHeader>

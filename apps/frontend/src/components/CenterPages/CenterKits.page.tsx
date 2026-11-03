@@ -265,6 +265,8 @@ export function CenterKitsPage() {
   )
   const [notes, setNotes] = useState('')
   const [invoice, setInvoice] = useState<TEoiInvoice | null>(null)
+  // A draft invoice is a preview of an order that has not been submitted.
+  const [isDraft, setIsDraft] = useState(false)
 
   const stats = statsData?.data
   const kits = kitsData?.data?.kits || []
@@ -284,9 +286,18 @@ export function CenterKitsPage() {
     )
   }
 
-  const onCheckout = async () => {
+  const orderPayload = () => ({
+    items: selectedLines.map((line) => ({
+      kitProduct: line.kitProduct,
+      quantity: line.quantity,
+    })),
+    notes: notes.trim() || undefined,
+  })
+
+  // Step 1: show a draft invoice. Nothing is submitted until Confirm.
+  const onPreview = async () => {
     if (selectedLines.length === 0) {
-      toast.error('Select at least one device or kit before checkout')
+      toast.error('Select at least one device or kit to preview')
       return
     }
     for (const line of selectedLines) {
@@ -301,12 +312,24 @@ export function CenterKitsPage() {
     }
     try {
       const result = (await createOrder.mutateAsync({
-        items: selectedLines.map((line) => ({
-          kitProduct: line.kitProduct,
-          quantity: line.quantity,
-        })),
-        notes: notes.trim() || undefined,
-      })) as {
+        ...orderPayload(),
+        preview: true,
+      })) as { data?: { invoice?: TEoiInvoice } }
+      if (result?.data?.invoice) {
+        setInvoice(result.data.invoice)
+        setIsDraft(true)
+      }
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.error || 'Could not preview Expression of Interest',
+      )
+    }
+  }
+
+  // Step 2: submit the previewed order; only now does it get an invoice number.
+  const onConfirm = async () => {
+    try {
+      const result = (await createOrder.mutateAsync(orderPayload())) as {
         ok?: boolean
         message?: string
         data?: { invoice?: TEoiInvoice }
@@ -321,6 +344,7 @@ export function CenterKitsPage() {
         })),
       )
       setNotes('')
+      setIsDraft(false)
       if (result?.data?.invoice) {
         setInvoice(result.data.invoice)
       }
@@ -344,6 +368,7 @@ export function CenterKitsPage() {
     try {
       const result = await loadInvoice.mutateAsync(group.invoiceNumber)
       if (result?.data?.invoice) {
+        setIsDraft(false)
         setInvoice(result.data.invoice)
       }
     } catch (error: any) {
@@ -366,7 +391,7 @@ export function CenterKitsPage() {
               <p className="mt-2 max-w-2xl text-sm text-white/80">
                 {isClinicalStaff
                   ? 'Place a personal Expression of Interest for kits you need. Facility-wide orders stay with your admin.'
-                  : 'Select products from the catalogue, check out once, and receive an Expression of Interest invoice. Prices are confirmed when ZeroCancer contacts you.'}
+                  : 'Select products from the catalogue, preview your Expression of Interest, then confirm to submit it. Prices are confirmed when ZeroCancer contacts you.'}
               </p>
             </div>
             <div className="rounded-xl bg-white/10 px-4 py-3 text-sm backdrop-blur">
@@ -716,13 +741,13 @@ export function CenterKitsPage() {
               />
               <Button
                 className="h-10 shrink-0 bg-primary px-5 text-white"
-                onClick={onCheckout}
+                onClick={onPreview}
                 disabled={createOrder.isPending}
               >
                 {createOrder.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Checkout — Expression of Interest
+                Preview — Expression of Interest
               </Button>
             </div>
           </div>
@@ -742,7 +767,9 @@ export function CenterKitsPage() {
               Expression of Interest Invoice
             </DialogTitle>
             <DialogDescription>
-              Prices are not listed. ZeroCancer will contact you to confirm.
+              {isDraft
+                ? 'Draft — not submitted. Check the items, then Confirm to send your Expression of Interest.'
+                : 'Prices are not listed. ZeroCancer will contact you to confirm.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -828,14 +855,23 @@ export function CenterKitsPage() {
             <Button variant="outline" onClick={() => setInvoice(null)}>
               Close
             </Button>
-            <Button
-              onClick={() => {
-                if (invoice) printEoiInvoice(invoice)
-              }}
-            >
-              <Printer className="mr-2 h-4 w-4" />
-              Print / Save PDF
-            </Button>
+            {isDraft ? (
+              <Button onClick={onConfirm} disabled={createOrder.isPending}>
+                {createOrder.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Confirm
+              </Button>
+            ) : (
+              <Button
+                onClick={() => {
+                  if (invoice) printEoiInvoice(invoice)
+                }}
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Print / Save PDF
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -44,6 +44,7 @@ import {
   normalizeWhatsappNumber,
 } from "../lib/phone";
 import type { ServiceTypeKey } from "../lib/service-type-utils";
+import { getAgentNetworkConfig } from "../lib/agent-network-config";
 import { getSupabaseClient } from "../lib/supabase";
 import {
   DEACTIVATED_FACILITY_STATUSES,
@@ -324,6 +325,7 @@ centerApp.get("/", async (c) => {
           pageSize: pageSize!,
           total: total!,
           totalPages: Math.ceil(total / pageSize!),
+          homeVisitSurcharge: getAgentNetworkConfig(c.env || {}).homeVisitSurchargeFlat,
         },
       });
     } catch (error) {

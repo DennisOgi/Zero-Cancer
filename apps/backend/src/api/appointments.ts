@@ -1141,9 +1141,10 @@ appointmentApp.post(
         );
         const staffHit = await getStaffByReferralCode(c, referralCode);
         if (staffHit?.staff) {
+          // No preferredCenterId: that would move the patient to this center
+          // before the booking is paid.
           await acceptStaffReferral(c, userId, referralCode, {
             commissionAllowed,
-            preferredCenterId: centerId,
           });
         } else {
           const { acceptReferralInvite } = await import("../lib/agent.service");
@@ -1164,10 +1165,10 @@ appointmentApp.post(
     } else if (commissionAllowed !== undefined) {
       try {
         const { updateReferralConsent } = await import("../lib/agent.service");
-        await updateReferralConsent(c, userId, {
-          commissionAllowed,
-          preferredCenterId: centerId,
-        });
+        // Only the consent changes here. The patient moves to this center
+        // once the booking is paid (connectPatientAfterBooking), not when they
+        // merely start a booking they may abandon.
+        await updateReferralConsent(c, userId, { commissionAllowed });
       } catch {
         /* no existing referral */
       }

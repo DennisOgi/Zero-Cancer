@@ -124,6 +124,24 @@ export function PatientPayBookingPage({
       return center.services?.some((service) => service.id === selectedServiceId)
     }) || []
 
+  // Show the patient what they will pay before they are sent to checkout.
+  const selectedCenter = availableCenters.find(
+    (center) => center.id === form.watch('centerId'),
+  )
+  const selectedService = selectedCenter?.services?.find(
+    (service) =>
+      service.id === (form.watch('screeningTypeId') || screeningTypeId),
+  )
+  const priceSummary = selectedService
+    ? {
+        serviceName: selectedService.name,
+        basePrice: Number(selectedService.price) || 0,
+        surcharge: form.watch('isHomeVisit')
+          ? Number(centersData?.data?.homeVisitSurcharge) || 0
+          : 0,
+      }
+    : null
+
   useEffect(() => {
     if (centerId) {
       form.setValue('centerId', centerId)
@@ -468,6 +486,31 @@ export function PatientPayBookingPage({
               ) : null}
             </CardContent>
           </Card>
+
+          {priceSummary ? (
+            <Card>
+              <CardContent className="space-y-1 pt-6 text-sm">
+                <div className="flex justify-between">
+                  <span>{priceSummary.serviceName}</span>
+                  <span>₦{priceSummary.basePrice.toLocaleString()}</span>
+                </div>
+                {priceSummary.surcharge > 0 ? (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Home visit surcharge</span>
+                    <span>₦{priceSummary.surcharge.toLocaleString()}</span>
+                  </div>
+                ) : null}
+                <div className="flex justify-between border-t pt-2 font-semibold">
+                  <span>
+                    {form.watch('savingsPlanId') ? 'Total (from your savings)' : 'Total to pay'}
+                  </span>
+                  <span>
+                    ₦{(priceSummary.basePrice + priceSummary.surcharge).toLocaleString()}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
 
           <div className="flex flex-col gap-2">
             <Button

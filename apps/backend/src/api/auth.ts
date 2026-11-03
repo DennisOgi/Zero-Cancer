@@ -506,6 +506,7 @@ authApp.get(
       address: string;
       state: string;
       lga: string;
+      acceptingBookings: boolean;
     } | null = null;
 
     if (jwtPayload.profile === "PATIENT" && patientProfile?.assignedCenterId) {
@@ -519,6 +520,7 @@ authApp.get(
           address: center.address,
           state: center.state,
           lga: center.lga,
+          acceptingBookings: String(center.status || "").toUpperCase() === "ACTIVE",
         };
       }
     }
