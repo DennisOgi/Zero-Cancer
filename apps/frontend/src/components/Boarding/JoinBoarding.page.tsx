@@ -1,9 +1,11 @@
-import { BoardingVideoPlayer } from '@/components/Boarding/BoardingVideos'
+// TEMPORARILY DISABLED: Boarding videos - users will proceed directly to signup
+// import { BoardingVideoPlayer } from '@/components/Boarding/BoardingVideos'
 import { BOARDING_SKIP_KEY } from '@/lib/boarding-videos'
 import { getBoardingPreview } from '@/services/boarding.service'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { HeartHandshake, Stethoscope } from 'lucide-react'
+import { useEffect } from 'react'
 
 export function JoinBoardingPage({ token }: { token: string }) {
   const { data, isLoading, isError } = useQuery({
@@ -22,6 +24,17 @@ export function JoinBoardingPage({ token }: { token: string }) {
       : `/sign-up/patient?invite=${encodeURIComponent(token)}`
     window.location.assign(path)
   }
+
+  // Auto-skip boarding videos - proceed directly to signup
+  useEffect(() => {
+    if (preview && !isLoading && !isError) {
+      // Auto-skip after showing the invite card for 2 seconds
+      const timer = setTimeout(() => {
+        finish(true)
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [preview, isLoading, isError])
 
   return (
     <div className="min-h-screen bg-[#140414] text-white">
@@ -94,7 +107,17 @@ export function JoinBoardingPage({ token }: { token: string }) {
                 </div>
               </div>
             </div>
-            <BoardingVideoPlayer onFinished={finish} />
+            
+            {/* TEMPORARILY DISABLED: Boarding video player - proceeding directly to signup */}
+            {/* <BoardingVideoPlayer onFinished={finish} /> */}
+            
+            {/* Show a loading message while auto-redirecting */}
+            <div className="flex flex-1 items-center justify-center">
+              <div className="text-center">
+                <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-pink-500/20 border-t-pink-500"></div>
+                <p className="text-white/70">Preparing your account...</p>
+              </div>
+            </div>
           </>
         )}
       </div>

@@ -1,6 +1,7 @@
 // import selfSampleVideo from '@/assets/images/ZeroCancer_Video_ewxn02.webm'
 // import cervicalVideo from '@/assets/images/Zerocancer_video_rchsqf.webm'
-import { BoardingVideoLibrary } from '@/components/Boarding/BoardingVideos'
+// TEMPORARILY DISABLED: Boarding videos import - will be re-enabled when proper content is ready
+// import { BoardingVideoLibrary } from '@/components/Boarding/BoardingVideos'
 import { PlayIcon } from 'lucide-react'
 import { useState } from 'react'
 
@@ -92,7 +93,8 @@ export default function Education() {
         />
       </div>
     </div>
-    <div className="wrapper pb-20">
+    {/* TEMPORARILY DISABLED: Boarding films section - will be re-enabled when proper content is ready */}
+    {/* <div className="wrapper pb-20">
       <h3 className="text-3xl font-bold">The boarding films</h3>
       <p className="mt-2 max-w-2xl text-muted-foreground">
         Anyone invited to ZeroCancer sees these five steps first. Two are films;
@@ -102,7 +104,7 @@ export default function Education() {
       <div className="mt-8">
         <BoardingVideoLibrary />
       </div>
-    </div>
+    </div> */}
     </div>
   )
 }
