@@ -134,7 +134,8 @@ export async function initializeSavingsDeposit(
 export async function completeSavingsDepositByReference(
   c: any,
   reference: string,
-  channel?: string
+  channel?: string,
+  paidAmountNaira?: number
 ) {
   const supabase = getSupabaseClient(c);
 
@@ -146,6 +147,30 @@ export async function completeSavingsDepositByReference(
 
   if (!deposit) return null;
   if (deposit.status === "COMPLETED") return deposit;
+  if (
+    paidAmountNaira !== undefined &&
+    paidAmountNaira + 0.01 < Number(deposit.amount)
+  ) {
+    console.error("[SAVINGS] Paid amount does not match deposit:", {
+      reference,
+      expected: deposit.amount,
+      paid: paidAmountNaira,
+    });
+    return null;
+  }
+
+  // Claim the deposit atomically so concurrent webhook/verify calls credit once.
+  const { data: claimed } = await supabase
+    .from("SavingsDeposit")
+    .update({
+      status: "COMPLETED",
+      paymentChannel: channel || null,
+      updatedAt: new Date().toISOString(),
+    })
+    .eq("id", deposit.id)
+    .neq("status", "COMPLETED")
+    .select("id");
+  if (!claimed?.length) return deposit;
 
   const { data: plan } = await supabase
     .from("SavingsPlan")
@@ -155,17 +180,24 @@ export async function completeSavingsDepositByReference(
 
   if (!plan) return null;
 
-  const savedAmount = Number(plan.savedAmount || 0) + Number(deposit.amount);
-  const status = savedAmount >= Number(plan.targetAmount) ? "READY" : "ACTIVE";
-
-  await supabase
+  // Recompute from completed deposits instead of incrementing, so two deposits
+  // settling at once cannot overwrite each other's total.
+  const { data: completedDeposits } = await supabase
     .from("SavingsDeposit")
-    .update({
-      status: "COMPLETED",
-      paymentChannel: channel || null,
-      updatedAt: new Date().toISOString(),
-    })
-    .eq("id", deposit.id);
+    .select("amount")
+    .eq("planId", plan.id)
+    .eq("status", "COMPLETED");
+  const savedAmount = (completedDeposits || []).reduce(
+    (total: number, row: { amount: number }) => total + Number(row.amount || 0),
+    0
+  );
+  // A plan already spent on a booking must never become spendable again.
+  const status =
+    plan.status === "USED"
+      ? "USED"
+      : savedAmount >= Number(plan.targetAmount)
+        ? "READY"
+        : "ACTIVE";
 
   await supabase
     .from("SavingsPlan")

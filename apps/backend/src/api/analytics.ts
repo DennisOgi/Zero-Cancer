@@ -8,7 +8,7 @@ import type {
   TTimeBasedReportResponse,
 } from "@zerocancer/shared/types";
 import { Hono } from "hono";
-import { getDB } from "../lib/db";
+import { getSupabaseClient } from "../lib/supabase";
 import { THonoApp } from "../lib/types";
 import { z } from "zod";
 import * as analyticsService from "../lib/analytics.service";
@@ -36,7 +36,7 @@ const centerReportQuerySchema = z.object({
 // GET /api/analytics/dashboard - Main dashboard metrics
 analyticsApp.get("/dashboard", async (c) => {
   try {
-    const metrics = await analyticsService.getDashboardMetrics(getDB(c));
+    const metrics = await analyticsService.getDashboardMetrics(getSupabaseClient(c));
 
     return c.json<TDashboardMetricsResponse>({
       ok: true,
@@ -86,7 +86,7 @@ analyticsApp.get(
           })();
 
       const report = await analyticsService.getTimeBasedReport(
-        getDB(c),
+        getSupabaseClient(c),
         period,
         {
           from: startDate,
@@ -120,7 +120,7 @@ analyticsApp.get(
 // GET /api/analytics/geographic - Geographic analytics
 analyticsApp.get("/geographic", async (c) => {
   try {
-    const report = await analyticsService.getGeographicReport(getDB(c));
+    const report = await analyticsService.getGeographicReport(getSupabaseClient(c));
 
     return c.json<TGeographicReportResponse>({
       ok: true,
@@ -146,7 +146,7 @@ analyticsApp.get(
     try {
       const { centerId } = c.req.valid("query");
       const reports = await analyticsService.getCenterPerformanceReport(
-        getDB(c),
+        getSupabaseClient(c),
         centerId
       );
 
@@ -170,7 +170,7 @@ analyticsApp.get(
 // GET /api/analytics/campaigns - Campaign analytics
 analyticsApp.get("/campaigns", async (c) => {
   try {
-    const analytics = await analyticsService.getCampaignAnalytics(getDB(c));
+    const analytics = await analyticsService.getCampaignAnalytics(getSupabaseClient(c));
 
     return c.json<TCampaignAnalyticsResponse>({
       ok: true,

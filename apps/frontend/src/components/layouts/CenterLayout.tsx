@@ -78,6 +78,7 @@ export function CenterLayout() {
     ? 'Facility admin'
     : staffRoleLabel(user?.staffRole)
   const facilityName = user?.centerName || ''
+  const isAwaitingApproval = user?.centerStatus === 'PENDING'
 
   const { data: notificationsData } = useQuery(useNotifications())
   const unreadCount =
@@ -278,6 +279,18 @@ export function CenterLayout() {
         </header>
 
         <main className="flex-grow bg-neutral-50 p-4 pb-24 md:p-6 md:pb-6">
+          {isAwaitingApproval ? (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-sm font-semibold text-amber-950">
+                Your facility is awaiting approval
+              </p>
+              <p className="text-sm text-amber-900/80">
+                Zero Cancer is reviewing your registration. You can finish your
+                profile and services now; patients, appointments and reports
+                open once your facility is approved.
+              </p>
+            </div>
+          ) : null}
           {needsDisplayName ? (
             <div className="mb-4 flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div>

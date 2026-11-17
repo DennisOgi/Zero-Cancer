@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import type { SupabaseClient } from "./supabase";
 
 export interface AdminDashboardMetrics {
   // Financial Metrics
@@ -103,15 +103,120 @@ export interface CampaignAnalytics {
   estimatedDepletion: number | null;
 }
 
+type Period = TimeBasedReport["period"];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// ============================================================================
+// QUERY HELPERS
+// ============================================================================
+
+async function rows<T = any>(
+  promise: PromiseLike<{ data: unknown; error: unknown }>
+): Promise<T[]> {
+  const { data, error } = await promise;
+  if (error) throw error;
+  return (data as T[]) || [];
+}
+
+async function count(
+  promise: PromiseLike<{ count: number | null; error: unknown }>
+): Promise<number> {
+  const { count: total, error } = await promise;
+  if (error) throw error;
+  return total || 0;
+}
+
+const head = { count: "exact" as const, head: true };
+
+const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+
+const percent = (part: number, whole: number) => (whole > 0 ? (part / whole) * 100 : 0);
+
+const growth = (current: number, previous: number) =>
+  previous > 0 ? ((current - previous) / previous) * 100 : 0;
+
+/** "Lagos State", "lagos" and "Lagos" are the same state; Abuja is the FCT. */
+function normalizeState(state: string | null | undefined): string | null {
+  const name = state?.trim().replace(/\s+state$/i, "");
+  if (!name) return null;
+  if (/^(fct|abuja|federal capital territory)$/i.test(name)) return "FCT";
+  return name.toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function countBy<T>(items: T[], key: (item: T) => string | null | undefined) {
+  const totals = new Map<string, number>();
+  for (const item of items) {
+    const value = normalizeState(key(item));
+    if (value) totals.set(value, (totals.get(value) || 0) + 1);
+  }
+  return Array.from(totals, ([state, total]) => ({ state, count: total }));
+}
+
+/** Start of the bucket a timestamp falls in, as YYYY-MM-DD. */
+function bucket(value: string, period: Period): string {
+  const date = new Date(value);
+  if (period === "weekly") {
+    const day = (date.getUTCDay() + 6) % 7; // Monday = 0
+    date.setUTCDate(date.getUTCDate() - day);
+  } else if (period === "monthly") {
+    date.setUTCDate(1);
+  } else if (period === "yearly") {
+    date.setUTCMonth(0, 1);
+  }
+  return date.toISOString().slice(0, 10);
+}
+
+function groupByPeriod<T>(
+  items: T[],
+  period: Period,
+  timestamp: (item: T) => string,
+  weight: (item: T) => number
+) {
+  const totals = new Map<string, number>();
+  for (const item of items) {
+    const key = bucket(timestamp(item), period);
+    totals.set(key, (totals.get(key) || 0) + weight(item));
+  }
+  return Array.from(totals).sort(([a], [b]) => a.localeCompare(b));
+}
+
+function previousRange(from: Date, to: Date) {
+  return { from: new Date(from.getTime() - (to.getTime() - from.getTime())), to: from };
+}
+
+async function completedRevenue(supabase: SupabaseClient, from?: Date, to?: Date) {
+  let query = supabase.from("Transaction").select("amount").eq("status", "COMPLETED");
+  if (from) query = query.gte("createdAt", from.toISOString());
+  if (to) query = query.lte("createdAt", to.toISOString());
+  return (await rows<{ amount: number }>(query)).map((tx) => Number(tx.amount) || 0);
+}
+
+async function createdInRange(
+  supabase: SupabaseClient,
+  table: "User" | "Appointment",
+  from: Date,
+  to: Date
+) {
+  return count(
+    supabase
+      .from(table)
+      .select("id", head)
+      .gte("createdAt", from.toISOString())
+      .lte("createdAt", to.toISOString())
+  );
+}
+
 // ============================================================================
 // MAIN EXPORTED FUNCTIONS
 // ============================================================================
 
 export async function getDashboardMetrics(
-  prisma: PrismaClient
+  supabase: SupabaseClient
 ): Promise<AdminDashboardMetrics> {
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * DAY_MS);
 
   const [
     totalUsers,
@@ -121,728 +226,342 @@ export async function getDashboardMetrics(
     pendingAppointments,
     activeCampaigns,
     activeCenters,
+    totalCenters,
     totalWaitlistUsers,
-    totalRevenue,
+    totalWaitlistEntries,
+    matchedWaitlistEntries,
+    revenue,
     monthlyRevenue,
-    totalDonationAmount,
+    donations,
+    campaigns,
+    recentAppointments,
+    recentCampaigns,
+    centersWithAppointments,
+    claimedEntries,
   ] = await Promise.all([
-    // User metrics
-    prisma.user.count(),
-    prisma.user.count({
-      where: { createdAt: { gte: startOfMonth } },
-    }),
-
-    // Appointment metrics
-    prisma.appointment.count(),
-    prisma.appointment.count({
-      where: { status: "COMPLETED" },
-    }),
-    prisma.appointment.count({
-      where: { status: { in: ["SCHEDULED", "IN_PROGRESS"] } },
-    }),
-
-    // Campaign metrics
-    prisma.donationCampaign.count({
-      where: { status: "ACTIVE" },
-    }),
-
-    // Center metrics
-    prisma.serviceCenter.count({
-      where: { status: "ACTIVE" },
-    }),
-
-    // Waitlist metrics
-    prisma.waitlist.count({
-      where: { status: "PENDING" },
-    }),
-
-    // Financial metrics
-    prisma.transaction.aggregate({
-      _sum: { amount: true },
-      where: { status: "COMPLETED" },
-    }),
-    prisma.transaction.aggregate({
-      _sum: { amount: true },
-      where: {
-        status: "COMPLETED",
-        createdAt: { gte: startOfMonth },
-      },
-    }),
-    prisma.transaction.aggregate({
-      _sum: { amount: true },
-      where: { type: "DONATION" },
-    }),
+    count(supabase.from("User").select("id", head)),
+    count(supabase.from("User").select("id", head).gte("createdAt", startOfMonth.toISOString())),
+    count(supabase.from("Appointment").select("id", head)),
+    count(supabase.from("Appointment").select("id", head).eq("status", "COMPLETED")),
+    count(
+      supabase.from("Appointment").select("id", head).in("status", ["SCHEDULED", "IN_PROGRESS"])
+    ),
+    count(supabase.from("DonationCampaign").select("id", head).eq("status", "ACTIVE")),
+    count(supabase.from("ServiceCenter").select("id", head).eq("status", "ACTIVE")),
+    count(supabase.from("ServiceCenter").select("id", head)),
+    count(supabase.from("Waitlist").select("id", head).eq("status", "PENDING")),
+    count(supabase.from("Waitlist").select("id", head)),
+    count(supabase.from("Waitlist").select("id", head).eq("status", "MATCHED")),
+    completedRevenue(supabase),
+    completedRevenue(supabase, startOfMonth),
+    rows<{ amount: number }>(
+      supabase.from("Transaction").select("amount").eq("type", "DONATION").eq("status", "COMPLETED")
+    ),
+    rows<{ totalAmount: number }>(supabase.from("DonationCampaign").select("totalAmount")),
+    rows<{ patientId: string }>(
+      supabase.from("Appointment").select("patientId").gte("createdAt", thirtyDaysAgo.toISOString())
+    ),
+    rows<{ donorId: string }>(
+      supabase
+        .from("DonationCampaign")
+        .select("donorId")
+        .gte("createdAt", thirtyDaysAgo.toISOString())
+    ),
+    rows<{ centerId: string }>(supabase.from("Appointment").select("centerId")),
+    rows<{ joinedAt: string; claimedAt: string }>(
+      supabase.from("Waitlist").select("joinedAt, claimedAt").not("claimedAt", "is", null)
+    ),
   ]);
 
-  // Calculate derived metrics
-  const appointmentCompletionRate =
-    totalAppointments > 0
-      ? (completedAppointments / totalAppointments) * 100
-      : 0;
-
-  const averageTransactionValue = await getAverageTransactionValue(prisma);
-  const activePatients = await getActivePatients(prisma);
-  const activeDonors = await getActiveDonors(prisma);
-  const averageCampaignFunding = await getAverageCampaignFunding(prisma);
-  const centerUtilizationRate = await getCenterUtilizationRate(prisma);
-  const averageWaitTime = await getAverageWaitTime(prisma);
-  const matchingSuccessRate = await getMatchingSuccessRate(prisma);
+  const totalRevenue = sum(revenue);
+  const waitDays = claimedEntries.map(
+    (entry) => (new Date(entry.claimedAt).getTime() - new Date(entry.joinedAt).getTime()) / DAY_MS
+  );
 
   return {
-    // Financial Metrics
-    totalRevenue: Number(totalRevenue._sum.amount) || 0,
-    monthlyRevenue: Number(monthlyRevenue._sum.amount) || 0,
-    averageTransactionValue,
+    totalRevenue,
+    monthlyRevenue: sum(monthlyRevenue),
+    averageTransactionValue: revenue.length ? totalRevenue / revenue.length : 0,
 
-    // User Metrics
     totalUsers,
     newUsersThisMonth,
-    activePatients,
-    activeDonors,
+    activePatients: new Set(recentAppointments.map((a) => a.patientId)).size,
+    activeDonors: new Set(recentCampaigns.map((c) => c.donorId)).size,
 
-    // Appointment Metrics
     totalAppointments,
     completedAppointments,
     pendingAppointments,
-    appointmentCompletionRate,
+    appointmentCompletionRate: percent(completedAppointments, totalAppointments),
 
-    // Campaign Metrics
     activeCampaigns,
-    totalDonationAmount: Number(totalDonationAmount._sum.amount) || 0,
-    averageCampaignFunding,
+    totalDonationAmount: sum(donations.map((d) => Number(d.amount) || 0)),
+    averageCampaignFunding: campaigns.length
+      ? sum(campaigns.map((c) => Number(c.totalAmount) || 0)) / campaigns.length
+      : 0,
 
-    // Center Metrics
     activeCenters,
-    centerUtilizationRate,
+    centerUtilizationRate: percent(
+      new Set(centersWithAppointments.map((a) => a.centerId)).size,
+      totalCenters
+    ),
 
-    // Waitlist Metrics
     totalWaitlistUsers,
-    averageWaitTime,
-    matchingSuccessRate,
+    averageWaitTime: waitDays.length ? sum(waitDays) / waitDays.length : 0,
+    matchingSuccessRate: percent(matchedWaitlistEntries, totalWaitlistEntries),
   };
 }
 
 export async function getTimeBasedReport(
-  prisma: PrismaClient,
-  period: "daily" | "weekly" | "monthly" | "yearly",
+  supabase: SupabaseClient,
+  period: Period,
   dateRange: { from: Date; to: Date }
 ): Promise<TimeBasedReport> {
   const { from, to } = dateRange;
+  const previous = previousRange(from, to);
+  const inRange = <T extends { gte: Function }>(query: T) =>
+    (query as any).gte("createdAt", from.toISOString()).lte("createdAt", to.toISOString());
 
-  // Get revenue by day
-  const revenueByDay = await getRevenueByPeriod(prisma, period, from, to);
-
-  // Get appointments by day
-  const appointmentsByDay = await getAppointmentsByPeriod(
-    prisma,
-    period,
-    from,
-    to
-  );
-
-  // Get registrations by day
-  const registrationsByDay = await getRegistrationsByPeriod(
-    prisma,
-    period,
-    from,
-    to
-  );
-
-  // Calculate growth rates
-  const userGrowthRate = await calculateUserGrowthRate(prisma, from, to);
-  const revenueGrowthRate = await calculateRevenueGrowthRate(prisma, from, to);
-  const appointmentGrowthRate = await calculateAppointmentGrowthRate(
-    prisma,
-    from,
-    to
-  );
+  const [
+    transactions,
+    appointments,
+    users,
+    previousRevenue,
+    usersNow,
+    usersBefore,
+    appointmentsNow,
+    appointmentsBefore,
+  ] = await Promise.all([
+    rows<{ amount: number; createdAt: string }>(
+      inRange(supabase.from("Transaction").select("amount, createdAt").eq("status", "COMPLETED"))
+    ),
+    rows<{ createdAt: string }>(inRange(supabase.from("Appointment").select("createdAt"))),
+    rows<{ createdAt: string }>(inRange(supabase.from("User").select("createdAt"))),
+    completedRevenue(supabase, previous.from, previous.to),
+    createdInRange(supabase, "User", from, to),
+    createdInRange(supabase, "User", previous.from, previous.to),
+    createdInRange(supabase, "Appointment", from, to),
+    createdInRange(supabase, "Appointment", previous.from, previous.to),
+  ]);
 
   return {
     period,
     dateRange,
-    revenueByDay,
-    appointmentsByDay,
-    registrationsByDay,
-    userGrowthRate,
-    revenueGrowthRate,
-    appointmentGrowthRate,
+    revenueByDay: groupByPeriod(
+      transactions,
+      period,
+      (tx) => tx.createdAt,
+      (tx) => Number(tx.amount) || 0
+    ).map(([date, amount]) => ({ date, amount })),
+    appointmentsByDay: groupByPeriod(appointments, period, (a) => a.createdAt, () => 1).map(
+      ([date, total]) => ({ date, count: total })
+    ),
+    registrationsByDay: groupByPeriod(users, period, (u) => u.createdAt, () => 1).map(
+      ([date, total]) => ({ date, count: total })
+    ),
+    userGrowthRate: growth(usersNow, usersBefore),
+    revenueGrowthRate: growth(
+      sum(transactions.map((tx) => Number(tx.amount) || 0)),
+      sum(previousRevenue)
+    ),
+    appointmentGrowthRate: growth(appointmentsNow, appointmentsBefore),
   };
 }
 
 export async function getGeographicReport(
-  prisma: PrismaClient
+  supabase: SupabaseClient
 ): Promise<GeographicReport> {
-  const [
-    usersByState,
-    centersByState,
-    appointmentsByState,
-    revenueByState,
-    waitlistHotZones,
-  ] = await Promise.all([
-    getUsersByState(prisma),
-    getCentersByState(prisma),
-    getAppointmentsByState(prisma),
-    getRevenueByState(prisma),
-    getWaitlistHotZones(prisma),
+  const [profiles, centers, appointments, transactions, waitlist] = await Promise.all([
+    rows<{ userId: string; state: string | null }>(
+      supabase.from("PatientProfile").select("userId, state")
+    ),
+    rows<{ id: string; state: string | null }>(supabase.from("ServiceCenter").select("id, state")),
+    rows<{ centerId: string; transactionId: string | null }>(
+      supabase.from("Appointment").select("centerId, transactionId")
+    ),
+    rows<{ id: string; amount: number }>(
+      supabase.from("Transaction").select("id, amount").eq("status", "COMPLETED")
+    ),
+    rows<{ patientId: string; status: string; joinedAt: string; claimedAt: string | null }>(
+      supabase.from("Waitlist").select("patientId, status, joinedAt, claimedAt")
+    ),
   ]);
 
+  const centerState = new Map(centers.map((center) => [center.id, normalizeState(center.state)]));
+  const patientState = new Map(
+    profiles.map((profile) => [profile.userId, normalizeState(profile.state)])
+  );
+
+  // A transaction's state is the state of the first center it paid for.
+  const transactionState = new Map<string, string>();
+  for (const appointment of appointments) {
+    const state = centerState.get(appointment.centerId);
+    if (appointment.transactionId && state && !transactionState.has(appointment.transactionId)) {
+      transactionState.set(appointment.transactionId, state);
+    }
+  }
+  const revenue = new Map<string, number>();
+  for (const transaction of transactions) {
+    const state = transactionState.get(transaction.id);
+    if (state) revenue.set(state, (revenue.get(state) || 0) + (Number(transaction.amount) || 0));
+  }
+
+  const hotZones = new Map<string, { count: number; matched: number; waitMs: number }>();
+  for (const entry of waitlist) {
+    const state = patientState.get(entry.patientId);
+    if (!state) continue;
+    const zone = hotZones.get(state) || { count: 0, matched: 0, waitMs: 0 };
+    zone.count += 1;
+    if (entry.status === "MATCHED" && entry.claimedAt) {
+      zone.matched += 1;
+      zone.waitMs += new Date(entry.claimedAt).getTime() - new Date(entry.joinedAt).getTime();
+    }
+    hotZones.set(state, zone);
+  }
+
   return {
-    usersByState,
-    centersByState,
-    appointmentsByState,
-    revenueByState,
-    waitlistHotZones,
+    usersByState: countBy(profiles, (profile) => profile.state),
+    centersByState: countBy(centers, (center) => center.state),
+    appointmentsByState: countBy(appointments, (a) => centerState.get(a.centerId)),
+    revenueByState: Array.from(revenue, ([state, amount]) => ({ state, amount })),
+    waitlistHotZones: Array.from(hotZones, ([state, zone]) => ({
+      state,
+      waitlistCount: zone.count,
+      averageWaitTime: zone.matched > 0 ? zone.waitMs / zone.matched / DAY_MS : 0,
+    })),
   };
 }
 
 export async function getCenterPerformanceReport(
-  prisma: PrismaClient,
+  supabase: SupabaseClient,
   centerId?: string
 ): Promise<CenterPerformanceReport[]> {
-  const whereClause = centerId ? { id: centerId } : {};
+  let centerQuery = supabase.from("ServiceCenter").select("id, centerName");
+  let appointmentQuery = supabase
+    .from("Appointment")
+    .select("id, centerId, status, transactionId");
+  let payoutQuery = supabase.from("payouts").select("centerId, amount").eq("status", "PENDING");
+  if (centerId) {
+    centerQuery = centerQuery.eq("id", centerId);
+    appointmentQuery = appointmentQuery.eq("centerId", centerId);
+    payoutQuery = payoutQuery.eq("centerId", centerId);
+  }
 
-  const centers = await prisma.serviceCenter.findMany({
-    where: whereClause,
-    include: {
-      appointments: {
-        include: {
-          transaction: true,
-        },
-      },
-    },
+  const [centers, appointments, pendingPayouts] = await Promise.all([
+    rows<{ id: string; centerName: string }>(centerQuery),
+    rows<{ id: string; centerId: string; status: string; transactionId: string | null }>(
+      appointmentQuery
+    ),
+    rows<{ centerId: string; amount: number }>(payoutQuery),
+  ]);
+
+  const transactionIds = [
+    ...new Set(appointments.map((a) => a.transactionId).filter(Boolean) as string[]),
+  ];
+  const completedIds = appointments.filter((a) => a.status === "COMPLETED").map((a) => a.id);
+  const [transactions, results] = await Promise.all([
+    transactionIds.length
+      ? rows<{ id: string; amount: number }>(
+          supabase
+            .from("Transaction")
+            .select("id, amount")
+            .eq("status", "COMPLETED")
+            .in("id", transactionIds)
+        )
+      : Promise.resolve([]),
+    completedIds.length
+      ? rows<{ appointmentId: string }>(
+          supabase.from("ScreeningResult").select("appointmentId").in("appointmentId", completedIds)
+        )
+      : Promise.resolve([]),
+  ]);
+  const amountById = new Map(transactions.map((tx) => [tx.id, Number(tx.amount) || 0]));
+  const withResults = new Set(results.map((result) => result.appointmentId));
+
+  return centers.map((center) => {
+    const own = appointments.filter((a) => a.centerId === center.id);
+    const completed = own.filter((a) => a.status === "COMPLETED");
+    const totalRevenue = sum(own.map((a) => (a.transactionId ? amountById.get(a.transactionId) || 0 : 0)));
+
+    return {
+      centerId: center.id,
+      centerName: center.centerName,
+      totalAppointments: own.length,
+      completedAppointments: completed.length,
+      completionRate: percent(completed.length, own.length),
+      averageRating: 0, // No rating system yet
+      totalRevenue,
+      averageAppointmentValue: own.length ? totalRevenue / own.length : 0,
+      payoutsPending: sum(
+        pendingPayouts.filter((p) => p.centerId === center.id).map((p) => Number(p.amount) || 0)
+      ),
+      averageProcessingTime: 0, // Not tracked yet
+      resultUploadRate: percent(
+        completed.filter((a) => withResults.has(a.id)).length,
+        completed.length
+      ),
+    };
   });
-
-  return Promise.all(
-    centers.map(async (center) => {
-      const totalAppointments = center.appointments.length;
-      const completedAppointments = center.appointments.filter(
-        (app) => app.status === "COMPLETED"
-      ).length;
-
-      const totalRevenue = center.appointments.reduce((sum, app) => {
-        return sum + (app.transaction ? Number(app.transaction.amount) : 0);
-      }, 0);
-
-      const completionRate =
-        totalAppointments > 0
-          ? (completedAppointments / totalAppointments) * 100
-          : 0;
-
-      const averageAppointmentValue =
-        totalAppointments > 0 ? totalRevenue / totalAppointments : 0;
-
-      // Additional metrics
-      const averageRating = 4.5; // Placeholder - implement rating system
-      const payoutsPending = 0; // Placeholder - implement payout system
-      const averageProcessingTime = 24; // Placeholder - hours
-      const resultUploadRate = 95; // Placeholder - percentage
-
-      return {
-        centerId: center.id,
-        centerName: center.centerName,
-        totalAppointments,
-        completedAppointments,
-        completionRate,
-        averageRating,
-        totalRevenue,
-        averageAppointmentValue,
-        payoutsPending,
-        averageProcessingTime,
-        resultUploadRate,
-      };
-    })
-  );
 }
 
 export async function getCampaignAnalytics(
-  prisma: PrismaClient
+  supabase: SupabaseClient
 ): Promise<CampaignAnalytics[]> {
-  const campaigns = await prisma.donationCampaign.findMany({
-    include: {
-      transactions: true,
-      allocations: {
-        include: {
-          appointment: true,
-        },
-      },
-    },
-  });
+  const campaigns = await rows<{
+    id: string;
+    title: string | null;
+    totalAmount: number;
+    availableAmount: number;
+    createdAt: string;
+  }>(supabase.from("DonationCampaign").select("id, title, totalAmount, availableAmount, createdAt"));
+  if (!campaigns.length) return [];
+
+  const campaignIds = campaigns.map((campaign) => campaign.id);
+  const [transactions, allocations] = await Promise.all([
+    rows<{ relatedDonationId: string; amount: number }>(
+      supabase
+        .from("Transaction")
+        .select("relatedDonationId, amount")
+        .eq("status", "COMPLETED")
+        .in("relatedDonationId", campaignIds)
+    ),
+    rows<{ campaignId: string; appointment: { status: string } | null }>(
+      supabase
+        .from("DonationAllocation")
+        .select("campaignId, appointment:Appointment(status)")
+        .in("campaignId", campaignIds)
+    ),
+  ]);
 
   return campaigns.map((campaign) => {
-    const targetAmount = Number(campaign.availableAmount);
-    const currentAmount = campaign.transactions.reduce(
-      (sum: number, transaction) => sum + Number(transaction.amount),
-      0
-    );
-
-    const fundingPercentage =
-      targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0;
-    const donorCount = new Set(campaign.transactions.map((t) => t.id)).size; // Using transaction count as proxy
-    const averageDonation = donorCount > 0 ? currentAmount / donorCount : 0;
-
-    const patientsMatched = campaign.allocations.length;
-    const appointmentsCompleted = campaign.allocations.filter(
-      (allocation) => allocation.appointment?.status === "COMPLETED"
-    ).length;
-
-    const utilizationRate =
-      patientsMatched > 0 ? (appointmentsCompleted / patientsMatched) * 100 : 0;
-
+    const payments = transactions
+      .filter((tx) => tx.relatedDonationId === campaign.id)
+      .map((tx) => Number(tx.amount) || 0);
+    const matched = allocations.filter((a) => a.campaignId === campaign.id);
+    const completed = matched.filter((a) => a.appointment?.status === "COMPLETED").length;
+    const targetAmount = Number(campaign.totalAmount) || 0;
+    const currentAmount = sum(payments);
+    const spent = targetAmount - (Number(campaign.availableAmount) || 0);
     const daysSinceCreated = Math.floor(
-      (Date.now() - campaign.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+      (Date.now() - new Date(campaign.createdAt).getTime()) / DAY_MS
     );
-
-    // Estimate depletion based on current usage rate (simplified)
-    const estimatedDepletion =
-      utilizationRate > 0
-        ? Math.floor(currentAmount / (appointmentsCompleted * 100))
-        : null;
+    const spendPerDay = daysSinceCreated > 0 ? spent / daysSinceCreated : 0;
 
     return {
       campaignId: campaign.id,
       title: campaign.title || "Donation Campaign",
       targetAmount,
       currentAmount,
-      fundingPercentage,
-      donorCount,
-      averageDonation,
-      patientsMatched,
-      appointmentsCompleted,
-      utilizationRate,
+      fundingPercentage: percent(currentAmount, targetAmount),
+      donorCount: payments.length,
+      averageDonation: payments.length ? currentAmount / payments.length : 0,
+      patientsMatched: matched.length,
+      appointmentsCompleted: completed,
+      utilizationRate: percent(completed, matched.length),
       daysSinceCreated,
-      estimatedDepletion,
+      estimatedDepletion:
+        spendPerDay > 0
+          ? Math.floor((Number(campaign.availableAmount) || 0) / spendPerDay)
+          : null,
     };
   });
-}
-
-// Helper functions
-async function getAverageTransactionValue(
-  prisma: PrismaClient
-): Promise<number> {
-  const result = await prisma.transaction.aggregate({
-    _avg: { amount: true },
-    where: { status: "COMPLETED" },
-  });
-  return Number(result._avg?.amount) || 0;
-}
-
-async function getActivePatients(prisma: PrismaClient): Promise<number> {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-  return await prisma.user.count({
-    where: {
-      patientProfile: { isNot: null },
-      appointments: {
-        some: {
-          createdAt: { gte: thirtyDaysAgo },
-        },
-      },
-    },
-  });
-}
-
-async function getActiveDonors(prisma: PrismaClient): Promise<number> {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-  return await prisma.user.count({
-    where: {
-      donorProfile: { isNot: null },
-      donationCampaigns: {
-        some: {
-          createdAt: { gte: thirtyDaysAgo },
-        },
-      },
-    },
-  });
-}
-
-async function getAverageCampaignFunding(
-  prisma: PrismaClient
-): Promise<number> {
-  const campaigns = await prisma.donationCampaign.findMany({
-    include: {
-      transactions: true,
-    },
-  });
-
-  if (campaigns.length === 0) return 0;
-
-  const totalFunding = campaigns.reduce((sum, campaign) => {
-    const campaignFunding = campaign.transactions.reduce(
-      (campaignSum: number, transaction) =>
-        campaignSum + Number(transaction.amount),
-      0
-    );
-    return sum + campaignFunding;
-  }, 0);
-
-  return totalFunding / campaigns.length;
-}
-
-async function getCenterUtilizationRate(prisma: PrismaClient): Promise<number> {
-  const totalCenters = await prisma.serviceCenter.count();
-  const centersWithAppointments = await prisma.serviceCenter.count({
-    where: {
-      appointments: {
-        some: {},
-      },
-    },
-  });
-
-  return totalCenters > 0 ? (centersWithAppointments / totalCenters) * 100 : 0;
-}
-
-async function getAverageWaitTime(prisma: PrismaClient): Promise<number> {
-  const waitlistEntries = await prisma.waitlist.findMany({
-    where: {
-      status: "MATCHED",
-      claimedAt: { not: null },
-    },
-  });
-
-  if (waitlistEntries.length === 0) return 0;
-
-  const totalWaitTime = waitlistEntries.reduce((sum: number, entry) => {
-    if (entry.claimedAt) {
-      const waitTime = entry.claimedAt.getTime() - entry.joinedAt.getTime();
-      return sum + waitTime;
-    }
-    return sum;
-  }, 0);
-
-  // Convert to days
-  return totalWaitTime / (waitlistEntries.length * 1000 * 60 * 60 * 24);
-}
-
-async function getMatchingSuccessRate(prisma: PrismaClient): Promise<number> {
-  const totalWaitlistEntries = await prisma.waitlist.count();
-  const matchedEntries = await prisma.waitlist.count({
-    where: { status: "MATCHED" },
-  });
-
-  return totalWaitlistEntries > 0
-    ? (matchedEntries / totalWaitlistEntries) * 100
-    : 0;
-}
-
-// Time-based report helpers
-async function getRevenueByPeriod(
-  prisma: PrismaClient,
-  period: string,
-  from: Date,
-  to: Date
-): Promise<Array<{ date: string; amount: number }>> {
-  const transactions = await prisma.transaction.findMany({
-    where: {
-      status: "COMPLETED",
-      createdAt: { gte: from, lte: to },
-    },
-  });
-
-  const groupedData = new Map<string, number>();
-
-  transactions.forEach((transaction) => {
-    const date = transaction.createdAt.toISOString().split("T")[0];
-    const amount = Number(transaction.amount);
-    groupedData.set(date, (groupedData.get(date) || 0) + amount);
-  });
-
-  return Array.from(groupedData.entries())
-    .map(([date, amount]) => ({
-      date,
-      amount,
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-}
-
-async function getAppointmentsByPeriod(
-  prisma: PrismaClient,
-  period: string,
-  from: Date,
-  to: Date
-): Promise<Array<{ date: string; count: number }>> {
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      createdAt: { gte: from, lte: to },
-    },
-  });
-
-  const groupedData = new Map<string, number>();
-
-  appointments.forEach((appointment) => {
-    const date = appointment.createdAt.toISOString().split("T")[0];
-    groupedData.set(date, (groupedData.get(date) || 0) + 1);
-  });
-
-  return Array.from(groupedData.entries())
-    .map(([date, count]) => ({
-      date,
-      count,
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-}
-
-async function getRegistrationsByPeriod(
-  prisma: PrismaClient,
-  period: string,
-  from: Date,
-  to: Date
-): Promise<Array<{ date: string; count: number }>> {
-  const users = await prisma.user.findMany({
-    where: {
-      createdAt: { gte: from, lte: to },
-    },
-  });
-
-  const groupedData = new Map<string, number>();
-
-  users.forEach((user) => {
-    const date = user.createdAt.toISOString().split("T")[0];
-    groupedData.set(date, (groupedData.get(date) || 0) + 1);
-  });
-
-  return Array.from(groupedData.entries())
-    .map(([date, count]) => ({
-      date,
-      count,
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-}
-
-// Growth rate calculations
-async function calculateUserGrowthRate(
-  prisma: PrismaClient,
-  from: Date,
-  to: Date
-): Promise<number> {
-  const previousPeriodStart = new Date(from);
-  const periodLength = to.getTime() - from.getTime();
-  previousPeriodStart.setTime(from.getTime() - periodLength);
-
-  const [currentPeriodUsers, previousPeriodUsers] = await Promise.all([
-    prisma.user.count({
-      where: { createdAt: { gte: from, lte: to } },
-    }),
-    prisma.user.count({
-      where: { createdAt: { gte: previousPeriodStart, lte: from } },
-    }),
-  ]);
-
-  return previousPeriodUsers > 0
-    ? ((currentPeriodUsers - previousPeriodUsers) / previousPeriodUsers) * 100
-    : 0;
-}
-
-async function calculateRevenueGrowthRate(
-  prisma: PrismaClient,
-  from: Date,
-  to: Date
-): Promise<number> {
-  const previousPeriodStart = new Date(from);
-  const periodLength = to.getTime() - from.getTime();
-  previousPeriodStart.setTime(from.getTime() - periodLength);
-
-  const [currentRevenue, previousRevenue] = await Promise.all([
-    prisma.transaction.aggregate({
-      _sum: { amount: true },
-      where: {
-        status: "COMPLETED",
-        createdAt: { gte: from, lte: to },
-      },
-    }),
-    prisma.transaction.aggregate({
-      _sum: { amount: true },
-      where: {
-        status: "COMPLETED",
-        createdAt: { gte: previousPeriodStart, lte: from },
-      },
-    }),
-  ]);
-
-  const current = Number(currentRevenue._sum?.amount) || 0;
-  const previous = Number(previousRevenue._sum?.amount) || 0;
-
-  return previous > 0 ? ((current - previous) / previous) * 100 : 0;
-}
-
-async function calculateAppointmentGrowthRate(
-  prisma: PrismaClient,
-  from: Date,
-  to: Date
-): Promise<number> {
-  const previousPeriodStart = new Date(from);
-  const periodLength = to.getTime() - from.getTime();
-  previousPeriodStart.setTime(from.getTime() - periodLength);
-
-  const [currentPeriodAppointments, previousPeriodAppointments] =
-    await Promise.all([
-      prisma.appointment.count({
-        where: { createdAt: { gte: from, lte: to } },
-      }),
-      prisma.appointment.count({
-        where: { createdAt: { gte: previousPeriodStart, lte: from } },
-      }),
-    ]);
-
-  return previousPeriodAppointments > 0
-    ? ((currentPeriodAppointments - previousPeriodAppointments) /
-        previousPeriodAppointments) *
-        100
-    : 0;
-}
-
-// Geographic report helpers
-async function getUsersByState(
-  prisma: PrismaClient
-): Promise<Array<{ state: string; count: number }>> {
-  const users = await prisma.user.findMany({
-    include: {
-      patientProfile: { select: { state: true } },
-    },
-  });
-
-  const stateCount = new Map<string, number>();
-  users.forEach((user) => {
-    const state = user.patientProfile?.state;
-    if (state) {
-      stateCount.set(state, (stateCount.get(state) || 0) + 1);
-    }
-  });
-
-  return Array.from(stateCount.entries()).map(([state, count]) => ({
-    state,
-    count,
-  }));
-}
-
-async function getCentersByState(
-  prisma: PrismaClient
-): Promise<Array<{ state: string; count: number }>> {
-  const centers = await prisma.serviceCenter.findMany({
-    select: { state: true },
-  });
-
-  const stateCount = new Map<string, number>();
-  centers.forEach((center) => {
-    if (center.state) {
-      stateCount.set(center.state, (stateCount.get(center.state) || 0) + 1);
-    }
-  });
-
-  return Array.from(stateCount.entries()).map(([state, count]) => ({
-    state,
-    count,
-  }));
-}
-
-async function getAppointmentsByState(
-  prisma: PrismaClient
-): Promise<Array<{ state: string; count: number }>> {
-  const appointments = await prisma.appointment.findMany({
-    include: {
-      center: { select: { state: true } },
-    },
-  });
-
-  const stateCount = new Map<string, number>();
-  appointments.forEach((appointment) => {
-    if (appointment.center.state) {
-      stateCount.set(
-        appointment.center.state,
-        (stateCount.get(appointment.center.state) || 0) + 1
-      );
-    }
-  });
-
-  return Array.from(stateCount.entries()).map(([state, count]) => ({
-    state,
-    count,
-  }));
-}
-
-async function getRevenueByState(
-  prisma: PrismaClient
-): Promise<Array<{ state: string; amount: number }>> {
-  const transactions = await prisma.transaction.findMany({
-    where: { status: "COMPLETED" },
-    include: {
-      appointments: {
-        include: {
-          center: { select: { state: true } },
-        },
-      },
-    },
-  });
-
-  const stateRevenue = new Map<string, number>();
-  transactions.forEach((transaction) => {
-    if (transaction.appointments && transaction.appointments.length > 0) {
-      const state = transaction.appointments[0].center.state;
-      if (state) {
-        stateRevenue.set(
-          state,
-          (stateRevenue.get(state) || 0) + Number(transaction.amount)
-        );
-      }
-    }
-  });
-
-  return Array.from(stateRevenue.entries()).map(([state, amount]) => ({
-    state,
-    amount,
-  }));
-}
-
-async function getWaitlistHotZones(prisma: PrismaClient): Promise<
-  Array<{
-    state: string;
-    waitlistCount: number;
-    averageWaitTime: number;
-  }>
-> {
-  const waitlistEntries = await prisma.waitlist.findMany({
-    include: {
-      patient: {
-        include: {
-          patientProfile: { select: { state: true } },
-        },
-      },
-    },
-  });
-
-  const stateData = new Map<
-    string,
-    { count: number; totalWaitTime: number; matched: number }
-  >();
-
-  waitlistEntries.forEach((entry) => {
-    const state = entry.patient.patientProfile?.state;
-    if (state) {
-      const data = stateData.get(state) || {
-        count: 0,
-        totalWaitTime: 0,
-        matched: 0,
-      };
-      data.count += 1;
-
-      if (entry.status === "MATCHED" && entry.claimedAt) {
-        data.matched += 1;
-        data.totalWaitTime +=
-          entry.claimedAt.getTime() - entry.joinedAt.getTime();
-      }
-
-      stateData.set(state, data);
-    }
-  });
-
-  return Array.from(stateData.entries()).map(([state, data]) => ({
-    state,
-    waitlistCount: data.count,
-    averageWaitTime:
-      data.matched > 0
-        ? data.totalWaitTime / (data.matched * 1000 * 60 * 60 * 24) // Convert to days
-        : 0,
-  }));
 }

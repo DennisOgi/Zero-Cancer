@@ -154,6 +154,8 @@ export function PatientReportDetailPage({ reportId }: { reportId: string }) {
           <iframe
             ref={previewRef}
             title="Screening report"
+            // Report HTML never needs scripts; same-origin keeps print() working.
+            sandbox="allow-same-origin allow-modals"
             srcDoc={html}
             className="min-h-[800px] w-full rounded-xl border-0 bg-white"
           />

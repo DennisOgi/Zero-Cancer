@@ -109,8 +109,8 @@ waitlistApp.get(
             screeningTypeId: w.screeningTypeId,
             patientId: w.patientId,
             status: w.status,
-            joinedAt: w.joinedAt.toISOString(),
-            claimedAt: w.claimedAt?.toISOString() || null,
+            joinedAt: new Date(w.joinedAt).toISOString(),
+            claimedAt: (w.claimedAt ? new Date(w.claimedAt).toISOString() : null),
             screeningType: {
               id: w.screening.id,
               name: w.screening.name,
@@ -202,8 +202,8 @@ waitlistApp.get("/patient/:waitlistId", async (c) => {
           screeningTypeId: waitlist.screeningTypeId,
           patientId: waitlist.patientId,
           status: waitlist.status,
-          joinedAt: waitlist.joinedAt.toISOString(),
-          claimedAt: waitlist.claimedAt?.toISOString() || null,
+          joinedAt: new Date(waitlist.joinedAt).toISOString(),
+          claimedAt: (waitlist.claimedAt ? new Date(waitlist.claimedAt).toISOString() : null),
           screeningType: {
             id: waitlist.screening.id,
             name: waitlist.screening.name,
@@ -281,8 +281,8 @@ waitlistApp.get("/patient/status/:screeningTypeId", async (c) => {
               screeningTypeId: existingWaitlist.screeningTypeId,
               patientId: existingWaitlist.patientId,
               status: existingWaitlist.status,
-              joinedAt: existingWaitlist.joinedAt.toISOString(),
-              claimedAt: existingWaitlist.claimedAt?.toISOString() || null,
+              joinedAt: new Date(existingWaitlist.joinedAt).toISOString(),
+              claimedAt: (existingWaitlist.claimedAt ? new Date(existingWaitlist.claimedAt).toISOString() : null),
               screeningType: {
                 id: existingWaitlist.screening.id,
                 name: existingWaitlist.screening.name,
@@ -291,8 +291,7 @@ waitlistApp.get("/patient/status/:screeningTypeId", async (c) => {
                 ? {
                     id: existingWaitlist.allocation.id,
                     claimedAt:
-                      existingWaitlist.allocation.claimedAt?.toISOString() ||
-                      null,
+                      (existingWaitlist.allocation.claimedAt ? new Date(existingWaitlist.allocation.claimedAt).toISOString() : null),
                     campaign: existingWaitlist.allocation.campaign,
                   }
                 : null,

@@ -56,6 +56,8 @@ export const orderKitsSchema = z
     quantity: z.coerce.number().int().min(1).max(10000).optional(),
     urgency: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
     notes: z.string().max(500).optional(),
+    /** true = build the invoice for review without submitting the order. */
+    preview: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
     const lines =

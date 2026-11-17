@@ -42,12 +42,6 @@ const requestCashoutSchema = z.object({
   fee: z.number().default(10),
 })
 
-const updateCashoutStatusSchema = z.object({
-  status: z.enum(['SUCCESS', 'FAILED']),
-  paystackReference: z.string().optional(),
-  failureReason: z.string().optional(),
-})
-
 // ============================================
 // PLATFORM WALLET ROUTES (Admin Only)
 // ============================================
@@ -463,50 +457,6 @@ walletApp.get(
       console.error('Error fetching center wallets:', error)
       return c.json<TErrorResponse>(
         { ok: false, error: 'Failed to fetch center wallets' },
-        500
-      )
-    }
-  }
-)
-
-// ============================================
-// WEBHOOK ROUTES
-// ============================================
-
-// POST /api/wallets/webhook/cashout/:cashoutId - Update cashout status (Paystack webhook)
-walletApp.post(
-  '/webhook/cashout/:cashoutId',
-  zValidator('param', z.object({ cashoutId: z.string().uuid() }), (result, c) => {
-    if (!result.success)
-      return c.json<TErrorResponse>({ ok: false, error: result.error }, 400)
-  }),
-  zValidator('json', updateCashoutStatusSchema, (result, c) => {
-    if (!result.success)
-      return c.json<TErrorResponse>({ ok: false, error: result.error }, 400)
-  }),
-  async (c) => {
-    try {
-      const { cashoutId } = c.req.valid('param')
-      const { status, paystackReference, failureReason } = c.req.valid('json')
-
-      // TODO: Verify Paystack webhook signature
-
-      await walletService.updateCashoutStatus(
-        c,
-        cashoutId,
-        status,
-        paystackReference,
-        failureReason
-      )
-
-      return c.json<TDataResponse<{ cashoutId: string; status: string }>>({
-        ok: true,
-        data: { cashoutId, status },
-      })
-    } catch (error) {
-      console.error('Error updating cashout status:', error)
-      return c.json<TErrorResponse>(
-        { ok: false, error: 'Failed to update cashout status' },
         500
       )
     }

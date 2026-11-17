@@ -57,8 +57,13 @@ export function PatientAppointmentsPage() {
   const awaitingPaymentAppointments = allAppointments.filter(
     (appt) => appt.status === 'PENDING',
   )
+  // Scheduled appointments whose day has passed were missed; list them under
+  // Past so the patient can still see, cancel or rebook them.
   const pastAppointments = allAppointments.filter(
-    (appt) => appt.status === 'COMPLETED',
+    (appt) =>
+      appt.status === 'COMPLETED' ||
+      (appt.status === 'SCHEDULED' &&
+        new Date(appt.appointmentDateTime) < today),
   )
   const upcomingAppointments = allAppointments.filter(
     (appt) =>

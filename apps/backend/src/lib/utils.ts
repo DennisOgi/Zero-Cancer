@@ -220,8 +220,8 @@ export function formatCampaignForResponse(campaign: any): TDonationCampaign {
       | "PENDING"
       | "SUSPENDED",
     expiryDate: campaign.expiryDate?.toISOString() || null,
-    createdAt: campaign.createdAt.toISOString(),
-    updatedAt: campaign.createdAt.toISOString(),
+    createdAt: new Date(campaign.createdAt).toISOString(),
+    updatedAt: new Date(campaign.createdAt).toISOString(),
     donor: {
       id: campaign.donor.id,
       fullName: campaign.donor.fullName,

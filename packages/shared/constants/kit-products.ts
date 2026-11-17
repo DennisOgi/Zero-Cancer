@@ -14,16 +14,16 @@ export const KIT_AND_DEVICE_PRODUCTS = [
   },
   {
     id: "MOLECULAR_POCT_ANALYZER",
-    name: "Analyzer for Molecular POCT Enzymatic Rapid Amplification for HPV DNA/mRNA E6/E7",
+    name: "Analyzer for Molecular POCT Enzymatic Rapid Amplification for HPV DNA/mRNA E6/E7 (14 high risk strains)",
     shortName: "Molecular POCT Analyzer",
-    description: "Analyzer unit for molecular POCT HPV DNA/mRNA E6/E7.",
+    description: "Analyzer unit for molecular POCT HPV DNA/mRNA E6/E7 (14 high risk strains).",
     minQuantity: 1,
     unitLabel: "units",
     kind: "device" as const,
   },
   {
     id: "MOLECULAR_POCT_KITS",
-    name: "Kits for Molecular POCT Enzymatic Rapid Amplification for HPV DNA/mRNA E6/E7",
+    name: "Kits for Molecular POCT Enzymatic Rapid Amplification for HPV DNA/mRNA E6/E7 (14 high risk strains)",
     shortName: "Molecular POCT Kits",
     description: "Reagent / amplification kits for the molecular POCT analyzer.",
     minQuantity: 1,
@@ -32,7 +32,7 @@ export const KIT_AND_DEVICE_PRODUCTS = [
   },
   {
     id: "MOLECULAR_POCT_BUNDLE_2500",
-    name: "Buy 2500 kits and get one free Analyzer for Molecular POCT Enzymatic Rapid Amplification for HPV DNA/mRNA E6/E7",
+    name: "Buy 2500 kits and get one free Analyzer for Molecular POCT Enzymatic Rapid Amplification for HPV DNA/mRNA E6/E7 (14 high risk strains)",
     shortName: "2500 kits + free Analyzer",
     description:
       "Bundle: 2500 molecular POCT kits with one complimentary analyzer per bundle.",

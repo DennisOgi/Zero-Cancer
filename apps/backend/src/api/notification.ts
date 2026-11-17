@@ -90,7 +90,8 @@ notificationApp.get("/", async (c) => {
     .filter(Boolean)
     .sort(
       (a, b) =>
-        b!.notification.createdAt.getTime() - a!.notification.createdAt.getTime()
+        new Date(b!.notification.createdAt).getTime() -
+        new Date(a!.notification.createdAt).getTime()
     );
 
   // Strictly shape each notification recipient and nested notification
@@ -116,8 +117,8 @@ notificationApp.get("/", async (c) => {
         title: n.notification.title,
         message: n.notification.message,
         data: safeData,
-        createdAt: n.notification.createdAt.toISOString(),
-        updatedAt: n.notification.createdAt.toISOString(), // fallback if updatedAt not present
+        createdAt: new Date(n.notification.createdAt).toISOString(),
+        updatedAt: new Date(n.notification.createdAt).toISOString(), // fallback if updatedAt not present
       },
     };
   });
@@ -191,8 +192,8 @@ notificationApp.post(
       title: notification.title,
       message: notification.message,
       data: safeData,
-      createdAt: notification.createdAt.toISOString(),
-      updatedAt: notification.createdAt.toISOString(), // fallback if updatedAt not present
+      createdAt: new Date(notification.createdAt).toISOString(),
+      updatedAt: new Date(notification.createdAt).toISOString(), // fallback if updatedAt not present
     };
     return c.json<TCreateNotificationResponse>({
       ok: true,

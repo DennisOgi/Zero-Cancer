@@ -19,12 +19,13 @@ import {
   expireStaleEnrollmentRequests,
   formatEnrollmentRequestForApi,
 } from "../lib/center-enrollment-utils";
-import { resolveCenterStaff } from "../lib/center-context";
+import { requireActiveFacility, resolveCenterStaff } from "../lib/center-context";
 import { activateAgent } from "../lib/agent.service";
 
 export const centerPatientsApp = new Hono<THonoApp>();
 
 centerPatientsApp.use("*", authMiddleware(["center", "center_staff"]));
+centerPatientsApp.use("*", requireActiveFacility);
 
 function isPhoneSearchTerm(term: string) {
   const digits = term.replace(/\D/g, "");
@@ -580,9 +581,30 @@ function buildPhoneSearchFilter(term: string) {
   }
 
   return [...variants]
-    .filter((value) => value.length >= 4)
-    .map((value) => `phone.ilike.%${value}%`)
+    .filter((value) => value.length >= 10)
+    .map((value) => `phone.eq.${value}`)
     .join(",");
+}
+
+/** Patients this facility already has a relationship with. */
+async function getFacilityPatientIds(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  centerId: string
+): Promise<string[]> {
+  const [assigned, booked, requested, enrolled] = await Promise.all([
+    supabase.from("PatientProfile").select("userId").eq("assignedCenterId", centerId),
+    supabase.from("Appointment").select("patientId").eq("centerId", centerId),
+    supabase.from("CenterEnrollmentRequest").select("patientId").eq("centerId", centerId),
+    supabase.from("Waitlist").select("patientId").eq("enrolledByCenterId", centerId),
+  ]);
+  return [
+    ...new Set([
+      ...(assigned.data || []).map((row: { userId: string }) => row.userId),
+      ...[booked, requested, enrolled].flatMap((result) =>
+        (result.data || []).map((row: { patientId: string }) => row.patientId)
+      ),
+    ]),
+  ];
 }
 
 // GET /api/center/patients/search?q= — find existing patients to enroll on waitlist
@@ -596,29 +618,37 @@ centerPatientsApp.get(
     const { q } = c.req.valid("query");
     const supabase = getSupabaseClient(c);
     const term = q.trim();
+    const centerId = c.get("jwtPayload")?.id as string;
 
     const phoneFilter = buildPhoneSearchFilter(term);
     const looksLikeEmail = term.includes("@");
     let usersQuery;
 
+    // Patients from other facilities are only found by an exact phone number or
+    // email the patient gives in person; partial searches would expose the
+    // whole patient directory to every facility account.
     if (isPhoneSearchTerm(term) && phoneFilter) {
       usersQuery = supabase
         .from("User")
         .select("id, fullName, email, phone")
         .or(phoneFilter)
-        .limit(25);
+        .limit(5);
     } else if (looksLikeEmail) {
       usersQuery = supabase
         .from("User")
         .select("id, fullName, email, phone")
-        .ilike("email", term.trim().toLowerCase())
-        .limit(10);
+        .eq("email", term.toLowerCase())
+        .limit(1);
     } else {
-      // Name search is intentionally limited to reduce cross-center PII exposure
+      const linkedIds = await getFacilityPatientIds(supabase, centerId);
+      if (linkedIds.length === 0) {
+        return c.json({ ok: true, data: { patients: [] } });
+      }
       usersQuery = supabase
         .from("User")
         .select("id, fullName, email, phone")
-        .ilike("fullName", `%${term}%`)
+        .in("id", linkedIds)
+        .ilike("fullName", `%${term.replace(/[\\%_]/g, "\\$&")}%`)
         .limit(10);
     }
 

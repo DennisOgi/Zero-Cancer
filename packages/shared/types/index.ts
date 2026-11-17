@@ -117,6 +117,8 @@ export type TAuthMeResponse = TDataResponse<{
       address: string;
       state: string;
       lga: string;
+      /** false when the center is no longer active on Zero Cancer. */
+      acceptingBookings?: boolean;
     } | null;
     facilityChoice?: string | null;
     mustChangePassword?: boolean;
@@ -124,6 +126,8 @@ export type TAuthMeResponse = TDataResponse<{
     staffRole?: "ADMIN" | "DOCTOR" | "NURSE" | "STAFF";
     staffFullName?: string;
     centerName?: string;
+    /** Facility approval status (CENTER / CENTER_STAFF only), e.g. PENDING or ACTIVE. */
+    centerStatus?: string;
     referredByStaffId?: string | null;
   };
 }>;
@@ -313,6 +317,8 @@ export type TCenter = {
 
 export type TGetCentersResponse = TDataResponse<{
   centers: TCenter[];
+  /** Flat NGN surcharge added to the price of a home-visit booking. */
+  homeVisitSurcharge?: number;
   page: number;
   pageSize: number;
   total: number;

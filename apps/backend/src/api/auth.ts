@@ -25,14 +25,25 @@ import crypto from "crypto";
 import { Hono } from "hono";
 import { env } from "hono/adapter";
 import { getCookie, setCookie } from "hono/cookie";
-import { jwt, sign, verify } from "hono/jwt";
-import { ACCESS_TOKEN_TTL_SEC, REFRESH_TOKEN_TTL_SEC } from "../lib/auth-ttl";
+import { sign, verify } from "hono/jwt";
+import { authMiddleware } from "../middleware/auth.middleware";
+import {
+  ACCESS_TOKEN_TTL_SEC,
+  isRefreshTokenPayload,
+  REFRESH_TOKEN_TTL_SEC,
+  REFRESH_TOKEN_TYPE,
+} from "../lib/auth-ttl";
 import { getDB } from "../lib/db";
 import { sendEmail } from "../lib/email";
 import { normalizeEmail } from "../lib/email-normalize";
 import { assignPatientToCenter, findRecommendedCenters } from "../lib/patient-center-utils";
 import { isAllowedPatientPhotoUrl } from "../lib/cloudinary-signed-upload";
-import { normalizeStaffRole, staffJwtProfile } from "../lib/center-context";
+import {
+  DEACTIVATED_FACILITY_STATUSES,
+  getFacilityStatus,
+  normalizeStaffRole,
+  staffJwtProfile,
+} from "../lib/center-context";
 import { TEnvs, THonoApp } from "../lib/types";
 import { getUserWithProfiles } from "../lib/utils";
 import { z } from "zod";
@@ -272,6 +283,22 @@ authApp.post(
         }
       }
 
+      if (
+        (authProfile === "CENTER" || authProfile === "CENTER_STAFF") &&
+        id &&
+        DEACTIVATED_FACILITY_STATUSES.includes((await getFacilityStatus(c, id)) || "")
+      ) {
+        return c.json<TErrorResponse>(
+          {
+            ok: false,
+            err_code: "facility_deactivated",
+            error:
+              "This health facility has been deactivated. Contact Zero Cancer support.",
+          },
+          403
+        );
+      }
+
       if (!user || !passwordHash || !authProfile || !id) {
         return c.json<TErrorResponse>(
           {
@@ -295,7 +322,7 @@ authApp.post(
         JWT_TOKEN_SECRET
       );
       const refreshToken = await sign(
-        { ...payload, exp: Math.floor(Date.now() / 1000) + REFRESH_TOKEN_TTL_SEC },
+        { ...REFRESH_TOKEN_TYPE, ...payload, exp: Math.floor(Date.now() / 1000) + REFRESH_TOKEN_TTL_SEC },
         JWT_TOKEN_SECRET
       );
 
@@ -344,15 +371,7 @@ authApp.post(
 // GET /api/auth/me (protected)
 authApp.get(
   "/me",
-  (c, next) => {
-    const { JWT_TOKEN_SECRET } = env<TEnvs>(c);
-
-    const jwtMiddleware = jwt({
-      secret: JWT_TOKEN_SECRET,
-    });
-
-    return jwtMiddleware(c, next);
-  },
+  authMiddleware(),
   async (c) => {
     const jwtPayload = c.get("jwtPayload");
     const db = getDB(c);
@@ -451,6 +470,7 @@ authApp.get(
             staffRole: isFacilityAdmin && !staffRole ? "ADMIN" : staffRole,
             staffFullName: staffName,
             centerName: center.centerName!,
+            centerStatus: center.status ?? undefined,
           },
         },
       });
@@ -486,6 +506,7 @@ authApp.get(
       address: string;
       state: string;
       lga: string;
+      acceptingBookings: boolean;
     } | null = null;
 
     if (jwtPayload.profile === "PATIENT" && patientProfile?.assignedCenterId) {
@@ -499,6 +520,7 @@ authApp.get(
           address: center.address,
           state: center.state,
           lga: center.lga,
+          acceptingBookings: String(center.status || "").toUpperCase() === "ACTIVE",
         };
       }
     }
@@ -538,11 +560,7 @@ authApp.get(
 // PATCH /api/auth/patient-profile - Update patient contact and location
 authApp.patch(
   "/patient-profile",
-  (c, next) => {
-    const { JWT_TOKEN_SECRET } = env<TEnvs>(c);
-    const jwtMiddleware = jwt({ secret: JWT_TOKEN_SECRET });
-    return jwtMiddleware(c, next);
-  },
+  authMiddleware(),
   zValidator("json", updatePatientProfileSchema, (result, c) => {
     if (!result.success) {
       return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
@@ -597,11 +615,7 @@ authApp.patch(
 // POST /api/auth/change-password — authenticated password update
 authApp.post(
   "/change-password",
-  (c, next) => {
-    const { JWT_TOKEN_SECRET } = env<TEnvs>(c);
-    const jwtMiddleware = jwt({ secret: JWT_TOKEN_SECRET });
-    return jwtMiddleware(c, next);
-  },
+  authMiddleware(),
   zValidator("json", changePasswordSchema, (result, c) => {
     if (!result.success) {
       return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
@@ -676,11 +690,7 @@ authApp.post(
 // GET /api/auth/patient/recommended-centers
 authApp.get(
   "/patient/recommended-centers",
-  (c, next) => {
-    const { JWT_TOKEN_SECRET } = env<TEnvs>(c);
-    const jwtMiddleware = jwt({ secret: JWT_TOKEN_SECRET });
-    return jwtMiddleware(c, next);
-  },
+  authMiddleware(),
   async (c) => {
     const jwtPayload = c.get("jwtPayload");
     if (!jwtPayload || jwtPayload.profile !== "PATIENT") {
@@ -715,11 +725,7 @@ authApp.get(
 // POST /api/auth/patient/assign-center - Link patient to nearest chosen center
 authApp.post(
   "/patient/assign-center",
-  (c, next) => {
-    const { JWT_TOKEN_SECRET } = env<TEnvs>(c);
-    const jwtMiddleware = jwt({ secret: JWT_TOKEN_SECRET });
-    return jwtMiddleware(c, next);
-  },
+  authMiddleware(),
   zValidator("json", assignPatientCenterSchema, (result, c) => {
     if (!result.success) {
       return c.json<TErrorResponse>({ ok: false, error: result.error }, 400);
@@ -748,6 +754,27 @@ authApp.post(
     });
   }
 );
+
+/** A refresh must not revive a session for an account that has since been deleted. */
+async function accountStillExists(
+  c: Parameters<typeof getDB>[0],
+  payload: { id?: unknown; profile?: unknown }
+) {
+  const db = getDB(c);
+  const id = String(payload.id || "");
+  if (!id) return false;
+  switch (payload.profile) {
+    case "ADMIN":
+      return Boolean(await db.admins.findUnique({ where: { id } }));
+    case "CENTER":
+    case "CENTER_STAFF": {
+      const status = await getFacilityStatus(c, id);
+      return Boolean(status) && !DEACTIVATED_FACILITY_STATUSES.includes(status!);
+    }
+    default:
+      return Boolean(await db.user.findUnique({ where: { id } }));
+  }
+}
 
 // POST /api/auth/refresh
 authApp.post("/refresh", async (c) => {
@@ -788,6 +815,14 @@ authApp.post("/refresh", async (c) => {
 
   try {
     const payload = await verify(refreshToken, JWT_TOKEN_SECRET);
+    // Refresh tokens issued before the typ claim existed have no typ and age out
+    // within REFRESH_TOKEN_TTL_SEC; anything else typed is not a refresh token.
+    if (payload.typ !== undefined && !isRefreshTokenPayload(payload)) {
+      throw new Error("Not a refresh token");
+    }
+    if (!(await accountStillExists(c, payload))) {
+      throw new Error("Account no longer exists");
+    }
     if (payload.staffId) {
       const staff = await getDB(c).centerStaff.findUnique({
         where: { id: String(payload.staffId) },
@@ -827,6 +862,7 @@ authApp.post("/refresh", async (c) => {
 
     const newRefreshToken = await sign(
       {
+        ...REFRESH_TOKEN_TYPE,
         ...tokenBody,
         exp: Math.floor(Date.now() / 1000) + REFRESH_TOKEN_TTL_SEC,
       },
@@ -912,6 +948,12 @@ authApp.post("/forgot-password", async (c) => {
 authApp.post("/reset-password", async (c) => {
   const db = getDB(c);
   const { token, password } = await c.req.json();
+  if (typeof token !== "string" || typeof password !== "string" || password.length < 8) {
+    return c.json<TErrorResponse>(
+      { ok: false, error: "Password must be at least 8 characters." },
+      400
+    );
+  }
   const reset = await db.passwordResetToken.findUnique({ where: { token } });
   if (!reset || reset.expiresAt < new Date()) {
     return c.json<TErrorResponse>(
@@ -960,18 +1002,12 @@ authApp.post("/verify-email", async (c) => {
     );
   }
 
-  const dbProfile =
-    verify.profileType === "PATIENT" ? "patientProfile" : "donorProfile";
-
-  await db.user.update({
-    where: { id: verify.userId! },
-    data: {
-      [dbProfile]: {
-        update: { emailVerified: new Date() },
-      },
-    },
+  const profileTable =
+    verify.profileType === "PATIENT" ? db.patientProfile : db.donorProfile;
+  await profileTable.update({
+    where: { userId: verify.userId! },
+    data: { emailVerified: new Date() },
   });
-  // "NOTE TO SELF: This is not working as expected.
   await db.emailVerificationToken.delete({ where: { token } });
   return c.json<TVerifyEmailResponse>({ ok: true, data: {} });
 });
